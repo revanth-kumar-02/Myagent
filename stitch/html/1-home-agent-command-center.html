@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aether AI - Personal Autonomous Agent</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Source+Serif+4:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "primary": "#1f1514",
+                    "secondary-fixed-dim": "#e7bdb6",
+                    "on-background": "#1e1b18",
+                    "background": "#fff8f4",
+                    "primary-container": "#352928",
+                    "surface-tint": "#6a5b5a",
+                    "secondary-fixed": "#ffdad4",
+                    "tertiary": "#1b170f",
+                    "tertiary-container": "#302b22",
+                    "surface-container-high": "#eee7e2",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#f3dedc",
+                    "on-tertiary-fixed": "#1f1b13",
+                    "surface-container-low": "#faf2ed",
+                    "inverse-on-surface": "#f7efea",
+                    "on-tertiary-fixed-variant": "#4c463c",
+                    "on-primary-container": "#a18f8e",
+                    "primary-fixed-dim": "#d6c2c0",
+                    "on-primary": "#ffffff",
+                    "on-surface-variant": "#4e4444",
+                    "on-primary-fixed-variant": "#514442",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#d2c3c2",
+                    "on-tertiary": "#ffffff",
+                    "inverse-primary": "#d6c2c0",
+                    "surface": "#fff8f4",
+                    "on-primary-fixed": "#241918",
+                    "on-tertiary-container": "#999286",
+                    "surface-container": "#f4ece7",
+                    "on-secondary-fixed": "#2c1512",
+                    "surface-bright": "#fff8f4",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary": "#775751",
+                    "outline": "#807473",
+                    "on-secondary-container": "#7a5954",
+                    "surface-container-highest": "#e8e1dc",
+                    "tertiary-fixed-dim": "#cec5b8",
+                    "on-surface": "#1e1b18",
+                    "surface-variant": "#e8e1dc",
+                    "secondary-container": "#fed3cc",
+                    "inverse-surface": "#33302d",
+                    "tertiary-fixed": "#ebe1d4",
+                    "on-secondary-fixed-variant": "#5d3f3b",
+                    "surface-dim": "#e0d9d4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "xl": "48px",
+                    "sm": "8px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "xxl": "80px",
+                    "md": "16px",
+                    "unit": "4px",
+                    "lg": "24px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Geist"],
+                    "status-log": ["JetBrains Mono"],
+                    "display-lg": ["\"Source Serif 4\""],
+                    "ui-medium": ["Geist"],
+                    "code-sm": ["JetBrains Mono"],
+                    "ui-main": ["Geist"],
+                    "body-reading": ["\"Source Serif 4\""],
+                    "headline-md": ["\"Source Serif 4\""]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "status-log": ["12px", {"lineHeight": "18px", "fontWeight": "450"}],
+                    "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "ui-medium": ["15px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "code-sm": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "ui-main": ["15px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-reading": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Base styles to ensure consistency */
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            font-family: theme('fontFamily.ui-main');
+        }
+        
+        /* Custom slim scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: theme('colors.background');
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.outline-variant');
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.outline');
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- SideNavBar (From JSON) -->
+<nav class="h-screen w-64 fixed left-0 top-0 bg-surface dark:bg-surface-dim border-r border-outline-variant flex flex-col h-full py-xl px-md z-20">
+<!-- Brand Header -->
+<div class="mb-xxl flex items-center gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant shrink-0">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A minimalist, highly abstract geometric avatar representing an AI identity, featuring a quiet, warm cream background with subtle intersections of dusty rose and deep cocoa lines. The aesthetic is sophisticated, grounded, and modern, avoiding all glowing or sci-fi elements." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7jHO-fgQCwGtUvqThk4eIj0GG69eSFH2m5zcOZLoUuNcMjeeaI_wGgUufRvmdzmqUIL33iaM5esNLtS3aHuoTvMa9m9-Fy8QCxpX06CdGWBwwuVbIJzWo589pP_pwNX3wWBAHwe8j732VVrEeTKJIRYGbfkF7Ut-KddiLJ_2UhH7Y0_c-5IYypdz8XbzTuJs_yfS5jJwH0JR_YsChZBiYbLcLs_fi1Z9FtzlfNr16QMubAWFZ926B"/>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed tracking-tight">Aether AI</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant opacity-70 mt-xs">Quiet Intelligence</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<ul class="flex flex-col gap-xs flex-grow">
+<!-- Active Tab: Home -->
+<li>
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-primary dark:text-primary-fixed font-bold border-r-2 border-secondary cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-ui-medium text-ui-medium">Home</span>
+</a>
+</li>
+<!-- Inactive Tabs -->
+<li>
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant opacity-70 cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-ui-main text-ui-main">Projects</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant opacity-70 cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">travel_explore</span>
+<span class="font-ui-main text-ui-main">Research</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant opacity-70 cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">checklist</span>
+<span class="font-ui-main text-ui-main">Tasks</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant opacity-70 cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">auto_mode</span>
+<span class="font-ui-main text-ui-main">Automations</span>
+</a>
+</li>
+</ul>
+<!-- Bottom Actions -->
+<div class="mt-auto pt-lg border-t border-outline-variant flex flex-col gap-sm">
+<a class="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant opacity-70 cursor-pointer transition-all duration-200 ease-in-out hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-ui-main text-ui-main">Settings</span>
+</a>
+<button class="w-full mt-md bg-primary text-on-primary hover:bg-primary-container transition-colors py-sm px-md rounded-lg font-ui-medium text-ui-medium flex items-center justify-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Request
+            </button>
+</div>
+</nav>
+<!-- TopAppBar (From JSON) -->
+<header class="docked full-width top ml-64 bg-background dark:bg-background flex justify-between items-center h-16 px-margin-desktop w-[calc(100%-16rem)] ml-64 fixed top-0 z-10">
+<div class="flex items-center gap-xl">
+<span class="font-headline-md text-headline-md text-primary dark:text-primary-fixed tracking-tight">Aether Agent</span>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-secondary dark:text-secondary-fixed-dim font-bold font-ui-medium text-ui-medium transition-opacity duration-300 hover:text-primary dark:hover:text-primary-fixed" href="#">Planning</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant font-ui-medium text-ui-medium transition-opacity duration-300 hover:text-primary dark:hover:text-primary-fixed" href="#">Researching</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant font-ui-medium text-ui-medium transition-opacity duration-300 hover:text-primary dark:hover:text-primary-fixed" href="#">Verifying</a>
+</nav>
+</div>
+<div class="flex items-center gap-md text-on-surface-variant">
+<button class="hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-margin-desktop pb-xxl w-full flex-1">
+<!-- Constrained Workspace Container for Focus -->
+<div class="max-w-[720px] mx-auto w-full">
+<!-- Command Input Area -->
+<section class="mb-xxl mt-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-[0_8px_24px_rgba(53,41,40,0.04)] relative focus-within:border-secondary focus-within:shadow-[0_8px_32px_rgba(119,87,81,0.08)] transition-all duration-300">
+<textarea class="w-full bg-transparent border-none outline-none font-ui-medium text-[20px] leading-[30px] text-primary placeholder:text-on-surface-variant/50 resize-none py-xs focus:ring-0" placeholder="Ask your agent to research, analyze, organize, or act..." rows="2"></textarea>
+<div class="mt-xl flex items-center justify-between border-t border-outline-variant pt-md">
+<!-- Input Utilities -->
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low px-sm py-xs rounded transition-colors font-ui-medium text-ui-medium">
+<span class="material-symbols-outlined text-[18px]">attach_file</span>
+                                + File
+                            </button>
+<button class="flex items-center gap-xs text-on-surface-variant border border-outline-variant hover:border-outline hover:bg-surface-container-low px-md py-[6px] rounded-full transition-colors font-label-caps text-label-caps">
+<span class="material-symbols-outlined text-[16px]">folder_open</span>
+                                Project: Global Strategy
+                                <span class="material-symbols-outlined text-[16px] ml-xs">arrow_drop_down</span>
+</button>
+</div>
+<!-- Run Action -->
+<button class="bg-primary text-on-primary hover:bg-primary-container px-lg py-sm rounded-full font-ui-medium text-ui-medium flex items-center gap-xs transition-colors shadow-sm group">
+                            Run
+                            <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Active Work Section -->
+<section class="mb-xl">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant mb-md tracking-wider">Active Work</h2>
+<div class="bg-surface border border-outline-variant rounded-lg p-lg flex items-center justify-between hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">travel_explore</span>
+</div>
+<div>
+<h3 class="font-ui-medium text-ui-medium text-primary">Market Research: sustainable materials</h3>
+<p class="font-ui-main text-[13px] text-on-surface-variant mt-xs">Synthesizing recent publications from selected databases...</p>
+</div>
+</div>
+<!-- Running Status Chip -->
+<div class="flex items-center gap-sm bg-secondary/10 border border-secondary/20 px-md py-[6px] rounded-full">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-secondary"></span>
+</span>
+<span class="font-label-caps text-label-caps text-secondary">Running</span>
+</div>
+</div>
+</section>
+<!-- Recent Projects Grid -->
+<section>
+<h2 class="font-label-caps text-label-caps text-on-surface-variant mb-md tracking-wider">Recent Projects</h2>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-lg">
+<!-- Card 1 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-md hover:bg-surface-container-lowest hover:border-outline hover:shadow-[0_4px_12px_rgba(53,41,40,0.03)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-32 group">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">timeline</span>
+<span class="font-code-sm text-code-sm opacity-60">2h ago</span>
+</div>
+<h3 class="font-ui-medium text-ui-medium text-primary">Q4 Roadmap</h3>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-md hover:bg-surface-container-lowest hover:border-outline hover:shadow-[0_4px_12px_rgba(53,41,40,0.03)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-32 group">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">contact_page</span>
+<span class="font-code-sm text-code-sm opacity-60">Yesterday</span>
+</div>
+<h3 class="font-ui-medium text-ui-medium text-primary">Personal CRM</h3>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-md hover:bg-surface-container-lowest hover:border-outline hover:shadow-[0_4px_12px_rgba(53,41,40,0.03)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-32 group">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">fact_check</span>
+<span class="font-code-sm text-code-sm opacity-60">Oct 12</span>
+</div>
+<h3 class="font-ui-medium text-ui-medium text-primary">Internal Audit</h3>
+</div>
+</div>
+</section>
+</div>
+</main>
+<script>
+        // Minimal interaction logic for input focus effects
+        const textarea = document.querySelector('textarea');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    </script>
+</body></html>

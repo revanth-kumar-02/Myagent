@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aether AI - Research Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "primary": "#1f1514",
+                        "secondary-fixed-dim": "#e7bdb6",
+                        "on-background": "#1e1b18",
+                        "background": "#fff8f4",
+                        "primary-container": "#352928",
+                        "surface-tint": "#6a5b5a",
+                        "secondary-fixed": "#ffdad4",
+                        "tertiary": "#1b170f",
+                        "tertiary-container": "#302b22",
+                        "surface-container-high": "#eee7e2",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#f3dedc",
+                        "on-tertiary-fixed": "#1f1b13",
+                        "surface-container-low": "#faf2ed",
+                        "inverse-on-surface": "#f7efea",
+                        "on-tertiary-fixed-variant": "#4c463c",
+                        "on-primary-container": "#a18f8e",
+                        "primary-fixed-dim": "#d6c2c0",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#4e4444",
+                        "on-primary-fixed-variant": "#514442",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#d2c3c2",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#d6c2c0",
+                        "surface": "#fff8f4",
+                        "on-primary-fixed": "#241918",
+                        "on-tertiary-container": "#999286",
+                        "surface-container": "#f4ece7",
+                        "on-secondary-fixed": "#2c1512",
+                        "surface-bright": "#fff8f4",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "secondary": "#775751",
+                        "outline": "#807473",
+                        "on-secondary-container": "#7a5954",
+                        "surface-container-highest": "#e8e1dc",
+                        "tertiary-fixed-dim": "#cec5b8",
+                        "on-surface": "#1e1b18",
+                        "surface-variant": "#e8e1dc",
+                        "secondary-container": "#fed3cc",
+                        "inverse-surface": "#33302d",
+                        "tertiary-fixed": "#ebe1d4",
+                        "on-secondary-fixed-variant": "#5d3f3b",
+                        "surface-dim": "#e0d9d4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "48px",
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "xs": "4px",
+                        "xxl": "80px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Geist"],
+                        "status-log": ["JetBrains Mono"],
+                        "display-lg": ["\"Source Serif 4\""],
+                        "ui-medium": ["Geist"],
+                        "code-sm": ["JetBrains Mono"],
+                        "ui-main": ["Geist"],
+                        "body-reading": ["\"Source Serif 4\""],
+                        "headline-md": ["\"Source Serif 4\""]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "status-log": ["12px", { "lineHeight": "18px", "fontWeight": "450" }],
+                        "display-lg": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "ui-medium": ["15px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "code-sm": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "ui-main": ["15px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-reading": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-md": ["32px", { "lineHeight": "1.3", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for subtle appearance */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fff8f4; /* background color */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d2c3c2; /* outline-variant */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #807473; /* outline */
+        }
+        
+        /* Font inclusions for Geist and JetBrains Mono (assuming available or fallback to system sans/mono for demo if not explicitly loaded, but adding links for completeness if they were standard Google Fonts. Using standard Google Fonts here for closest match as Geist isn't on Google Fonts directly usually, falling back to Inter for UI if Geist fails, but using the config names). */
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+        /* Since Geist might not be available via standard Google Fonts, we'll ensure sans-serif fallback works gracefully if it fails to load */
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-ui-main antialiased h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface border-r border-outline-variant h-screen w-64 fixed left-0 top-0 flex flex-col py-xl px-md z-20">
+<div class="mb-xl">
+<h1 class="font-headline-md text-headline-md text-primary mb-xs">Aether AI</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant opacity-70">Quiet Intelligence</p>
+</div>
+<button class="bg-primary-container text-on-primary font-ui-medium text-ui-medium py-sm px-md rounded-lg flex items-center justify-center gap-sm mb-lg hover:bg-tertiary-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+            New Request
+        </button>
+<ul class="flex flex-col gap-xs flex-grow">
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant opacity-70 hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined">home</span>
+                    Home
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant opacity-70 hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+                    Projects
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary font-bold border-r-2 border-secondary hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined fill">travel_explore</span>
+                    Research
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant opacity-70 hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined">checklist</span>
+                    Tasks
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant opacity-70 hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined">auto_mode</span>
+                    Automations
+                </a>
+</li>
+</ul>
+<div class="mt-auto">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant opacity-70 hover:bg-surface-container-low transition-colors cursor-pointer transition-all duration-200 ease-in-out font-ui-medium text-ui-medium" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 ml-64 flex flex-col h-screen overflow-hidden bg-background">
+<!-- TopAppBar -->
+<header class="bg-background flex justify-between items-center h-16 px-margin-desktop w-full z-10 sticky top-0">
+<div class="flex items-center gap-lg">
+<h2 class="font-headline-md text-headline-md text-primary">Aether Agent</h2>
+<nav class="hidden md:flex gap-md">
+<a class="text-on-surface-variant font-ui-medium text-ui-medium hover:text-primary transition-opacity duration-300" href="#">Planning</a>
+<a class="text-secondary font-bold font-ui-medium text-ui-medium hover:text-primary transition-opacity duration-300" href="#">Researching</a>
+<a class="text-on-surface-variant font-ui-medium text-ui-medium hover:text-primary transition-opacity duration-300" href="#">Verifying</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-transparent border-b-2 border-outline-variant focus:border-secondary focus:outline-none focus:ring-0 font-ui-main text-ui-main text-on-background placeholder:text-outline w-64 transition-colors" placeholder="Search insights..." type="text"/>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Workspace Container -->
+<main class="flex-1 overflow-hidden flex flex-col p-margin-desktop pt-lg gap-lg">
+<!-- Top: Research Brief -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex justify-between items-start shrink-0 shadow-[0_4px_24px_rgba(106,91,90,0.04)]">
+<div class="max-w-3xl">
+<div class="flex items-center gap-sm mb-sm">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-label-caps text-label-caps flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">psychology</span>
+                            Synthesizing
+                        </span>
+<span class="font-status-log text-status-log text-on-surface-variant">Session ID: 492-ARCH-SUS</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary mb-xs">Sustainability Trends in Modern Architecture</h2>
+<p class="font-ui-main text-ui-main text-on-surface-variant">Investigating the integration of biodegradable materials and passive cooling systems in high-density urban environments, focusing on projects completed after 2020.</p>
+</div>
+<div class="flex gap-sm">
+<button class="border border-outline-variant text-primary px-4 py-2 rounded-lg font-ui-medium text-ui-medium hover:bg-surface-container-low transition-colors">Edit Scope</button>
+<button class="bg-primary-container text-on-primary px-4 py-2 rounded-lg font-ui-medium text-ui-medium hover:bg-tertiary-container transition-colors">Generate Report</button>
+</div>
+</section>
+<!-- Three Panel Layout -->
+<div class="flex-1 flex gap-gutter overflow-hidden">
+<!-- Left Panel: Investigation Plan -->
+<aside class="w-72 flex flex-col gap-md shrink-0 overflow-y-auto pr-sm pb-xl">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-xs">Investigation Plan</h3>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-ui-medium text-ui-medium text-primary">Material Analysis</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-1.5 mb-xs">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 100%"></div>
+</div>
+<p class="font-status-log text-status-log text-on-surface-variant text-right">100%</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-ui-medium text-ui-medium text-primary">Passive Cooling Tech</span>
+<span class="material-symbols-outlined text-outline text-[20px]">sync</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-1.5 mb-xs">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 65%"></div>
+</div>
+<p class="font-status-log text-status-log text-on-surface-variant text-right">65%</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md opacity-50">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-ui-medium text-ui-medium text-primary">Regulatory Impact</span>
+<span class="material-symbols-outlined text-outline text-[20px]">schedule</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-1.5 mb-xs">
+<div class="bg-outline-variant h-1.5 rounded-full" style="width: 0%"></div>
+</div>
+<p class="font-status-log text-status-log text-on-surface-variant text-right">Pending</p>
+</div>
+<div class="mt-lg">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-sm">Overall Confidence</h3>
+<div class="flex items-end gap-sm">
+<span class="font-headline-md text-headline-md text-primary">82%</span>
+<span class="font-status-log text-status-log text-secondary pb-1">+14% this session</span>
+</div>
+</div>
+</aside>
+<!-- Center Panel: Synthesis -->
+<section class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_24px_rgba(106,91,90,0.04)] flex flex-col overflow-hidden relative">
+<div class="p-md border-b border-outline-variant bg-surface/50 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">Live Synthesis</h3>
+<div class="flex gap-2">
+<button class="p-1 hover:bg-surface-variant rounded text-on-surface-variant transition-colors" title="View Logs"><span class="material-symbols-outlined text-[20px]">terminal</span></button>
+<button class="p-1 hover:bg-surface-variant rounded text-on-surface-variant transition-colors" title="Expand"><span class="material-symbols-outlined text-[20px]">open_in_full</span></button>
+</div>
+</div>
+<div class="p-xl overflow-y-auto flex-1 font-body-reading text-body-reading text-on-background max-w-[720px] mx-auto w-full">
+<div class="mb-xl relative">
+<div class="absolute -left-lg top-0 bottom-0 w-[2px] bg-secondary opacity-50"></div>
+<h4 class="font-ui-medium text-ui-medium text-primary mb-sm flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary text-[18px]">temp_preferences_custom</span>
+                                Shift Towards Mycelium Composites
+                            </h4>
+<p class="mb-4">
+                                Recent data indicates a significant pivot away from traditional carbon-heavy materials toward bio-fabricated alternatives, specifically mycelium-based composites. Unlike early prototypes, contemporary iterations demonstrate compressive strength comparable to conventional concrete while maintaining a negative carbon footprint during production.
+                            </p>
+<p>
+                                The synthesis of these materials involves inoculating agricultural waste with fungal spores, which then bind the substrate into a dense matrix. This process, as documented in the recent Milan Expo pavilions, not only sequesters carbon but offers superior insulation properties.
+                            </p>
+</div>
+<div class="mb-xl">
+<h4 class="font-ui-medium text-ui-medium text-primary mb-sm">Integration of Passive Downdraft Cooling</h4>
+<p class="mb-4">
+                                Analyzing thermal performance data from twelve high-density residential projects in tropical climates reveals a resurgence in passive downdraft cooling systems. These systems utilize architectural form—often wind catchers or central courtyards with water features—to induce airflow without mechanical intervention.
+                            </p>
+<div class="bg-surface-container p-md rounded-lg border border-outline-variant font-status-log text-status-log text-on-surface-variant my-md">
+                                &gt; query_thermal_efficiency(dataset="tropical_residential_2020_2024")<br/>
+                                &gt; analyzing 1,240 data points...<br/>
+                                &gt; result: Average energy reduction of 34.2% compared to standard HVAC baselines.
+                            </div>
+<p>
+                                The challenge remains in adapting these ancient principles to skyscraper topologies, though recent projects in Singapore have successfully integrated porous mid-level sky gardens to disrupt updrafts and facilitate cross-ventilation.
+                            </p>
+</div>
+</div>
+</section>
+<!-- Right Panel: Sources -->
+<aside class="w-80 flex flex-col gap-md shrink-0 overflow-hidden bg-surface rounded-xl border border-outline-variant p-md">
+<div class="flex justify-between items-center mb-xs pb-sm border-b border-outline-variant">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">Sources &amp; Evidence</h3>
+<span class="font-status-log text-status-log text-on-surface-variant bg-surface-container-high px-2 py-1 rounded">12 Found</span>
+</div>
+<div class="overflow-y-auto flex-1 flex flex-col gap-sm pr-sm">
+<!-- Source Card 1 -->
+<div class="p-sm rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer border-l-2 border-secondary bg-surface-container-lowest shadow-sm">
+<div class="flex justify-between items-start mb-1">
+<span class="font-status-log text-[10px] text-secondary">Match: 98%</span>
+<span class="material-symbols-outlined text-[16px] text-outline">description</span>
+</div>
+<h4 class="font-ui-medium text-ui-medium text-primary text-sm mb-1 line-clamp-2">Structural Properties of Mycelium Composites in Urban Contexts</h4>
+<p class="font-ui-main text-[12px] text-on-surface-variant line-clamp-1">Journal of Bio-Architecture, 2023</p>
+</div>
+<!-- Source Card 2 -->
+<div class="p-sm rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer border border-outline-variant">
+<div class="flex justify-between items-start mb-1">
+<span class="font-status-log text-[10px] text-on-surface-variant">Match: 92%</span>
+<span class="material-symbols-outlined text-[16px] text-outline">public</span>
+</div>
+<h4 class="font-ui-medium text-ui-medium text-primary text-sm mb-1 line-clamp-2">Passive Cooling Strategies for High-Rise Buildings in the Tropics</h4>
+<p class="font-ui-main text-[12px] text-on-surface-variant line-clamp-1">Global Sustainability Index, 2022</p>
+</div>
+<!-- Source Card 3 -->
+<div class="p-sm rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer border border-outline-variant">
+<div class="flex justify-between items-start mb-1">
+<span class="font-status-log text-[10px] text-on-surface-variant">Match: 85%</span>
+<span class="material-symbols-outlined text-[16px] text-outline">science</span>
+</div>
+<h4 class="font-ui-medium text-ui-medium text-primary text-sm mb-1 line-clamp-2">Embodied Carbon Analysis of Modern Construction Materials</h4>
+<p class="font-ui-main text-[12px] text-on-surface-variant line-clamp-1">MIT Open Research, 2024</p>
+</div>
+<!-- Source Card 4 -->
+<div class="p-sm rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer border border-outline-variant opacity-70">
+<div class="flex justify-between items-start mb-1">
+<span class="font-status-log text-[10px] text-on-surface-variant">Match: 76%</span>
+<span class="material-symbols-outlined text-[16px] text-outline">architecture</span>
+</div>
+<h4 class="font-ui-medium text-ui-medium text-primary text-sm mb-1 line-clamp-2">Case Study: The Oasia Hotel Downtown</h4>
+<p class="font-ui-main text-[12px] text-on-surface-variant line-clamp-1">WOHA Architects Brief, 2021</p>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+</body></html>

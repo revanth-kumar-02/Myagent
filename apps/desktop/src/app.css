@@ -1,0 +1,51 @@
+/* === Font Imports === */
+@import '@fontsource/geist/400.css';
+@import '@fontsource/geist/500.css';
+@import '@fontsource/geist/600.css';
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+/* === Tailwind Directives === */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === Base === */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-on-background font-ui-main text-ui-main;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  /* Slim scrollbars */
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { @apply bg-background; }
+  ::-webkit-scrollbar-thumb  { @apply bg-outline-variant rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-outline; }
+
+  /* Selection highlight */
+  ::selection {
+    @apply bg-secondary-container text-on-secondary-container;
+  }
+}
+
+/* === Material Symbols === */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  line-height: 1;
+}
+.material-symbols-outlined.fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
