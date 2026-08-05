@@ -1,5 +1,12 @@
 <script lang="ts">
-  // Settings placeholder
+  import { onMount } from 'svelte';
+  import { api } from '$lib/api/client';
+
+  let backendConnected = false;
+
+  onMount(async () => {
+    backendConnected = await api.checkHealth();
+  });
 </script>
 
 <main class="ml-64 pt-24 px-margin-desktop pb-xxl">
@@ -69,10 +76,17 @@
             <p class="font-ui-medium text-ui-medium text-primary">Agent Status</p>
             <p class="font-ui-main text-[13px] text-on-surface-variant">Backend connection</p>
           </div>
-          <div class="flex items-center gap-sm bg-error/10 border border-error/20 px-md py-[6px] rounded-full">
-            <span class="w-2 h-2 rounded-full bg-error"></span>
-            <span class="font-label-caps text-label-caps text-error">Not connected</span>
-          </div>
+          {#if backendConnected}
+            <div class="flex items-center gap-sm bg-secondary-container/30 border border-secondary-fixed-dim/30 px-md py-[6px] rounded-full">
+              <span class="w-2 h-2 rounded-full bg-secondary-fixed-dim"></span>
+              <span class="font-label-caps text-label-caps text-on-secondary-container">Connected</span>
+            </div>
+          {:else}
+            <div class="flex items-center gap-sm bg-error/10 border border-error/20 px-md py-[6px] rounded-full">
+              <span class="w-2 h-2 rounded-full bg-error"></span>
+              <span class="font-label-caps text-label-caps text-error">Not connected</span>
+            </div>
+          {/if}
         </div>
       </div>
     </section>
