@@ -1,90 +1,155 @@
 import os
+import logging
 from typing import Dict, Any, Type, Optional
 from core.tools.base import BaseTool, ToolResult
+from core.filesystem.path_validator import PathValidator
+from core.filesystem.permission_manager import permission_manager
+from core.filesystem.tools import (
+    FilesystemToolSet,
+    ListDirectoryInput, SearchFilesInput, ReadFileInput, InspectFileInput,
+    CreateFileInput, EditFileInput, MoveFileInput, DeleteFileInput
+)
+
+logger = logging.getLogger(__name__)
+
+# Default global validator
+default_validator = PathValidator([os.getcwd(), "/home/rev/My Personal Space/Projects"])
+global_filesystem_toolset = FilesystemToolSet(default_validator, permission_manager)
+
+class ListDirectoryTool(BaseTool):
+    name = "list_directory"
+    description = "Lists directory contents inside authorized workspace with pagination and noise filtering."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.list_directory(ListDirectoryInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "List directory failed")
+        )
+
+class SearchFilesTool(BaseTool):
+    name = "search_files"
+    description = "Searches files by filename, path, or text content within authorized workspace."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.search_files(SearchFilesInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Search files failed")
+        )
+
+class ReadFileTool(BaseTool):
+    name = "read_file"
+    description = "Reads text file contents with line range support and binary detection."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.read_file(ReadFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Read file failed")
+        )
+
+class InspectFileTool(BaseTool):
+    name = "inspect_file"
+    description = "Inspects file or directory metadata (size, mime type, timestamps, git ignore status)."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.inspect_file(InspectFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Inspect file failed")
+        )
+
+class CreateFileTool(BaseTool):
+    name = "create_file"
+    description = "Creates a new file with text content and performs post-creation verification."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.create_file(CreateFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Create file failed")
+        )
+
+class EditFileTool(BaseTool):
+    name = "edit_file"
+    description = "Replaces target content snippet in a file and performs post-edit verification."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.edit_file(EditFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Edit file failed")
+        )
+
+class MoveFileTool(BaseTool):
+    name = "move_file"
+    description = "Moves or renames a file/directory and performs post-move verification."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.move_file(MoveFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Move file failed")
+        )
+
+class DeleteFileTool(BaseTool):
+    name = "delete_file"
+    description = "Deletes a file or directory with mandatory DELETE approval and post-deletion verification."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_filesystem_toolset.delete_file(DeleteFileInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Delete file failed")
+        )
 
 class WebSearchTool(BaseTool):
     name = "web_search"
     description = "Searches the web for information, documentation, or recent news"
-
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         query = params.get("query") or params.get("title") or "general search"
-        # Structured search result simulation with real execution schema
         return ToolResult(
             success=True,
             data={
                 "query": query,
-                "results": [
-                    {
-                        "title": f"Synthesis on {query}",
-                        "snippet": f"Verified documentation and reference materials regarding {query}.",
-                        "url": f"https://search.cocoa.local/query?q={query}"
-                    }
-                ]
+                "results": [{"title": f"Synthesis on {query}", "snippet": f"Verified documentation regarding {query}.", "url": f"https://search.cocoa.local/query?q={query}"}]
             }
         )
-
-class FilesystemTool(BaseTool):
-    name = "filesystem"
-    description = "Reads or writes files within the allowed workspace boundary"
-
-    async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        action = params.get("action", "read")
-        path = params.get("path", "./workspace_log.txt")
-        content = params.get("content", "")
-
-        try:
-            if action == "write":
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                return ToolResult(success=True, data={"path": path, "status": "file_written", "bytes": len(content)})
-            else:
-                if os.path.exists(path):
-                    with open(path, "r", encoding="utf-8") as f:
-                        data = f.read(1000)
-                    return ToolResult(success=True, data={"path": path, "content": data})
-                else:
-                    return ToolResult(success=True, data={"path": path, "content": f"Verified path context for {path}"})
-        except Exception as e:
-            return ToolResult(success=False, data=None, error=str(e))
 
 class BrowserTool(BaseTool):
     name = "browser"
     description = "Simulates web page rendering, DOM extraction, and UI interactions"
-
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         url = params.get("url", "https://localhost")
-        return ToolResult(
-            success=True,
-            data={
-                "url": url,
-                "page_title": "Cocoa Agent Verification Context",
-                "extracted_text": f"Simulated browser interaction completed for {url}"
-            }
-        )
+        return ToolResult(success=True, data={"url": url, "page_title": "Cocoa Agent Verification Context", "extracted_text": f"Simulated browser interaction completed for {url}"})
 
 class SchedulerTool(BaseTool):
     name = "scheduler"
     description = "Schedules recurring or delayed agent tasks"
-
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        cron = params.get("cron", "0 0 * * *")
-        task_name = params.get("task_name", "background_check")
-        return ToolResult(
-            success=True,
-            data={
-                "task_name": task_name,
-                "cron": cron,
-                "status": "scheduled"
-            }
-        )
+        return ToolResult(success=True, data={"task_name": params.get("task_name", "background_check"), "cron": params.get("cron", "0 0 * * *"), "status": "scheduled"})
 
 class ToolRegistry:
     def __init__(self):
         self._tools: Dict[str, BaseTool] = {}
+        # Register core tools
         self.register(WebSearchTool())
-        self.register(FilesystemTool())
         self.register(BrowserTool())
         self.register(SchedulerTool())
+
+        # Register filesystem tools
+        self.register(ListDirectoryTool())
+        self.register(SearchFilesTool())
+        self.register(ReadFileTool())
+        self.register(InspectFileTool())
+        self.register(CreateFileTool())
+        self.register(EditFileTool())
+        self.register(MoveFileTool())
+        self.register(DeleteFileTool())
+
+    def set_filesystem_root(self, root_path: str):
+        global_filesystem_toolset.validator.add_authorized_root(root_path)
 
     def register(self, tool: BaseTool) -> None:
         self._tools[tool.name] = tool

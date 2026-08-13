@@ -99,7 +99,54 @@ class TaskResponse(TaskBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ─── Research Session Schemas ────────────────────────────────
+# ─── Research Engine Schemas ─────────────────────────────────
+class ResearchRunRequest(BaseModel):
+    query: str = Field(..., description="Natural language research query or goal")
+    project_id: Optional[str] = None
+
+class ResearchPlanStep(BaseModel):
+    id: str
+    objective: str
+    queries: List[str] = Field(default_factory=list)
+    status: str = "pending"
+
+class ResearchPlan(BaseModel):
+    goal: str
+    steps: List[ResearchPlanStep] = Field(default_factory=list)
+
+class ResearchSourceResponse(BaseModel):
+    id: str
+    research_session_id: str
+    title: str
+    url: str
+    domain: str
+    provider: str
+    retrieved_at: datetime
+    content_excerpt: Optional[str] = None
+    relevance: float = 1.0
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ResearchEvidenceResponse(BaseModel):
+    id: str
+    research_session_id: str
+    source_id: Optional[str] = None
+    claim: str
+    supporting_text: str
+    confidence: str = "high"
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ResearchFindingResponse(BaseModel):
+    id: str
+    research_session_id: str
+    finding_text: str
+    is_verified: bool = True
+    verification_confidence: str = "high"
+    supporting_sources: Optional[List[str]] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
 class ResearchSessionBase(BaseModel):
     title: str
     brief: str
@@ -111,10 +158,15 @@ class ResearchSessionCreate(ResearchSessionBase):
 class ResearchSessionResponse(ResearchSessionBase):
     id: str
     session_code: str
+    query: Optional[str] = None
     status: str
     confidence: int
     synthesis_markdown: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
+    sources: List[ResearchSourceResponse] = Field(default_factory=list)
+    evidence: List[ResearchEvidenceResponse] = Field(default_factory=list)
+    findings: List[ResearchFindingResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

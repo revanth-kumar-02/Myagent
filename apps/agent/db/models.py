@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, Boolean, JSON
+from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, Float, Boolean, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -95,13 +95,61 @@ class ResearchSession(Base):
     session_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     brief: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default="completed")
+    status: Mapped[str] = mapped_column(String(50), default="idle")  # idle, planning, researching, verifying, synthesizing, completed, failed, cancelled
     confidence: Mapped[int] = mapped_column(Integer, default=95)
     synthesis_markdown: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     project_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     project: Mapped[Optional["Project"]] = relationship("Project", back_populates="research_sessions")
+    sources: Mapped[List["ResearchSource"]] = relationship("ResearchSource", back_populates="research_session", cascade="all, delete-orphan")
+    evidence: Mapped[List["ResearchEvidence"]] = relationship("ResearchEvidence", back_populates="research_session", cascade="all, delete-orphan")
+    findings: Mapped[List["ResearchFinding"]] = relationship("ResearchFinding", back_populates="research_session", cascade="all, delete-orphan")
+
+
+class ResearchSource(Base):
+    __tablename__ = "research_sources"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    research_session_id: Mapped[str] = mapped_column(String(36), ForeignKey("research_sessions.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    domain: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(String(50), default="tavily")
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    content_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    relevance: Mapped[float] = mapped_column(Float, default=1.0)
+
+    research_session: Mapped["ResearchSession"] = relationship("ResearchSession", back_populates="sources")
+    evidence_items: Mapped[List["ResearchEvidence"]] = relationship("ResearchEvidence", back_populates="source", cascade="all, delete-orphan")
+
+
+class ResearchEvidence(Base):
+    __tablename__ = "research_evidence"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    research_session_id: Mapped[str] = mapped_column(String(36), ForeignKey("research_sessions.id", ondelete="CASCADE"), nullable=False)
+    source_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("research_sources.id", ondelete="SET NULL"), nullable=True)
+    claim: Mapped[str] = mapped_column(Text, nullable=False)
+    supporting_text: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[str] = mapped_column(String(20), default="high")
+
+    research_session: Mapped["ResearchSession"] = relationship("ResearchSession", back_populates="evidence")
+    source: Mapped[Optional["ResearchSource"]] = relationship("ResearchSource", back_populates="evidence_items")
+
+
+class ResearchFinding(Base):
+    __tablename__ = "research_findings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    research_session_id: Mapped[str] = mapped_column(String(36), ForeignKey("research_sessions.id", ondelete="CASCADE"), nullable=False)
+    finding_text: Mapped[str] = mapped_column(Text, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=True)
+    verification_confidence: Mapped[str] = mapped_column(String(20), default="high")
+    supporting_sources: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
+    research_session: Mapped["ResearchSession"] = relationship("ResearchSession", back_populates="findings")
 
 
 class Automation(Base):

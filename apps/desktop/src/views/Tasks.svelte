@@ -116,10 +116,26 @@
   function getToolIcon(tool?: string) {
     switch (tool?.toLowerCase()) {
       case 'web_search': return 'search';
+      case 'list_directory': return 'folder_open';
+      case 'search_files': return 'manage_search';
+      case 'read_file': return 'description';
+      case 'inspect_file': return 'info';
+      case 'create_file': return 'note_add';
+      case 'edit_file': return 'edit_note';
+      case 'move_file': return 'drive_file_move';
+      case 'delete_file': return 'delete';
       case 'filesystem': return 'folder_open';
       case 'browser': return 'language';
       case 'scheduler': return 'schedule';
       default: return 'build';
+    }
+  }
+
+  async function handlePermissionResponse(requestId: string, granted: boolean) {
+    try {
+      await api.respondPermission(requestId, granted);
+    } catch (err) {
+      console.error('Failed to respond to permission request', err);
     }
   }
 </script>

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama-3.3-70b-versatile"
     LLM_API_KEY: Optional[str] = None
 
+    # Web Search Engine Keys (Server-side only)
+    TAVILY_API_KEY: Optional[str] = None
+    BRAVE_API_KEY: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -41,11 +45,18 @@ class Settings(BaseSettings):
     )
 
     @property
+    def sqlite_dsn(self) -> str:
+        return f"sqlite+aiosqlite:///{self.SQLITE_DB_PATH}"
+
+    @property
     def postgres_dsn(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
-    def sqlite_dsn(self) -> str:
-        return f"sqlite+aiosqlite:///{self.SQLITE_DB_PATH}"
+    def database_url(self) -> str:
+        """Returns the PostgreSQL async SQLAlchemy URL if available, else SQLite fallback."""
+        if not self.USE_SQLITE_FALLBACK:
+            return self.postgres_dsn
+        return self.sqlite_dsn
 
 settings = Settings()

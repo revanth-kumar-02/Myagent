@@ -7,6 +7,8 @@ import type {
   Workspace,
   ScanWorkspaceResponse,
   ResearchSession,
+  ResearchSource,
+  ResearchFinding,
   Automation,
   AgentRunResponse,
 } from './types';
@@ -128,9 +130,47 @@ export class CocoaApiClient {
     return res.json();
   }
 
+  // ─── Research Engine API ────────────────────────────────────
+  async runResearch(query: string, projectId?: string): Promise<ResearchSession> {
+    const res = await fetch(`${API_BASE_URL}/research/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, project_id: projectId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to start research' }));
+      throw new Error(err.detail || err.message || 'Failed to start research task');
+    }
+    return res.json();
+  }
+
   async getResearchSessions(): Promise<ResearchSession[]> {
     const res = await fetch(`${API_BASE_URL}/research`);
     if (!res.ok) throw new Error('Failed to fetch research sessions');
+    return res.json();
+  }
+
+  async getResearchSession(id: string): Promise<ResearchSession> {
+    const res = await fetch(`${API_BASE_URL}/research/${id}`);
+    if (!res.ok) throw new Error(`Research session ${id} not found`);
+    return res.json();
+  }
+
+  async getResearchSources(sessionId: string): Promise<ResearchSource[]> {
+    const res = await fetch(`${API_BASE_URL}/research/${sessionId}/sources`);
+    if (!res.ok) throw new Error(`Failed to fetch sources for session ${sessionId}`);
+    return res.json();
+  }
+
+  async getResearchFindings(sessionId: string): Promise<ResearchFinding[]> {
+    const res = await fetch(`${API_BASE_URL}/research/${sessionId}/findings`);
+    if (!res.ok) throw new Error(`Failed to fetch findings for session ${sessionId}`);
+    return res.json();
+  }
+
+  async cancelResearch(sessionId: string): Promise<ResearchSession> {
+    const res = await fetch(`${API_BASE_URL}/research/${sessionId}/cancel`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Failed to cancel research session ${sessionId}`);
     return res.json();
   }
 
@@ -164,6 +204,22 @@ export class CocoaApiClient {
         this.ws = null;
       }
     };
+  }
+
+  async respondPermission(requestId: string, granted: boolean): Promise<{ status: string; request_id: string; granted: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/filesystem/permissions/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId, granted })
+    });
+    if (!res.ok) throw new Error('Failed to respond to permission request');
+    return res.json();
+  }
+
+  async browseDirectory(path: string = '.'): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/filesystem/browse?path=${encodeURIComponent(path)}`);
+    if (!res.ok) throw new Error(`Failed to browse directory: ${path}`);
+    return res.json();
   }
 }
 

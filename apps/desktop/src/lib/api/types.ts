@@ -1,6 +1,7 @@
 // Cocoa API Types
 
 export type TaskStatus = 'idle' | 'planning' | 'executing' | 'observing' | 'verifying' | 'completed' | 'failed' | 'cancelled';
+export type ResearchStatus = 'idle' | 'planning' | 'researching' | 'verifying' | 'synthesizing' | 'completed' | 'failed' | 'cancelled';
 
 export interface Workspace {
   id: string;
@@ -21,6 +22,7 @@ export interface Project {
   languages?: string[];
   frameworks?: string[];
   git_repository?: boolean;
+  detection_confidence?: string;
   last_scanned?: string;
   last_modified?: string;
   metadata_info?: Record<string, any>;
@@ -68,19 +70,49 @@ export interface ActivityLog {
 
 export interface ResearchSource {
   id: string;
+  research_session_id: string;
   title: string;
   url: string;
-  snippet?: string;
+  domain: string;
+  provider: string;
+  retrieved_at?: string;
+  content_excerpt?: string;
+  relevance?: number;
+}
+
+export interface ResearchEvidence {
+  id: string;
+  research_session_id: string;
+  source_id?: string;
+  claim: string;
+  supporting_text: string;
+  confidence: string;
+}
+
+export interface ResearchFinding {
+  id: string;
+  research_session_id: string;
+  finding_text: string;
+  is_verified: boolean;
+  verification_confidence: string;
+  supporting_sources?: string[];
 }
 
 export interface ResearchSession {
   id: string;
+  session_code: string;
   title: string;
   query: string;
-  summary?: string;
-  status: string;
-  sources: ResearchSource[];
+  brief: string;
+  status: ResearchStatus;
+  confidence: number;
+  synthesis_markdown?: string;
+  project_id?: string;
   created_at: string;
+  updated_at?: string;
+  sources: ResearchSource[];
+  evidence: ResearchEvidence[];
+  findings: ResearchFinding[];
 }
 
 export interface AutomationNode {

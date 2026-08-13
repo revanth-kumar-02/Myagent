@@ -10,6 +10,7 @@ from api.research import router as research_router
 from api.automations import router as automations_router
 from api.settings import router as settings_router
 from api.agent_run import router as agent_run_router
+from api.filesystem import router as filesystem_router
 from api.websocket import ws_manager
 
 @asynccontextmanager
@@ -45,6 +46,7 @@ app.include_router(projects_router, prefix=settings.API_V1_STR)
 app.include_router(research_router, prefix=settings.API_V1_STR)
 app.include_router(automations_router, prefix=settings.API_V1_STR)
 app.include_router(settings_router, prefix=settings.API_V1_STR)
+app.include_router(filesystem_router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
