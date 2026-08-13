@@ -2,21 +2,50 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime
 
+# ─── Workspace Schemas ────────────────────────────────────────
+class WorkspaceBase(BaseModel):
+    name: str
+    path: str
+
+class WorkspaceCreate(WorkspaceBase):
+    pass
+
+class WorkspaceResponse(WorkspaceBase):
+    id: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 # ─── Project Schemas ──────────────────────────────────────────
 class ProjectBase(BaseModel):
     title: str
     description: Optional[str] = None
     icon: Optional[str] = "folder_open"
+    path: Optional[str] = None
+    languages: Optional[List[str]] = Field(default_factory=list)
+    frameworks: Optional[List[str]] = Field(default_factory=list)
+    git_repository: bool = False
+    detection_confidence: Optional[str] = "high"
+    last_scanned: Optional[datetime] = None
+    last_modified: Optional[datetime] = None
+    metadata_info: Optional[dict] = None
 
 class ProjectCreate(ProjectBase):
-    pass
+    workspace_id: Optional[str] = None
 
 class ProjectResponse(ProjectBase):
     id: str
+    workspace_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class ScanWorkspaceResponse(BaseModel):
+    workspace: WorkspaceResponse
+    projects: List[ProjectResponse]
 
 # ─── Task Step Schemas ────────────────────────────────────────
 class TaskStepBase(BaseModel):

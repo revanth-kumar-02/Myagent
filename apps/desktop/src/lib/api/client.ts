@@ -4,6 +4,8 @@ import type {
   TaskStep,
   ActivityLog,
   Project,
+  Workspace,
+  ScanWorkspaceResponse,
   ResearchSession,
   Automation,
   AgentRunResponse,
@@ -61,9 +63,68 @@ export class CocoaApiClient {
     return res.json();
   }
 
+  async getWorkspace(): Promise<Workspace> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/projects/workspace`);
+    } catch {
+      throw new Error('Could not connect to Cocoa Agent.');
+    }
+    if (!res.ok) throw new Error('Failed to fetch workspace');
+    return res.json();
+  }
+
+  async setWorkspace(path: string): Promise<ScanWorkspaceResponse> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/projects/workspace`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+    } catch {
+      throw new Error('Could not connect to Cocoa Agent.');
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to set workspace' }));
+      throw new Error(err.detail || err.message || 'Failed to set workspace directory');
+    }
+    return res.json();
+  }
+
+  async scanWorkspace(): Promise<ScanWorkspaceResponse> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/projects/scan`, { method: 'POST' });
+    } catch {
+      throw new Error('Could not connect to Cocoa Agent.');
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to scan workspace' }));
+      throw new Error(err.detail || err.message || 'Failed to scan workspace');
+    }
+    return res.json();
+  }
+
   async getProjects(): Promise<Project[]> {
-    const res = await fetch(`${API_BASE_URL}/projects`);
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/projects`);
+    } catch {
+      throw new Error('Could not connect to Cocoa Agent.');
+    }
     if (!res.ok) throw new Error('Failed to fetch projects');
+    return res.json();
+  }
+
+  async getProject(id: string): Promise<Project> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/projects/${id}`);
+    } catch {
+      throw new Error('Could not connect to Cocoa Agent.');
+    }
+    if (!res.ok) throw new Error(`Project ${id} not found`);
     return res.json();
   }
 

@@ -4,6 +4,7 @@ from core.planner import AgentPlanner, TaskPlan
 from core.tools.registry import tool_registry, ToolResult
 from core.verifier import AgentVerifier
 from core.agent import AgentOrchestrator
+from db.session import init_db
 
 @pytest.mark.asyncio
 async def test_llm_provider_gateway_fallback():
@@ -35,6 +36,7 @@ async def test_agent_verifier():
 
 @pytest.mark.asyncio
 async def test_agent_orchestrator_execution():
+    await init_db()
     orchestrator = AgentOrchestrator()
     task = await orchestrator.run_goal("Test end to end goal execution")
     assert task.status in ["completed", "executing", "planning"]
