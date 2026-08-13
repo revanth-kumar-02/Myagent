@@ -5,9 +5,8 @@ from sqlalchemy.orm import selectinload
 from typing import List
 from db.session import get_db
 from db.models import Task, TaskStep, ActivityLog
-from schemas.schemas import TaskCreate, TaskResponse, ActivityLogCreate, ActivityLogResponse
+from schemas.schemas import TaskCreate, TaskResponse, TaskStepResponse, ActivityLogCreate, ActivityLogResponse
 from api.websocket import ws_manager
-from datetime import datetime
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -25,7 +24,6 @@ async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(task)
 
-    # Broadcast task creation via WebSocket
     await ws_manager.broadcast({
         "event": "task_created",
         "task_id": task.id,
@@ -44,6 +42,20 @@ async def get_task(task_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
+@router.get("/{task_id}/steps", response_model=List[TaskStepResponse])
+async def get_task_steps(task_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(TaskStep).where(TaskStep.task_id == task_id).order_by(TaskStep.step_number)
+    )
+    return result.scalars().all()
+
+@router.get("/{task_id}/activity", response_model=List[ActivityLogResponse])
+async def get_task_activity(task_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ActivityLog).where(ActivityLog.task_id == task_id)
+    )
+    return result.scalars().all()
+
 @router.post("/{task_id}/activity", response_model=ActivityLogResponse)
 async def add_activity_log(task_id: str, activity_in: ActivityLogCreate, db: AsyncSession = Depends(get_db)):
     log = ActivityLog(task_id=task_id, **activity_in.model_dump(exclude={"task_id"}))
@@ -56,7 +68,6 @@ async def add_activity_log(task_id: str, activity_in: ActivityLogCreate, db: Asy
         "task_id": task_id,
         "timestamp": log.timestamp,
         "message": log.message,
-        "status": log.status,
         "details": log.details,
     })
 

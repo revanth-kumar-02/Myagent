@@ -1,21 +1,13 @@
 // Cocoa API Client (HTTP REST + WebSockets)
-// Seamlessly connects Svelte UI to FastAPI backend with graceful fallback to mock data
-
-import {
-  mockActiveTask,
-  mockRecentProjects,
-  mockPlan,
-  mockActivity,
-  mockSources,
-  mockAutomationNodes,
-  mockLastRun,
-  type ActiveTask,
-  type RecentProject,
-  type PlanStep,
-  type ActivityEntry,
-  type ResearchSource,
-  type AutomationNode
-} from './mock';
+import type {
+  Task,
+  TaskStep,
+  ActivityLog,
+  Project,
+  ResearchSession,
+  Automation,
+  AgentRunResponse,
+} from './types';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 const WS_BASE_URL = 'ws://localhost:8000/ws';
@@ -32,39 +24,59 @@ export class CocoaApiClient {
     }
   }
 
-  async getTasks(): Promise<ActiveTask[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/tasks`);
-      if (!res.ok) throw new Error('Failed to fetch tasks');
-      const data = await res.json();
-      if (data.length === 0) return [mockActiveTask];
-      return data.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description || '',
-        status: t.status || 'idle',
-        icon: t.icon || 'checklist',
-      }));
-    } catch {
-      return [mockActiveTask];
+  async runAgent(goal: string, projectId?: string): Promise<AgentRunResponse> {
+    const res = await fetch(`${API_BASE_URL}/agent/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal, project_id: projectId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to run agent' }));
+      throw new Error(err.detail || err.message || 'Failed to start agent goal');
     }
+    return res.json();
   }
 
-  async getProjects(): Promise<RecentProject[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/projects`);
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json();
-      if (data.length === 0) return mockRecentProjects;
-      return data.map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        icon: p.icon || 'folder_open',
-        ago: 'Just now',
-      }));
-    } catch {
-      return mockRecentProjects;
-    }
+  async getTasks(): Promise<Task[]> {
+    const res = await fetch(`${API_BASE_URL}/tasks`);
+    if (!res.ok) throw new Error('Failed to fetch tasks');
+    return res.json();
+  }
+
+  async getTask(id: string): Promise<Task> {
+    const res = await fetch(`${API_BASE_URL}/tasks/${id}`);
+    if (!res.ok) throw new Error(`Task ${id} not found`);
+    return res.json();
+  }
+
+  async getTaskSteps(taskId: string): Promise<TaskStep[]> {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/steps`);
+    if (!res.ok) throw new Error(`Failed to fetch steps for task ${taskId}`);
+    return res.json();
+  }
+
+  async getTaskActivity(taskId: string): Promise<ActivityLog[]> {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/activity`);
+    if (!res.ok) throw new Error(`Failed to fetch activity for task ${taskId}`);
+    return res.json();
+  }
+
+  async getProjects(): Promise<Project[]> {
+    const res = await fetch(`${API_BASE_URL}/projects`);
+    if (!res.ok) throw new Error('Failed to fetch projects');
+    return res.json();
+  }
+
+  async getResearchSessions(): Promise<ResearchSession[]> {
+    const res = await fetch(`${API_BASE_URL}/research`);
+    if (!res.ok) throw new Error('Failed to fetch research sessions');
+    return res.json();
+  }
+
+  async getAutomations(): Promise<Automation[]> {
+    const res = await fetch(`${API_BASE_URL}/automations`);
+    if (!res.ok) throw new Error('Failed to fetch automations');
+    return res.json();
   }
 
   connectWebSocket(onMessage: (msg: any) => void): () => void {
@@ -75,14 +87,14 @@ export class CocoaApiClient {
           const payload = JSON.parse(evt.data);
           onMessage(payload);
         } catch (e) {
-          console.error('WS parse error:', e);
+          console.error('WebSocket payload parse error:', e);
         }
       };
-      this.ws.onerror = () => {
-        console.log('WS connection offline — using local state.');
+      this.ws.onerror = (e) => {
+        console.warn('WebSocket connection error:', e);
       };
-    } catch {
-      console.log('WS offline');
+    } catch (e) {
+      console.warn('WebSocket setup error:', e);
     }
 
     return () => {
