@@ -178,5 +178,35 @@ class Setting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AgentMemory(Base):
+    __tablename__ = "agent_memories"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    memory_type: Mapped[str] = mapped_column(String(50), nullable=False)  # PROJECT, RESEARCH, USER_PREFERENCE
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(255), default="user")
+    project_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    importance: Mapped[int] = mapped_column(Integer, default=5)
+    embedding: Mapped[Optional[List[float]]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PermissionAuditLog(Base):
+    __tablename__ = "permission_audit_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tool_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    operation: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource: Mapped[str] = mapped_column(Text, nullable=False)
+    permission_level: Mapped[str] = mapped_column(String(50), nullable=False)
+    decision: Mapped[str] = mapped_column(String(50), nullable=False)  # granted, denied, blocked
+    scope: Mapped[str] = mapped_column(String(50), default="ONCE")  # ONCE, TASK, SESSION
+    task_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 # Aliases for compatibility
 SettingModel = Setting

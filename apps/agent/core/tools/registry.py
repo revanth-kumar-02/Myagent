@@ -15,6 +15,7 @@ from core.browser.tools import (
     BrowserClickInput, BrowserTypeInput, BrowserScrollInput, BrowserScreenshotInput,
     BrowserDownloadInput, BrowserCloseInput
 )
+from core.research.providers.router import SearchProviderRouter
 
 logger = logging.getLogger(__name__)
 
@@ -228,16 +229,32 @@ class BrowserCloseTool(BaseTool):
 
 class WebSearchTool(BaseTool):
     name = "web_search"
-    description = "Searches the web for information, documentation, or recent news"
+    description = "Searches the live web for real-time information, documentation, or news using Tavily"
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        query = params.get("query") or params.get("title") or "general search"
-        return ToolResult(
-            success=True,
-            data={
-                "query": query,
-                "results": [{"title": f"Synthesis on {query}", "snippet": f"Verified documentation regarding {query}.", "url": f"https://search.cocoa.local/query?q={query}"}]
-            }
-        )
+        query = params.get("query") or params.get("title") or params.get("q") or "general search"
+        try:
+            router = SearchProviderRouter()
+            results, provider_used = await router.search(query, max_results=5)
+            formatted_results = [
+                {
+                    "title": item.title,
+                    "url": item.url,
+                    "snippet": item.snippet,
+                    "provider": item.provider_name
+                }
+                for item in results
+            ]
+            return ToolResult(
+                success=True,
+                data={
+                    "query": query,
+                    "provider_used": provider_used,
+                    "results": formatted_results
+                }
+            )
+        except Exception as e:
+            logger.error(f"WebSearchTool execution failed: {e}")
+            return ToolResult(success=False, data=None, error=f"Web search error: {str(e)}")
 
 class BrowserTool(BaseTool):
     name = "browser"

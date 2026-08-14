@@ -68,7 +68,7 @@ class AgentOrchestrator:
             await log_activity("agent.started", f"Goal execution initialized: '{goal}'", {})
 
             # Generate Plan
-            plan = await self.planner.generate_plan(goal)
+            plan = await self.planner.generate_plan(goal, project_id=project_id)
 
             # Insert Plan Steps into DB
             for idx, s in enumerate(plan.steps):

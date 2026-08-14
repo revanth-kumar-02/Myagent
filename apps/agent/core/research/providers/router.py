@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict
 from core.research.providers.base import WebSearchProvider, SearchResultItem
 from core.research.providers.tavily import TavilyProvider
 from core.research.providers.brave import BraveProvider
+from core.observability import record_fallback_event
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class SearchProviderRouter:
                 logger.info(f"Search successful using primary provider ({self.primary.name})")
                 return results, self.primary.name
         except Exception as e:
+            record_fallback_event(provider=self.primary.name, reason=str(e), fallback_provider=self.fallback.name)
             logger.warning(f"Primary provider ({self.primary.name}) search failed: {e}. Falling back to ({self.fallback.name}).")
 
         # Try fallback (Brave)
@@ -34,6 +36,7 @@ class SearchProviderRouter:
                 logger.info(f"Search successful using fallback provider ({self.fallback.name})")
                 return results, self.fallback.name
         except Exception as e:
+            record_fallback_event(provider=self.fallback.name, reason=str(e), fallback_provider="web_search")
             logger.warning(f"Fallback provider ({self.fallback.name}) search failed: {e}.")
 
         # If both fail / keys missing, provide graceful search items for goal continuation

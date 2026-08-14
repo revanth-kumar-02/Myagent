@@ -181,6 +181,71 @@ export class CocoaApiClient {
     return res.json();
   }
 
+  async createAutomation(autoData: Partial<Automation>): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/automations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(autoData),
+    });
+    if (!res.ok) throw new Error('Failed to create automation');
+    return res.json();
+  }
+
+  async updateAutomation(id: string, autoData: Partial<Automation>): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(autoData),
+    });
+    if (!res.ok) throw new Error(`Failed to update automation ${id}`);
+    return res.json();
+  }
+
+  async toggleAutomation(id: string): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/toggle`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Failed to toggle automation ${id}`);
+    return res.json();
+  }
+
+  async triggerAutomation(id: string): Promise<{ message: string; automation_id: string }> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/trigger`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Failed to trigger automation ${id}`);
+    return res.json();
+  }
+
+  async deleteAutomation(id: string): Promise<{ message: string; automation_id: string }> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Failed to delete automation ${id}`);
+    return res.json();
+  }
+
+  // ─── Settings API ────────────────────────────────────────────
+  async getSettings(): Promise<Array<{ key: string; value: str; updated_at: string }>> {
+    const res = await fetch(`${API_BASE_URL}/settings`);
+    if (!res.ok) throw new Error('Failed to fetch settings');
+    return res.json();
+  }
+
+  async updateSetting(key: string, value: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) throw new Error(`Failed to update setting '${key}'`);
+    return res.json();
+  }
+
+  async updateSettingsBulk(settingsMap: Record<string, string>): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/settings/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: settingsMap }),
+    });
+    if (!res.ok) throw new Error('Failed to save settings');
+    return res.json();
+  }
+
   connectWebSocket(onMessage: (msg: any) => void): () => void {
     try {
       this.ws = new WebSocket(WS_BASE_URL);

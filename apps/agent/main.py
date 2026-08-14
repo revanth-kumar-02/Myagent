@@ -13,7 +13,10 @@ from api.profile import router as profile_router
 from api.agent_run import router as agent_run_router
 from api.filesystem import router as filesystem_router
 from api.browser import router as browser_router
+from api.memory import router as memory_router
+from api.permissions import router as permissions_router
 from core.browser.session_manager import browser_session_manager
+from core.scheduler_manager import automation_scheduler
 from api.websocket import ws_manager
 
 @asynccontextmanager
@@ -21,9 +24,11 @@ async def lifespan(app: FastAPI):
     # Startup logic
     print("Initializing Cocoa Agent Backend...")
     await init_db()
+    await automation_scheduler.start()
     yield
     # Shutdown logic
     print("Shutting down Cocoa Agent Backend...")
+    await automation_scheduler.stop()
     await browser_session_manager.close_all()
 
 app = FastAPI(
@@ -53,6 +58,8 @@ app.include_router(settings_router, prefix=settings.API_V1_STR)
 app.include_router(profile_router, prefix=settings.API_V1_STR)
 app.include_router(filesystem_router, prefix=settings.API_V1_STR)
 app.include_router(browser_router, prefix=settings.API_V1_STR)
+app.include_router(memory_router, prefix=settings.API_V1_STR)
+app.include_router(permissions_router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

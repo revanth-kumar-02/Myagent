@@ -14,15 +14,31 @@ class TaskPlan(BaseModel):
     goal: str = Field(description="Original user goal statement")
     steps: List[PlanStepSchema] = Field(description="Sequential list of executable steps")
 
+from core.memory import memory_manager
+
 class AgentPlanner:
     def __init__(self, llm_provider: Optional[BaseLLMProvider] = None):
         self.llm = llm_provider or LLMProviderGateway.get_provider()
 
-    async def generate_plan(self, goal: str) -> TaskPlan:
+    async def generate_plan(self, goal: str, project_id: Optional[str] = None) -> TaskPlan:
+        # Retrieve relevant memories for the goal and project context
+        relevant_memories = []
+        try:
+            relevant_memories = await memory_manager.search(query=goal, project_id=project_id, limit=3)
+        except Exception:
+            pass
+
+        memory_context = ""
+        if relevant_memories:
+            memory_context = "\n\nRelevant Context & Retained Memories:\n" + "\n".join(
+                f"- [{mem.memory_type}] {mem.content}" for mem in relevant_memories
+            )
+
         system_prompt = (
             "You are an autonomous AI Agent Planner. "
             "Your task is to decompose high-level user goals into structured, logical, sequential execution steps. "
             "Assign tools from [web_search, list_directory, search_files, read_file, inspect_file, create_file, edit_file, move_file, delete_file, browser_open, browser_navigate, browser_extract, browser_click, browser_type, browser_scroll, browser_screenshot, browser_download, browser_close, browser, scheduler]."
+            f"{memory_context}"
         )
         user_prompt = f"Goal to accomplish: '{goal}'"
         

@@ -55,14 +55,45 @@
     }
   }
 
+  let attachedFiles: Array<{ name: string; path?: string; file: File }> = [];
+
+  function handleFileButtonClick() {
+    const input = document.getElementById('cocoa-file-input') as HTMLInputElement;
+    if (input) input.click();
+  }
+
+  function handleFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files) {
+      const newFiles = Array.from(target.files).map((f) => ({
+        name: f.name,
+        path: (f as any).path || f.name,
+        file: f,
+      }));
+      attachedFiles = [...attachedFiles, ...newFiles];
+      target.value = '';
+    }
+  }
+
+  function removeAttachment(index: number) {
+    attachedFiles = attachedFiles.filter((_, i) => i !== index);
+  }
+
   async function handleRunGoal() {
-    if (!commandText.trim() || isSubmitting) return;
+    if ((!commandText.trim() && attachedFiles.length === 0) || isSubmitting) return;
     isSubmitting = true;
     submitError = '';
 
     try {
-      await api.runAgent(commandText.trim(), selectedProjectId || undefined);
+      let finalGoal = commandText.trim();
+      if (attachedFiles.length > 0) {
+        const fileNames = attachedFiles.map((f) => f.path || f.name).join(', ');
+        finalGoal = finalGoal ? `${finalGoal}\n\n[Attached Files: ${fileNames}]` : `Work with attached files: ${fileNames}`;
+      }
+
+      await api.runAgent(finalGoal, selectedProjectId || undefined);
       commandText = '';
+      attachedFiles = [];
       navigate('tasks');
     } catch (err: any) {
       submitError = err.message || 'Failed to trigger agent execution';
@@ -133,6 +164,14 @@
     <section class="w-full max-w-[900px] text-left">
       <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-5 shadow-sm focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/20 transition-all duration-200 min-h-[160px] flex flex-col justify-between">
         
+        <input
+          type="file"
+          id="cocoa-file-input"
+          multiple
+          onchange={handleFileSelect}
+          class="hidden"
+        />
+
         <textarea
           id="cocoa-composer-textarea"
           bind:value={commandText}
@@ -143,6 +182,24 @@
           class="w-full bg-transparent border-none outline-none font-ui-main text-[14px] leading-[22px] text-primary placeholder:text-on-surface-variant/50 resize-none focus:ring-0 text-left"
         ></textarea>
 
+        {#if attachedFiles.length > 0}
+          <div class="flex flex-wrap gap-2 mt-2 pt-2 border-t border-outline-variant/30">
+            {#each attachedFiles as file, idx}
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container border border-outline-variant/60 font-ui-main text-[11px] text-primary">
+                <span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                <span class="truncate max-w-[180px]">{file.name}</span>
+                <button
+                  type="button"
+                  onclick={() => removeAttachment(idx)}
+                  class="text-on-surface-variant/60 hover:text-error transition-colors ml-1"
+                >
+                  <span class="material-symbols-outlined text-[13px]">close</span>
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
         {#if submitError}
           <div class="mt-2 text-error font-ui-main text-[12px] flex items-center gap-1">
             <span class="material-symbols-outlined text-[14px]">error</span>
@@ -152,7 +209,11 @@
 
         <div class="mt-4 flex items-center justify-between border-t border-outline-variant/40 pt-3.5">
           <div class="flex items-center gap-2.5">
-            <button class="flex items-center gap-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container-low px-3 py-1.5 rounded-md transition-colors font-ui-medium text-[12px]">
+            <button
+              type="button"
+              onclick={handleFileButtonClick}
+              class="flex items-center gap-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container-low px-3 py-1.5 rounded-md transition-colors font-ui-medium text-[12px] cursor-pointer"
+            >
               <span class="material-symbols-outlined text-[16px]">attach_file</span>
               + File
             </button>
@@ -182,7 +243,7 @@
             <span class="hidden sm:inline font-status-log text-[10px] text-on-surface-variant/60">⌘↵ Run</span>
             <button
               onclick={handleRunGoal}
-              disabled={isSubmitting || !commandText.trim()}
+              disabled={isSubmitting || (!commandText.trim() && attachedFiles.length === 0)}
               class="bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50 px-4 py-1.5 rounded-full font-ui-medium text-[12px] flex items-center gap-1.5 transition-colors shadow-sm group"
             >
               {isSubmitting ? 'Planning...' : 'Run'}

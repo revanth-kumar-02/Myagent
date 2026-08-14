@@ -1,10 +1,14 @@
 import os
 import json
+import logging
 import httpx
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Type, TypeVar, Optional
 from pydantic import BaseModel
 from config import settings
+from core.observability import record_fallback_event
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -241,13 +245,18 @@ class LLMProviderGateway:
         m_name = model or os.getenv("LLM_MODEL") or settings.LLM_MODEL
 
         if not key or key == "none" or key == "sk-placeholder":
+            record_fallback_event(provider=p_type or "groq", reason="API key missing or placeholder", fallback_provider="RuleBasedLLMProvider")
             return RuleBasedLLMProvider()
 
         if p_type == "groq":
+            logger.info(f"[LLM GATEWAY] Groq — ACTIVE (model: {m_name or 'llama-3.3-70b-versatile'})")
             return GroqProvider(api_key=key, model=m_name or "llama-3.3-70b-versatile")
         elif p_type == "openai":
+            logger.info(f"[LLM GATEWAY] OpenAI — ACTIVE (model: {m_name or 'gpt-4o'})")
             return OpenAIProvider(api_key=key, model=m_name or "gpt-4o")
         elif p_type == "gemini":
+            logger.info(f"[LLM GATEWAY] Gemini — ACTIVE (model: {m_name or 'gemini-1.5-pro'})")
             return GeminiProvider(api_key=key, model=m_name or "gemini-1.5-pro")
         else:
+            record_fallback_event(provider=p_type, reason=f"Unsupported provider type '{p_type}'", fallback_provider="RuleBasedLLMProvider")
             return RuleBasedLLMProvider()

@@ -3,17 +3,86 @@
   import { api } from '$lib/api/client';
 
   let backendConnected = false;
+  let provider = 'Groq';
+  let apiKey = '';
+  let model = 'llama-3.3-70b-versatile';
+  let backendUrl = 'http://localhost:8000';
+
+  let isLoading = true;
+  let isSaving = false;
+  let saveSuccess = false;
+  let saveError: string | null = null;
 
   onMount(async () => {
-    backendConnected = await api.checkHealth();
+    try {
+      backendConnected = await api.checkHealth();
+      if (backendConnected) {
+        const settingsList = await api.getSettings();
+        const settingsMap: Record<string, string> = {};
+        for (const item of settingsList) {
+          settingsMap[item.key] = item.value;
+        }
+
+        if (settingsMap.llm_provider) provider = settingsMap.llm_provider;
+        if (settingsMap.llm_api_key) apiKey = settingsMap.llm_api_key;
+        if (settingsMap.llm_model) model = settingsMap.llm_model;
+        if (settingsMap.backend_url) backendUrl = settingsMap.backend_url;
+      }
+    } catch (e: any) {
+      saveError = e?.message || 'Failed to connect to agent backend';
+    } finally {
+      isLoading = false;
+    }
   });
+
+  async function handleSaveSettings() {
+    isSaving = true;
+    saveSuccess = false;
+    saveError = null;
+
+    try {
+      if (!provider) {
+        throw new Error('Provider selection is required');
+      }
+
+      await api.updateSettingsBulk({
+        llm_provider: provider,
+        llm_api_key: apiKey,
+        llm_model: model,
+        backend_url: backendUrl,
+      });
+
+      saveSuccess = true;
+      setTimeout(() => {
+        saveSuccess = false;
+      }, 4000);
+    } catch (e: any) {
+      saveError = e?.message || 'Failed to persist settings';
+    } finally {
+      isSaving = false;
+    }
+  }
 </script>
 
 <main class="ml-56 pt-12 px-6 pb-6 min-h-[calc(100vh-48px)] bg-background flex flex-col flex-1">
   <div class="max-w-2xl w-full pt-2">
-    <div class="mb-4 border-b border-outline-variant/40 pb-3">
-      <h2 class="font-label-caps text-[10px] text-on-surface-variant/80 mb-0.5 tracking-wider">CONFIGURATION</h2>
-      <h1 class="font-headline-md text-[18px] text-primary font-semibold">Settings</h1>
+    <div class="mb-4 border-b border-outline-variant/40 pb-3 flex items-center justify-between">
+      <div>
+        <h2 class="font-label-caps text-[10px] text-on-surface-variant/80 mb-0.5 tracking-wider">CONFIGURATION</h2>
+        <h1 class="font-headline-md text-[18px] text-primary font-semibold">Settings</h1>
+      </div>
+      {#if saveSuccess}
+        <div class="flex items-center gap-1.5 bg-secondary-container/40 border border-secondary-fixed-dim/40 px-3 py-1 rounded-md">
+          <span class="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+          <span class="font-ui-medium text-[11px] text-on-secondary-container">Settings saved successfully</span>
+        </div>
+      {/if}
+      {#if saveError}
+        <div class="flex items-center gap-1.5 bg-error/10 border border-error/20 px-3 py-1 rounded-md">
+          <span class="material-symbols-outlined text-[14px] text-error">error</span>
+          <span class="font-ui-medium text-[11px] text-error">{saveError}</span>
+        </div>
+      {/if}
     </div>
 
     <!-- LLM Provider -->
@@ -22,11 +91,15 @@
       <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-md p-4 space-y-3 shadow-sm">
         <div>
           <label for="settings-provider-select" class="font-ui-medium text-[12px] text-primary block mb-1">Provider</label>
-          <select id="settings-provider-select" class="w-full bg-surface border border-outline-variant/50 rounded-md px-3 py-1 font-ui-main text-[12px] text-on-surface focus:border-secondary focus:outline-none transition-colors h-8">
-            <option>Groq</option>
-            <option>OpenAI</option>
-            <option>Gemini</option>
-            <option>Ollama (Local)</option>
+          <select 
+            id="settings-provider-select"
+            bind:value={provider}
+            class="w-full bg-surface border border-outline-variant/50 rounded-md px-3 py-1 font-ui-main text-[12px] text-on-surface focus:border-secondary focus:outline-none transition-colors h-8"
+          >
+            <option value="Groq">Groq</option>
+            <option value="OpenAI">OpenAI</option>
+            <option value="Gemini">Gemini</option>
+            <option value="Ollama">Ollama (Local)</option>
           </select>
         </div>
         <div>
@@ -34,7 +107,8 @@
           <input
             id="settings-api-key-input"
             type="password"
-            placeholder="sk-••••••••••••••••"
+            bind:value={apiKey}
+            placeholder="gsk_••••••••••••••••"
             class="w-full bg-surface border border-outline-variant/50 rounded-md px-3 py-1 font-ui-main text-[12px] text-on-surface placeholder:text-on-surface-variant/40 focus:border-secondary focus:outline-none transition-colors h-8"
           />
           <p class="font-ui-main text-[11px] text-on-surface-variant/70 mt-1">
@@ -46,13 +120,24 @@
           <input
             id="settings-model-input"
             type="text"
+            bind:value={model}
             placeholder="e.g. llama-3.3-70b-versatile"
             class="w-full bg-surface border border-outline-variant/50 rounded-md px-3 py-1 font-ui-main text-[12px] text-on-surface placeholder:text-on-surface-variant/40 focus:border-secondary focus:outline-none transition-colors h-8"
           />
         </div>
         <div class="pt-2 border-t border-outline-variant/40 flex justify-end">
-          <button class="bg-primary text-on-primary hover:bg-primary-container px-3.5 py-1 rounded-md font-ui-medium text-[12px] transition-colors shadow-sm h-8">
-            Save Settings
+          <button 
+            type="button"
+            on:click={handleSaveSettings}
+            disabled={isSaving}
+            class="bg-primary text-on-primary hover:bg-primary-container disabled:opacity-50 px-3.5 py-1 rounded-md font-ui-medium text-[12px] transition-colors shadow-sm h-8 flex items-center gap-1.5"
+          >
+            {#if isSaving}
+              <span class="animate-spin text-[12px]">⌛</span>
+              <span>Saving...</span>
+            {:else}
+              <span>Save Settings</span>
+            {/if}
           </button>
         </div>
       </div>
@@ -69,7 +154,7 @@
           </div>
           <input
             type="text"
-            value="http://localhost:8000"
+            bind:value={backendUrl}
             class="bg-surface border border-outline-variant/50 rounded-md px-3 py-1 font-status-log text-[11px] text-on-surface focus:border-secondary focus:outline-none transition-colors w-52 h-8"
           />
         </div>

@@ -14,16 +14,16 @@ class Settings(BaseSettings):
         "http://localhost:5173",
     ]
 
-    # Database Settings (PostgreSQL preferred, sqlite async fallback for local dev without postgres)
-    POSTGRES_USER: str = "cocoa"
+    # Database Settings (PostgreSQL preferred)
+    POSTGRES_USER: str = "cocoa_user"
     POSTGRES_PASSWORD: str = "cocoa_password"
-    POSTGRES_HOST: str = "localhost"
+    POSTGRES_HOST: str = "127.0.0.1"
     POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "cocoa_db"
+    POSTGRES_DB: str = "cocoa"
     
     # Fallback SQLite DB path if Postgres is unavailable
     SQLITE_DB_PATH: str = "cocoa.db"
-    USE_SQLITE_FALLBACK: bool = True
+    USE_SQLITE_FALLBACK: bool = False
 
     # Redis Settings
     REDIS_HOST: str = "localhost"

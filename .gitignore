@@ -14,6 +14,8 @@ __pycache__/
 .pytest_cache/
 *.db
 *.sqlite3
+.env
+.env.local
 
 # Tauri / Rust
 apps/desktop/src-tauri/target/
