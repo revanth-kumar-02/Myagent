@@ -16,7 +16,48 @@ class AgentExecutor:
         """Constructs valid structured parameter input dictionaries based on step and context."""
         text = f"{step.title} {step.description} {ctx.goal}"
 
-        if tool_name == "list_directory":
+        if tool_name == "browser_open" or tool_name == "browser":
+            url_match = re.search(r'https?://[^\s\'"]+', text)
+            url = url_match.group(0) if url_match else "https://fastapi.tiangolo.com/"
+            return {"url": url, "task_id": ctx.task_id}
+
+        elif tool_name == "browser_navigate":
+            url_match = re.search(r'https?://[^\s\'"]+', text)
+            url = url_match.group(0) if url_match else "https://fastapi.tiangolo.com/"
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "url": url}
+
+        elif tool_name == "browser_extract":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "max_text_chars": 15000}
+
+        elif tool_name == "browser_click":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            ref_match = re.search(r'(?:click|target)[:\s]+(["\']?)([^"\';\s]+)\1', text, re.IGNORECASE)
+            element_ref = ref_match.group(2) if ref_match else "text:Background Tasks"
+            return {"page_id": page_id, "element_ref": element_ref}
+
+        elif tool_name == "browser_type":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "element_ref": "input:search", "text": "background tasks"}
+
+        elif tool_name == "browser_scroll":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "direction": "down", "amount": 500}
+
+        elif tool_name == "browser_screenshot":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "full_page": False}
+
+        elif tool_name == "browser_download":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id, "url": "https://fastapi.tiangolo.com/"}
+
+        elif tool_name == "browser_close":
+            page_id = getattr(ctx, "active_page_id", "page-1")
+            return {"page_id": page_id}
+
+        elif tool_name == "list_directory":
             match = re.search(r'path[:\s]+(["\']?)([^"\';\s]+)\1', text, re.IGNORECASE)
             path = match.group(2) if match else "."
             return {"path": path, "limit": 100}
@@ -129,6 +170,9 @@ class AgentExecutor:
             tool_res = await tool_registry.execute_tool(tool_name, params)
 
             if tool_res.success:
+                if isinstance(tool_res.data, dict) and "page_id" in tool_res.data:
+                    setattr(ctx, "active_page_id", tool_res.data["page_id"])
+
                 if on_activity:
                     await on_activity("tool.completed", f"Tool '{tool_name}' finished execution", {"success": True, "data": tool_res.data})
 

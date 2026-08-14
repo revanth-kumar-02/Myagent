@@ -11,9 +11,21 @@ class PermissionLevel(str, Enum):
     READ = "READ"
     WRITE = "WRITE"
     DELETE = "DELETE"
+    BROWSER_READ = "BROWSER_READ"
+    BROWSER_INTERACT = "BROWSER_INTERACT"
+    BROWSER_DOWNLOAD = "BROWSER_DOWNLOAD"
+    BROWSER_EXTERNAL_ACTION = "BROWSER_EXTERNAL_ACTION"
 
 class PermissionRequest:
-    def __init__(self, request_id: str, tool_name: str, path: str, operation: str, permission_level: PermissionLevel, task_id: Optional[str] = None):
+    def __init__(
+        self,
+        request_id: str,
+        tool_name: str,
+        path: str,
+        operation: str,
+        permission_level: PermissionLevel,
+        task_id: Optional[str] = None
+    ):
         self.request_id = request_id
         self.tool_name = tool_name
         self.path = path
@@ -37,19 +49,19 @@ class PermissionManager:
         task_id: Optional[str] = None
     ) -> bool:
         """
-        Evaluates filesystem permission for operation.
+        Evaluates system & browser permissions for operations.
         Returns True if granted, False if denied.
         """
-        # 1. READ is allowed by default for authorized workspace paths
-        if permission_level == PermissionLevel.READ:
+        # 1. Standard READ and BROWSER_READ are auto-approved
+        if permission_level in (PermissionLevel.READ, PermissionLevel.BROWSER_READ):
             return True
 
-        # 2. WRITE can auto-approve if configured, or require interactive prompt
-        if permission_level == PermissionLevel.WRITE and self.auto_approve_writes:
-            logger.info(f"Auto-approved WRITE permission for {tool_name} on {path}")
+        # 2. WRITE & BROWSER_INTERACT can auto-approve if configured
+        if permission_level in (PermissionLevel.WRITE, PermissionLevel.BROWSER_INTERACT) and self.auto_approve_writes:
+            logger.info(f"Auto-approved {permission_level.value} for {tool_name} on {path}")
             return True
 
-        # 3. DELETE always requires explicit approval or interactive check
+        # 3. DELETE, BROWSER_DOWNLOAD, and BROWSER_EXTERNAL_ACTION require explicit approval or prompt
         request_id = f"perm-{uuid.uuid4().hex[:8]}"
         req = PermissionRequest(
             request_id=request_id,
@@ -63,7 +75,7 @@ class PermissionManager:
 
         # Broadcast permission request via WebSocket
         await ws_manager.broadcast({
-            "event": "tool.permission_requested",
+            "event": "tool.permission_requested" if not tool_name.startswith("browser_") else "browser.permission_requested",
             "data": {
                 "request_id": request_id,
                 "tool": tool_name,
@@ -74,15 +86,16 @@ class PermissionManager:
             }
         })
 
-        # Wait for resolution or timeout (default 30 seconds for test/interactive response)
+        # Wait for resolution or timeout (default 10 seconds for test/interactive response)
         try:
             is_granted = await asyncio.wait_for(req.future, timeout=10.0)
             return is_granted
         except asyncio.TimeoutError:
             logger.warning(f"Permission request {request_id} timed out. Denying operation.")
             req.status = "denied"
+            event_name = "browser.permission_denied" if tool_name.startswith("browser_") else "tool.permission_denied"
             await ws_manager.broadcast({
-                "event": "tool.permission_denied",
+                "event": event_name,
                 "data": {"request_id": request_id, "reason": "Timeout waiting for user approval"}
             })
             return False
@@ -98,9 +111,14 @@ class PermissionManager:
         if not req.future.done():
             req.future.set_result(granted)
 
+        tool_name = req.tool_name
+        is_browser = tool_name.startswith("browser_")
+        event_granted = "browser.permission_granted" if is_browser else "tool.permission_granted"
+        event_denied = "browser.permission_denied" if is_browser else "tool.permission_denied"
+
         asyncio.create_task(
             ws_manager.broadcast({
-                "event": "tool.permission_granted" if granted else "tool.permission_denied",
+                "event": event_granted if granted else event_denied,
                 "data": {"request_id": request_id, "granted": granted}
             })
         )

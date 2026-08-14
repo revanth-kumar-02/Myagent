@@ -62,19 +62,19 @@ export default {
       borderRadius: {
         'DEFAULT': '0.125rem',  // 2px  — tight
         'lg':      '0.25rem',   // 4px  — standard
-        'xl':      '0.5rem',    // 8px  — card
-        'full':    '0.75rem',   // 12px — pill
+        'xl':      '0.375rem',  // 6px  — card
+        'full':    '0.5rem',    // 8px — compact pill
       },
       spacing: {
         'unit':           '4px',
         'xs':             '4px',
         'sm':             '8px',
-        'md':             '16px',
-        'lg':             '24px',
-        'xl':             '48px',
-        'xxl':            '80px',
-        'gutter':         '24px',
-        'margin-desktop': '40px',
+        'md':             '12px',
+        'lg':             '16px',
+        'xl':             '24px',
+        'xxl':            '32px',
+        'gutter':         '16px',
+        'margin-desktop': '24px',
       },
       fontFamily: {
         'ui-main':     ['Geist', 'system-ui', 'sans-serif'],
@@ -87,14 +87,14 @@ export default {
         'code-sm':     ['"JetBrains Mono"', 'monospace'],
       },
       fontSize: {
-        'label-caps':   ['12px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '600' }],
-        'status-log':   ['12px', { lineHeight: '18px', fontWeight: '400' }],
-        'display-lg':   ['48px', { lineHeight: '1.2',  letterSpacing: '-0.02em', fontWeight: '600' }],
-        'ui-medium':    ['15px', { lineHeight: '24px', fontWeight: '500' }],
-        'code-sm':      ['13px', { lineHeight: '20px', fontWeight: '400' }],
-        'ui-main':      ['15px', { lineHeight: '24px', fontWeight: '400' }],
-        'body-reading': ['18px', { lineHeight: '1.6',  fontWeight: '400' }],
-        'headline-md':  ['32px', { lineHeight: '1.3',  fontWeight: '500' }],
+        'label-caps':   ['11px', { lineHeight: '14px', letterSpacing: '0.04em', fontWeight: '600' }],
+        'status-log':   ['11px', { lineHeight: '16px', fontWeight: '400' }],
+        'display-lg':   ['28px', { lineHeight: '1.25', letterSpacing: '-0.02em', fontWeight: '600' }],
+        'headline-md':  ['22px', { lineHeight: '1.3',  fontWeight: '600' }],
+        'ui-main':      ['13px', { lineHeight: '18px', fontWeight: '400' }],
+        'ui-medium':    ['13px', { lineHeight: '18px', fontWeight: '500' }],
+        'body-reading': ['14px', { lineHeight: '1.5',  fontWeight: '400' }],
+        'code-sm':      ['12px', { lineHeight: '18px', fontWeight: '400' }],
       },
     },
   },

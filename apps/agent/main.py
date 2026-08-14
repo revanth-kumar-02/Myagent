@@ -9,8 +9,11 @@ from api.projects import router as projects_router
 from api.research import router as research_router
 from api.automations import router as automations_router
 from api.settings import router as settings_router
+from api.profile import router as profile_router
 from api.agent_run import router as agent_run_router
 from api.filesystem import router as filesystem_router
+from api.browser import router as browser_router
+from core.browser.session_manager import browser_session_manager
 from api.websocket import ws_manager
 
 @asynccontextmanager
@@ -21,6 +24,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown logic
     print("Shutting down Cocoa Agent Backend...")
+    await browser_session_manager.close_all()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -46,7 +50,9 @@ app.include_router(projects_router, prefix=settings.API_V1_STR)
 app.include_router(research_router, prefix=settings.API_V1_STR)
 app.include_router(automations_router, prefix=settings.API_V1_STR)
 app.include_router(settings_router, prefix=settings.API_V1_STR)
+app.include_router(profile_router, prefix=settings.API_V1_STR)
 app.include_router(filesystem_router, prefix=settings.API_V1_STR)
+app.include_router(browser_router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

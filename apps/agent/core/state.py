@@ -27,6 +27,7 @@ class ExecutionContext(BaseModel):
     task_id: str
     goal: str
     project_id: Optional[str] = None
+    active_page_id: Optional[str] = None
     current_state: AgentState = AgentState.IDLE
     steps: List[StepExecutionState] = []
     current_step_index: int = 0

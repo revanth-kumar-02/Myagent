@@ -136,3 +136,24 @@ export interface AgentRunResponse {
   task: Task;
   message: string;
 }
+
+export interface BrowserSessionDomain {
+  domain: string;
+  first_visited: string;
+  last_visited: string;
+  visit_count: number;
+}
+
+export interface BrowserSessionData {
+  session_id: string;
+  task_id?: string;
+  created_at: string;
+  active_page_id?: string;
+  pages_count: number;
+  domains: BrowserSessionDomain[];
+}
+
+export interface UserProfile {
+  username: string;
+}
+

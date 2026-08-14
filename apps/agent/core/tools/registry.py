@@ -9,12 +9,20 @@ from core.filesystem.tools import (
     ListDirectoryInput, SearchFilesInput, ReadFileInput, InspectFileInput,
     CreateFileInput, EditFileInput, MoveFileInput, DeleteFileInput
 )
+from core.browser.tools import (
+    global_browser_toolset,
+    BrowserOpenInput, BrowserNavigateInput, BrowserBackInput, BrowserExtractInput,
+    BrowserClickInput, BrowserTypeInput, BrowserScrollInput, BrowserScreenshotInput,
+    BrowserDownloadInput, BrowserCloseInput
+)
 
 logger = logging.getLogger(__name__)
 
 # Default global validator
 default_validator = PathValidator([os.getcwd(), "/home/rev/My Personal Space/Projects"])
 global_filesystem_toolset = FilesystemToolSet(default_validator, permission_manager)
+
+# ─── Filesystem Tools ──────────────────────────────────────────────────────
 
 class ListDirectoryTool(BaseTool):
     name = "list_directory"
@@ -104,6 +112,120 @@ class DeleteFileTool(BaseTool):
             error="" if res["success"] else res.get("error", {}).get("message", "Delete file failed")
         )
 
+# ─── Browser Tools ─────────────────────────────────────────────────────────
+
+class BrowserOpenTool(BaseTool):
+    name = "browser_open"
+    description = "Launches an isolated browser context and opens a target http/https URL."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.open(BrowserOpenInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser open failed")
+        )
+
+class BrowserNavigateTool(BaseTool):
+    name = "browser_navigate"
+    description = "Navigates an existing browser page to a target URL."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.navigate(BrowserNavigateInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser navigate failed")
+        )
+
+class BrowserBackTool(BaseTool):
+    name = "browser_back"
+    description = "Navigates back in browser history for a page."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.back(BrowserBackInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser back failed")
+        )
+
+class BrowserExtractTool(BaseTool):
+    name = "browser_extract"
+    description = "Extracts structured headings, links, buttons, inputs, and untrusted body text from page."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.extract(BrowserExtractInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser extract failed")
+        )
+
+class BrowserClickTool(BaseTool):
+    name = "browser_click"
+    description = "Clicks an element on page using stable text, role, or CSS selector."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.click(BrowserClickInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser click failed")
+        )
+
+class BrowserTypeTool(BaseTool):
+    name = "browser_type"
+    description = "Types text into an input field or text area."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.type(BrowserTypeInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser type failed")
+        )
+
+class BrowserScrollTool(BaseTool):
+    name = "browser_scroll"
+    description = "Scrolls page up, down, top, or bottom."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.scroll(BrowserScrollInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser scroll failed")
+        )
+
+class BrowserScreenshotTool(BaseTool):
+    name = "browser_screenshot"
+    description = "Captures a screenshot of the active browser page."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.screenshot(BrowserScreenshotInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser screenshot failed")
+        )
+
+class BrowserDownloadTool(BaseTool):
+    name = "browser_download"
+    description = "Downloads a file from URL or click trigger into safe Cocoa download directory."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.download(BrowserDownloadInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser download failed")
+        )
+
+class BrowserCloseTool(BaseTool):
+    name = "browser_close"
+    description = "Closes a browser page or entire session context."
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        res = await global_browser_toolset.close(BrowserCloseInput(**params))
+        return ToolResult(
+            success=res["success"],
+            data=res.get("result"),
+            error="" if res["success"] else res.get("error", {}).get("message", "Browser close failed")
+        )
+
+# ─── Other Utility Tools ──────────────────────────────────────────────────
+
 class WebSearchTool(BaseTool):
     name = "web_search"
     description = "Searches the web for information, documentation, or recent news"
@@ -119,10 +241,19 @@ class WebSearchTool(BaseTool):
 
 class BrowserTool(BaseTool):
     name = "browser"
-    description = "Simulates web page rendering, DOM extraction, and UI interactions"
+    description = "Simulates or executes browser page rendering and extraction."
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         url = params.get("url", "https://localhost")
-        return ToolResult(success=True, data={"url": url, "page_title": "Cocoa Agent Verification Context", "extracted_text": f"Simulated browser interaction completed for {url}"})
+        res = await global_browser_toolset.open(BrowserOpenInput(url=url))
+        if res["success"]:
+            page_id = res["result"]["page_id"]
+            ext_res = await global_browser_toolset.extract(BrowserExtractInput(page_id=page_id))
+            return ToolResult(
+                success=ext_res["success"],
+                data=ext_res.get("result"),
+                error="" if ext_res["success"] else ext_res.get("error", {}).get("message", "Browser extraction failed")
+            )
+        return ToolResult(success=False, data=None, error=res.get("error", {}).get("message", "Browser open failed"))
 
 class SchedulerTool(BaseTool):
     name = "scheduler"
@@ -130,15 +261,17 @@ class SchedulerTool(BaseTool):
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         return ToolResult(success=True, data={"task_name": params.get("task_name", "background_check"), "cron": params.get("cron", "0 0 * * *"), "status": "scheduled"})
 
+# ─── ToolRegistry ──────────────────────────────────────────────────────────
+
 class ToolRegistry:
     def __init__(self):
         self._tools: Dict[str, BaseTool] = {}
-        # Register core tools
+        # Core tools
         self.register(WebSearchTool())
         self.register(BrowserTool())
         self.register(SchedulerTool())
 
-        # Register filesystem tools
+        # Filesystem tools
         self.register(ListDirectoryTool())
         self.register(SearchFilesTool())
         self.register(ReadFileTool())
@@ -147,6 +280,18 @@ class ToolRegistry:
         self.register(EditFileTool())
         self.register(MoveFileTool())
         self.register(DeleteFileTool())
+
+        # Browser tools
+        self.register(BrowserOpenTool())
+        self.register(BrowserNavigateTool())
+        self.register(BrowserBackTool())
+        self.register(BrowserExtractTool())
+        self.register(BrowserClickTool())
+        self.register(BrowserTypeTool())
+        self.register(BrowserScrollTool())
+        self.register(BrowserScreenshotTool())
+        self.register(BrowserDownloadTool())
+        self.register(BrowserCloseTool())
 
     def set_filesystem_root(self, root_path: str):
         global_filesystem_toolset.validator.add_authorized_root(root_path)

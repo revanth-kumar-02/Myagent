@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from core.llm import LLMProviderGateway, BaseLLMProvider
@@ -6,7 +7,7 @@ class PlanStepSchema(BaseModel):
     id: str = Field(description="Unique step ID, e.g. step_1")
     title: str = Field(description="Short human readable action step title")
     description: str = Field(description="Detailed step execution instructions")
-    tool: Optional[str] = Field(default="web_search", description="Tool name: web_search | list_directory | search_files | read_file | inspect_file | create_file | edit_file | move_file | delete_file | browser | scheduler")
+    tool: Optional[str] = Field(default="web_search", description="Tool name: web_search | list_directory | search_files | read_file | inspect_file | create_file | edit_file | move_file | delete_file | browser_open | browser_navigate | browser_extract | browser_click | browser_type | browser_scroll | browser_screenshot | browser_download | browser_close | browser | scheduler")
     status: str = Field(default="pending", description="Initial step status: pending")
 
 class TaskPlan(BaseModel):
@@ -21,7 +22,7 @@ class AgentPlanner:
         system_prompt = (
             "You are an autonomous AI Agent Planner. "
             "Your task is to decompose high-level user goals into structured, logical, sequential execution steps. "
-            "Assign tools from [web_search, list_directory, search_files, read_file, inspect_file, create_file, edit_file, move_file, delete_file, browser, scheduler]."
+            "Assign tools from [web_search, list_directory, search_files, read_file, inspect_file, create_file, edit_file, move_file, delete_file, browser_open, browser_navigate, browser_extract, browser_click, browser_type, browser_scroll, browser_screenshot, browser_download, browser_close, browser, scheduler]."
         )
         user_prompt = f"Goal to accomplish: '{goal}'"
         
@@ -33,6 +34,45 @@ class AgentPlanner:
         except Exception as e:
             # Deterministic fallback plan matching prompt heuristics
             lower_goal = goal.lower()
+
+            # Check if goal is browser related
+            url_match = re.search(r'https?://[^\s]+', goal)
+            if "open" in lower_goal and ("http" in lower_goal or "fastapi" in lower_goal or "doc" in lower_goal or "website" in lower_goal or "page" in lower_goal or "site" in lower_goal):
+                target_url = url_match.group(0) if url_match else "https://fastapi.tiangolo.com/"
+                return TaskPlan(
+                    goal=goal,
+                    steps=[
+                        PlanStepSchema(
+                            id="step_1",
+                            title=f"Open target web page: '{target_url}'",
+                            description=f"Launch isolated browser session and open {target_url}",
+                            tool="browser_open",
+                            status="pending"
+                        ),
+                        PlanStepSchema(
+                            id="step_2",
+                            title="Extract page content & navigation links",
+                            description="Extract structured headings, text, and interactive elements",
+                            tool="browser_extract",
+                            status="pending"
+                        ),
+                        PlanStepSchema(
+                            id="step_3",
+                            title="Navigate to requested section & extract details",
+                            description="Perform click navigation or section extraction for target topic",
+                            tool="browser_extract",
+                            status="pending"
+                        ),
+                        PlanStepSchema(
+                            id="step_4",
+                            title="Verify findings and close session",
+                            description="Validate findings and close browser session context",
+                            tool="browser_close",
+                            status="pending"
+                        )
+                    ]
+                )
+
             if "list" in lower_goal:
                 tool_name = "list_directory"
             elif "find" in lower_goal or "search" in lower_goal:
@@ -56,7 +96,7 @@ class AgentPlanner:
                     PlanStepSchema(
                         id="step_1",
                         title=f"Analyze requirement for '{goal[:40]}'",
-                        description="Gather required filesystem context and inspect parameters",
+                        description="Gather required context and inspect parameters",
                         tool=tool_name,
                         status="pending"
                     ),

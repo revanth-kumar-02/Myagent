@@ -11,6 +11,7 @@ import type {
   ResearchFinding,
   Automation,
   AgentRunResponse,
+  UserProfile,
 } from './types';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -216,9 +217,47 @@ export class CocoaApiClient {
     return res.json();
   }
 
+  async getBrowserSessions(): Promise<{ sessions: any[]; count: number }> {
+    const res = await fetch(`${API_BASE_URL}/browser/sessions`);
+    if (!res.ok) throw new Error('Failed to fetch browser sessions');
+    return res.json();
+  }
+
+  async respondBrowserPermission(requestId: string, granted: boolean): Promise<{ status: string; request_id: string; granted: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/browser/permissions/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId, granted })
+    });
+    if (!res.ok) throw new Error('Failed to respond to browser permission request');
+    return res.json();
+  }
+
   async browseDirectory(path: string = '.'): Promise<any> {
     const res = await fetch(`${API_BASE_URL}/filesystem/browse?path=${encodeURIComponent(path)}`);
     if (!res.ok) throw new Error(`Failed to browse directory: ${path}`);
+    return res.json();
+  }
+
+  async getProfile(): Promise<UserProfile> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Ignore backend connection errors, fallback gracefully
+    }
+    return { username: 'User' };
+  }
+
+  async updateProfile(username: string): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE_URL}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    if (!res.ok) throw new Error('Failed to update profile');
     return res.json();
   }
 }
