@@ -1,12 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
-  import type { Project, Workspace } from '$lib/api/types';
+  import type { Project, Workspace, RagStatus, RagChunkResult } from '$lib/api/types';
 
   let workspace: Workspace | null = null;
   let projects: Project[] = [];
   let selectedProject: Project | null = null;
+  let projectMemories: any[] = [];
   let activeDetailTab: 'overview' | 'files' | 'research' | 'tasks' | 'context' | 'automations' = 'overview';
+
+  // RAG state
+  let ragStatus: RagStatus | null = null;
+  let ragSearchQuery = '';
+  let ragSearchResults: RagChunkResult[] = [];
+  let isRagIndexing = false;
+  let isRagSearching = false;
+  let ragMsg = '';
 
   let searchQuery = '';
   let sortBy: 'recent' | 'alphabetical' = 'recent';
@@ -19,6 +28,84 @@
   let newWorkspacePath = '';
   let modalErrorMsg = '';
   let modalIsScanning = false;
+
+  let memorySearchQuery = '';
+  let isKnowledgeRescanning = false;
+
+  async function handleSearchMemories() {
+    if (!selectedProject) return;
+    if (!memorySearchQuery.trim()) {
+      projectMemories = await api.getMemories(selectedProject.id);
+      return;
+    }
+    try {
+      projectMemories = await api.searchMemories(memorySearchQuery, selectedProject.id);
+    } catch (e) {}
+  }
+
+  async function handleVerifyMemory(memId: string) {
+    try {
+      await api.verifyMemory(memId);
+      if (selectedProject) projectMemories = await api.getMemories(selectedProject.id);
+    } catch (e) {}
+  }
+
+  async function handleArchiveMemory(memId: string) {
+    try {
+      await api.archiveMemory(memId);
+      if (selectedProject) projectMemories = await api.getMemories(selectedProject.id);
+    } catch (e) {}
+  }
+
+  async function handleRescanKnowledge() {
+    if (!selectedProject) return;
+    isKnowledgeRescanning = true;
+    try {
+      await api.refreshProjectKnowledge(selectedProject.id);
+      projectMemories = await api.getMemories(selectedProject.id);
+    } catch (e) {}
+    finally {
+      isKnowledgeRescanning = false;
+    }
+  }
+
+  async function loadRagStatus(projId: string) {
+    try {
+      ragStatus = await api.getRagStatus(projId);
+    } catch (e) {
+      ragStatus = null;
+    }
+  }
+
+  async function handleIndexRag(forceFull: boolean = false) {
+    if (!selectedProject) return;
+    isRagIndexing = true;
+    ragMsg = '';
+    try {
+      const res = await api.indexProjectRag(selectedProject.id, selectedProject.path, forceFull);
+      ragMsg = `Indexed: ${res.files_scanned} files scanned, ${res.total_chunks} total chunks (${res.files_unchanged} unchanged).`;
+      await loadRagStatus(selectedProject.id);
+    } catch (e: any) {
+      ragMsg = e.message || 'Indexing failed';
+    } finally {
+      isRagIndexing = false;
+    }
+  }
+
+  async function handleSearchRag() {
+    if (!selectedProject || !ragSearchQuery.trim()) {
+      ragSearchResults = [];
+      return;
+    }
+    isRagSearching = true;
+    try {
+      ragSearchResults = await api.searchRag(selectedProject.id, ragSearchQuery.trim());
+    } catch (e) {
+      ragSearchResults = [];
+    } finally {
+      isRagSearching = false;
+    }
+  }
 
   onMount(async () => {
     await loadWorkspaceAndProjects();
@@ -81,9 +168,13 @@
     showChangeWorkspaceModal = true;
   }
 
-  function selectProject(proj: Project) {
+  async function selectProject(proj: Project) {
     selectedProject = proj;
     activeDetailTab = 'overview';
+    ragSearchResults = [];
+    ragSearchQuery = '';
+    ragMsg = '';
+    await loadRagStatus(proj.id);
   }
 
   function backToProjectList() {
@@ -123,7 +214,7 @@
   }
 </script>
 
-<main class="ml-56 pt-12 px-6 pb-6 min-h-[calc(100vh-48px)] bg-background flex flex-col flex-1">
+<main class="ml-56 pt-12 px-6 pb-6 min-h-[calc(100vh-48px)] bg-background flex flex-col flex-1 animate-page-enter">
 
   {#if selectedProject}
     <!-- PROJECT DETAIL VIEW -->
@@ -132,7 +223,7 @@
       <div class="pt-1 pb-1">
         <button
           onclick={backToProjectList}
-          class="inline-flex items-center gap-1 font-ui-medium text-[12px] text-on-surface-variant hover:text-primary transition-colors group"
+          class="btn-ghost btn-sm group"
         >
           <span class="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
           Back to Projects Browser
@@ -217,6 +308,217 @@
               </div>
             </div>
           </div>
+        {:else if activeDetailTab === 'context'}
+          <div class="space-y-4">
+            <!-- PROJECT RAG STATUS & CODE SEARCH CARD -->
+            <div class="p-3 bg-surface rounded-md border border-outline-variant/50 space-y-2.5">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-[18px] text-primary">menu_book</span>
+                  <div>
+                    <h4 class="font-ui-medium text-[12px] text-primary font-semibold">Project RAG & Structural Knowledge</h4>
+                    <p class="font-status-log text-[10px] text-on-surface-variant">Scope: {selectedProject.title} ({selectedProject.path || 'Workspace'})</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    onclick={() => handleIndexRag(false)}
+                    disabled={isRagIndexing}
+                    class="bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 px-2.5 py-1 rounded font-ui-medium text-[11px] flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                  >
+                    <span class="material-symbols-outlined text-[13px] {isRagIndexing ? 'animate-spin' : ''}">sync</span>
+                    {isRagIndexing ? 'Indexing...' : 'Index Project RAG'}
+                  </button>
+                  <button
+                    onclick={() => handleIndexRag(true)}
+                    disabled={isRagIndexing}
+                    class="bg-surface border border-outline-variant/50 text-on-surface-variant hover:text-primary px-2 py-1 rounded font-ui-medium text-[10px] disabled:opacity-50 cursor-pointer"
+                    title="Force rebuild all chunks"
+                  >
+                    Force Re-index
+                  </button>
+                </div>
+              </div>
+
+              <!-- RAG Status Metric Badges -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-status-log text-[10px]">
+                <div class="bg-surface-container-low p-2 rounded border border-outline-variant/30">
+                  <div class="text-on-surface-variant/70 mb-0.5">STATUS</div>
+                  <div class="font-semibold text-primary flex items-center gap-1">
+                    <span class="inline-block w-2 h-2 rounded-full {ragStatus?.indexing_status === 'INDEXED' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                    {ragStatus?.indexing_status || 'IDLE'}
+                  </div>
+                </div>
+                <div class="bg-surface-container-low p-2 rounded border border-outline-variant/30">
+                  <div class="text-on-surface-variant/70 mb-0.5">INDEXED FILES</div>
+                  <div class="font-semibold text-primary">{ragStatus?.total_files || 0} files</div>
+                </div>
+                <div class="bg-surface-container-low p-2 rounded border border-outline-variant/30">
+                  <div class="text-on-surface-variant/70 mb-0.5">STRUCTURAL CHUNKS</div>
+                  <div class="font-semibold text-primary">{ragStatus?.total_chunks || 0} chunks</div>
+                </div>
+                <div class="bg-surface-container-low p-2 rounded border border-outline-variant/30">
+                  <div class="text-on-surface-variant/70 mb-0.5">VECTOR BACKEND</div>
+                  <div class="font-semibold text-secondary truncate">{ragStatus?.vector_backend || 'INITIALIZING'}</div>
+                </div>
+              </div>
+
+              {#if ragMsg}
+                <div class="text-[11px] font-status-log text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2.5 py-1">
+                  {ragMsg}
+                </div>
+              {/if}
+
+              <!-- RAG Code & Symbol Search -->
+              <div class="pt-1 space-y-2">
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-on-surface-variant/60">code</span>
+                    <input
+                      type="text"
+                      placeholder="Search code chunks (functions, classes, components, SQL)..."
+                      bind:value={ragSearchQuery}
+                      onkeydown={(e) => e.key === 'Enter' && handleSearchRag()}
+                      class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-md pl-8 pr-3 py-1 font-ui-main text-[11px] text-primary focus:outline-none focus:border-secondary h-7"
+                    />
+                  </div>
+                  <button
+                    onclick={handleSearchRag}
+                    disabled={isRagSearching}
+                    class="btn-secondary h-7 text-[11px] px-2.5 py-0.5"
+                  >
+                    {isRagSearching ? 'Searching...' : 'Search Code'}
+                  </button>
+                </div>
+
+                {#if ragSearchResults.length > 0}
+                  <div class="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                    {#each ragSearchResults as chunk}
+                      <div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant/40 space-y-1">
+                        <div class="flex items-center justify-between font-status-log text-[10px]">
+                          <div class="flex items-center gap-1.5 truncate">
+                            <span class="font-mono text-primary font-semibold truncate">{chunk.file_path}</span>
+                            {#if chunk.symbol}
+                              <span class="text-on-surface-variant">•</span>
+                              <span class="font-mono text-secondary truncate">{chunk.symbol}</span>
+                            {/if}
+                          </div>
+                          <div class="flex items-center gap-1.5 shrink-0">
+                            <span class="px-1.5 py-0.2 bg-primary/10 text-primary rounded text-[9px] font-mono uppercase">{chunk.language}</span>
+                            <span class="px-1.5 py-0.2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[9px] font-semibold">
+                              {(chunk.relevance * 100).toFixed(0)}% match
+                            </span>
+                          </div>
+                        </div>
+                        <pre class="font-mono text-[11px] text-on-surface/90 bg-surface-container-low p-2 rounded overflow-x-auto max-h-32 leading-tight select-text">{chunk.content}</pre>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- AGENT SEMANTIC MEMORIES SECTION -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-outline-variant/40 pb-2 gap-2 pt-2">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-secondary">psychology</span>
+                <h3 class="font-label-caps text-[11px] text-primary font-semibold tracking-wider uppercase">Agent Semantic Memory & Context</h3>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  onclick={handleRescanKnowledge}
+                  disabled={isKnowledgeRescanning}
+                  class="font-ui-medium text-[11px] text-secondary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <span class="material-symbols-outlined text-[14px] {isKnowledgeRescanning ? 'animate-spin' : ''}">sync</span>
+                  {isKnowledgeRescanning ? 'Indexing Graph...' : 'Index Knowledge Graph'}
+                </button>
+                <button
+                  onclick={async () => {
+                    try {
+                      projectMemories = await api.getMemories(selectedProject?.id);
+                    } catch {}
+                  }}
+                  class="font-ui-medium text-[11px] text-on-surface-variant hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span class="material-symbols-outlined text-[14px]">refresh</span>
+                  Reload
+                </button>
+              </div>
+            </div>
+
+            <!-- Knowledge Hybrid Search Bar -->
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-on-surface-variant/60">search</span>
+                <input
+                  type="text"
+                  placeholder="Hybrid semantic memory search..."
+                  bind:value={memorySearchQuery}
+                  onkeydown={(e) => e.key === 'Enter' && handleSearchMemories()}
+                  class="w-full bg-surface border border-outline-variant/50 rounded-md pl-8 pr-3 py-1.5 font-ui-main text-[12px] text-primary focus:outline-none focus:border-secondary"
+                />
+              </div>
+              <button
+                onclick={handleSearchMemories}
+                class="bg-surface border border-outline-variant/50 hover:border-outline text-primary px-3 py-1.5 rounded-md font-ui-medium text-[11px] shadow-sm"
+              >
+                Search
+              </button>
+            </div>
+
+            {#if projectMemories.length > 0}
+              <div class="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                {#each projectMemories as mem}
+                  <div class="p-3 bg-surface rounded-md border border-outline-variant/40 space-y-1.5">
+                    <div class="flex items-center justify-between font-status-log text-[10px] text-on-surface-variant/70">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-mono text-secondary uppercase font-semibold">[{mem.memory_type}]</span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase
+                          {mem.verification_status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                           mem.verification_status === 'ACTIVE' ? 'bg-amber-50 text-amber-900 border border-amber-200' :
+                           mem.verification_status === 'SUPERSEDED' ? 'bg-surface-variant text-on-surface-variant line-through opacity-70' :
+                           'bg-surface-container text-on-surface-variant'}"
+                        >
+                          {mem.verification_status || 'ACTIVE'}
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span>Importance: {mem.importance || 5}/10</span>
+                        {#if mem.verification_status !== 'VERIFIED' && mem.verification_status !== 'SUPERSEDED'}
+                          <button
+                            onclick={() => handleVerifyMemory(mem.id)}
+                            class="text-[10px] text-emerald-700 hover:underline font-semibold"
+                          >
+                            Verify
+                          </button>
+                        {/if}
+                        {#if mem.verification_status !== 'ARCHIVED'}
+                          <button
+                            onclick={() => handleArchiveMemory(mem.id)}
+                            class="text-[10px] text-on-surface-variant hover:underline"
+                          >
+                            Archive
+                          </button>
+                        {/if}
+                      </div>
+                    </div>
+                    <p class="font-ui-main text-[12px] text-primary">{mem.content}</p>
+                    <div class="flex items-center justify-between font-status-log text-[10px] text-on-surface-variant/50 pt-0.5">
+                      <span>Source: {mem.source} ({mem.source_reliability || 'USER_CONFIRMED'})</span>
+                      {#if mem.confidence}
+                        <span>Confidence: {(mem.confidence * 100).toFixed(0)}%</span>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="p-6 text-center text-on-surface-variant/70 font-ui-main text-[12px]">
+                No semantic memory entries stored for this project yet. Click "Index Knowledge Graph" or run tasks to populate persistent project context.
+              </div>
+            {/if}
+          </div>
         {:else}
           <div class="text-center py-8 text-on-surface-variant font-ui-main text-[13px]">
             <span class="material-symbols-outlined text-3xl text-outline-variant mb-1 block">folder_open</span>
@@ -239,7 +541,7 @@
           <button
             onclick={handleRescan}
             disabled={isScanning}
-            class="bg-surface border border-outline-variant/60 hover:border-outline text-primary px-3 py-1.5 rounded-md font-ui-medium text-[12px] inline-flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 h-8"
+            class="btn-secondary disabled:opacity-50"
           >
             <span class="material-symbols-outlined text-[16px] {isScanning ? 'animate-spin' : ''}">sync</span>
             {isScanning ? 'Scanning...' : 'Rescan Workspace'}
@@ -247,7 +549,7 @@
 
           <button
             onclick={openChangeModal}
-            class="bg-primary text-on-primary hover:bg-primary-container px-3 py-1.5 rounded-md font-ui-medium text-[12px] inline-flex items-center gap-1.5 transition-colors shadow-sm h-8"
+            class="btn-primary"
           >
             <span class="material-symbols-outlined text-[16px]">folder</span>
             Change Folder
@@ -433,14 +735,14 @@
           <button
             onclick={() => showChangeWorkspaceModal = false}
             disabled={modalIsScanning}
-            class="px-3 py-1 border border-outline-variant/50 rounded-md font-ui-medium text-[12px] text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50 h-8"
+            class="btn-secondary disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onclick={handleSetWorkspace}
             disabled={modalIsScanning}
-            class="bg-primary text-on-primary hover:bg-primary-container px-3.5 py-1 rounded-md font-ui-medium text-[12px] transition-colors inline-flex items-center gap-1 disabled:opacity-50 h-8"
+            class="btn-primary disabled:opacity-50"
           >
             {#if modalIsScanning}
               <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>

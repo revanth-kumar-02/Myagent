@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
-  import type { Task, TaskStep, ActivityLog } from '$lib/api/types';
+  import type { Task, TaskStep, ActivityLog, PendingPermission } from '$lib/api/types';
   import { navigate } from '$lib/stores/navigation';
 
   let activeTab: 'overview' | 'activity' | 'result' = 'overview';
+  let allTasks: Task[] = [];
   let activeTask: Task | null = null;
   let steps: TaskStep[] = [];
   let activities: ActivityLog[] = [];
+  let pendingPermissions: PendingPermission[] = [];
   let expandedLogs: Record<string, boolean> = {};
 
   let isLoading = true;
@@ -29,9 +31,20 @@
     isLoading = true;
     errorMsg = '';
     try {
-      const allTasks = await api.getTasks();
+      allTasks = await api.getTasks().catch(() => []);
       if (allTasks.length > 0) {
-        activeTask = allTasks.find(t => t.status === 'executing' || t.status === 'planning' || t.status === 'verifying') || allTasks[0];
+        if (!activeTask) {
+          activeTask = allTasks.find(t => 
+            t.status.toLowerCase().includes('executing') || 
+            t.status.toLowerCase().includes('running') || 
+            t.status.toLowerCase().includes('planning') || 
+            t.status.toLowerCase().includes('waiting') ||
+            t.status.toLowerCase().includes('verifying')
+          ) || allTasks[0];
+        } else {
+          const fresh = allTasks.find(t => t.id === activeTask?.id);
+          if (fresh) activeTask = fresh;
+        }
         
         if (activeTask) {
           const [stepData, actData] = await Promise.all([
@@ -48,8 +61,17 @@
       }
     } catch (err: any) {
       errorMsg = err.message || 'Failed to load task workspace';
-    } final: {
+    } finally {
       isLoading = false;
+    }
+  }
+
+  function selectTask(taskId: string) {
+    const found = allTasks.find(t => t.id === taskId);
+    if (found) {
+      activeTask = found;
+      api.getTaskSteps(found.id).then(s => steps = s).catch(() => []);
+      api.getTaskActivity(found.id).then(a => activities = a).catch(() => []);
     }
   }
 
@@ -58,6 +80,21 @@
 
     const timestamp = new Date().toLocaleTimeString();
 
+    if (evt.event === 'permission_requested' || evt.request_id) {
+      const permReq: PendingPermission = {
+        request_id: evt.request_id || evt.details?.request_id || `req_${Date.now()}`,
+        tool_name: evt.tool_name || evt.details?.tool || 'system_tool',
+        operation: evt.operation || evt.details?.operation || 'EXECUTE',
+        target: evt.target || evt.resource || evt.details?.path || evt.details?.domain || 'System Workspace',
+        permission_level: evt.permission_level || 'ELEVATED',
+        risk_level: evt.risk_level || 'HIGH',
+        reason: evt.reason || evt.details?.reason || 'Agent requires access to execute task step',
+        task_id: evt.task_id || activeTask?.id
+      };
+      pendingPermissions = [permReq, ...pendingPermissions.filter(p => p.request_id !== permReq.request_id)];
+      if (activeTask) activeTask.status = 'WAITING_PERMISSION';
+    }
+
     if (evt.task_id && activeTask && evt.task_id === activeTask.id) {
       if (evt.status) activeTask.status = evt.status;
       if (evt.result) activeTask.result = evt.result;
@@ -65,7 +102,7 @@
 
     activities = [
       {
-        id: `act_${Date.now()}_${Math.random()}`,
+        id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         task_id: evt.task_id || activeTask?.id || '',
         event_type: evt.event,
         message: evt.message || `Event: ${evt.event}`,
@@ -87,27 +124,41 @@
   }
 
   function getStatusBadge(status: string) {
-    switch (status.toLowerCase()) {
-      case 'planning':
-        return { label: 'Planning', icon: 'psychology', bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
-      case 'executing':
-      case 'running':
-        return { label: 'Running', icon: 'sync', bg: 'bg-secondary-container/20 border border-secondary/30', text: 'text-secondary animate-pulse' };
-      case 'waiting':
-        return { label: 'Waiting Approval', icon: 'pending', bg: 'bg-tertiary-fixed', text: 'text-on-tertiary-fixed' };
-      case 'verifying':
-        return { label: 'Verifying', icon: 'fact_check', bg: 'bg-secondary-container/30', text: 'text-on-secondary-container' };
-      case 'completed':
-      case 'done':
-        return { label: 'Completed', icon: 'check_circle', bg: 'bg-surface-container-low border border-outline-variant/60', text: 'text-secondary' };
-      case 'failed':
-      case 'error':
-        return { label: 'Failed', icon: 'error', bg: 'bg-error-container/30', text: 'text-error' };
-      case 'cancelled':
-        return { label: 'Cancelled', icon: 'cancel', bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
-      default:
-        return { label: status, icon: 'info', bg: 'bg-surface-container', text: 'text-on-surface-variant' };
+    const s = (status || '').toLowerCase();
+    if (s.includes('pending')) {
+      return { label: 'PENDING', icon: 'schedule', bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
     }
+    if (s.includes('ready')) {
+      return { label: 'READY', icon: 'check_circle_outline', bg: 'bg-surface-container-high border border-outline-variant/60', text: 'text-primary' };
+    }
+    if (s.includes('planning')) {
+      return { label: 'PLANNING', icon: 'psychology', bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
+    }
+    if (s.includes('running') || s.includes('executing')) {
+      return { label: 'RUNNING', icon: 'sync', bg: 'bg-secondary-container/20 border border-secondary/30', text: 'text-secondary animate-pulse' };
+    }
+    if (s.includes('waiting') || s.includes('permission')) {
+      return { label: 'WAITING PERMISSION', icon: 'gavel', bg: 'bg-amber-950/40 border border-amber-800/40', text: 'text-amber-300 animate-pulse' };
+    }
+    if (s.includes('dependency')) {
+      return { label: 'WAITING DEPENDENCY', icon: 'account_tree', bg: 'bg-amber-950/30 border border-amber-800/30', text: 'text-amber-200' };
+    }
+    if (s.includes('verifying')) {
+      return { label: 'VERIFYING', icon: 'fact_check', bg: 'bg-secondary-container/30', text: 'text-on-secondary-container' };
+    }
+    if (s.includes('replanning')) {
+      return { label: 'REPLANNING', icon: 'published_with_changes', bg: 'bg-amber-950/40 border border-amber-800/40', text: 'text-amber-300' };
+    }
+    if (s.includes('completed') || s.includes('done')) {
+      return { label: 'COMPLETED', icon: 'check_circle', bg: 'bg-surface-container-low border border-outline-variant/60', text: 'text-secondary' };
+    }
+    if (s.includes('failed') || s.includes('error')) {
+      return { label: 'FAILED', icon: 'error', bg: 'bg-rose-950/40 border border-rose-800/40', text: 'text-rose-300' };
+    }
+    if (s.includes('cancelled')) {
+      return { label: 'CANCELLED', icon: 'cancel', bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
+    }
+    return { label: status.toUpperCase(), icon: 'info', bg: 'bg-surface-container', text: 'text-on-surface-variant' };
   }
 
   function getToolIcon(tool?: string) {
@@ -133,17 +184,21 @@
       case 'browser_download':
       case 'browser_close':
       case 'browser': return 'language';
+      case 'terminal':
+      case 'run_command': return 'terminal';
+      case 'git': return 'code';
       case 'scheduler': return 'schedule';
       default: return 'build';
     }
   }
 
-  async function handlePermissionResponse(requestId: string, granted: boolean) {
+  async function handlePermissionDecision(requestId: string, granted: boolean, scope: string = 'ONCE') {
     try {
-      await Promise.allSettled([
-        api.respondPermission(requestId, granted),
-        api.respondBrowserPermission(requestId, granted)
-      ]);
+      await api.respondPermission(requestId, granted, scope);
+      pendingPermissions = pendingPermissions.filter(p => p.request_id !== requestId);
+      if (activeTask && pendingPermissions.length === 0) {
+        activeTask.status = 'RUNNING';
+      }
     } catch (err) {
       console.error('Failed to respond to permission request', err);
     }
@@ -151,28 +206,43 @@
 </script>
 
 <!-- Task Detail Workspace -->
-<main class="ml-56 pt-12 px-6 pb-4 h-[calc(100vh-48px)] max-h-[calc(100vh-48px)] bg-background flex flex-col overflow-hidden">
+<main class="ml-56 pt-12 px-6 pb-4 h-[calc(100vh-48px)] max-h-[calc(100vh-48px)] bg-background flex flex-col overflow-hidden animate-page-enter">
 
-  <!-- Back button -->
-  <div class="pt-1 pb-2 flex items-center justify-between">
+  <!-- Header Bar & Task History Dropdown -->
+  <div class="pt-1 pb-3 flex items-center justify-between border-b border-outline-variant/40">
     <button
       onclick={() => navigate('home')}
-      class="inline-flex items-center gap-1 font-ui-medium text-[12px] text-on-surface-variant hover:text-primary transition-colors group"
+      class="btn-ghost btn-sm group"
     >
       <span class="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
       Back to Home
     </button>
+
+    {#if allTasks.length > 0}
+      <div class="flex items-center gap-2">
+        <span class="font-label-caps text-[10px] text-on-surface-variant uppercase tracking-wider">Task History:</span>
+        <select
+          value={activeTask?.id || ''}
+          onchange={(e) => selectTask((e.target as HTMLSelectElement).value)}
+          class="bg-[#e8d2cc] border border-[#d6b2aa] rounded-md px-2.5 py-1 text-[11px] font-ui-main text-[#1f1514] hover:bg-[#dfc4bd] focus:outline-none cursor-pointer shadow-sm"
+        >
+          {#each allTasks as t}
+            <option value={t.id}>{t.title} [{t.status}]</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
   </div>
 
   {#if isLoading}
     <div class="flex-1 flex flex-col items-center justify-center py-12 font-ui-main text-[13px] text-on-surface-variant animate-pulse">
       <span class="material-symbols-outlined text-3xl text-outline-variant mb-2 animate-spin">sync</span>
-      <p>Loading task workspace...</p>
+      <p>Loading task workspace & history...</p>
     </div>
   {:else if errorMsg}
-    <div class="my-6 bg-error/10 border border-error/20 text-error rounded-md p-4 text-center max-w-lg mx-auto">
+    <div class="my-6 bg-rose-950/20 border border-rose-800/40 text-rose-300 rounded-md p-4 text-center max-w-lg mx-auto font-ui-main text-[13px]">
       <span class="material-symbols-outlined text-2xl mb-1">warning</span>
-      <p class="font-ui-medium text-[13px]">{errorMsg}</p>
+      <p class="font-ui-medium">{errorMsg}</p>
     </div>
   {:else if !activeTask}
     <!-- Empty State -->
@@ -185,7 +255,7 @@
         </p>
         <button
           onclick={() => navigate('home')}
-          class="bg-primary text-on-primary hover:bg-primary-container px-3.5 py-1.5 rounded-full font-ui-medium text-[12px] inline-flex items-center gap-1 shadow-sm transition-colors"
+          class="btn-primary btn-pill inline-flex items-center gap-1 shadow-sm"
         >
           <span class="material-symbols-outlined text-[16px]">add</span>
           New Task Goal
@@ -193,8 +263,61 @@
       </div>
     </div>
   {:else}
+
+    <!-- APPROVAL CENTER BANNER (High-Priority Gate) -->
+    {#if pendingPermissions.length > 0}
+      <section class="mt-3 bg-amber-950/30 border border-amber-700/50 rounded-lg p-4 space-y-3 shadow-md">
+        <div class="flex items-center gap-2 text-amber-300">
+          <span class="material-symbols-outlined text-[22px]">gavel</span>
+          <h2 class="font-headline-md text-[15px] font-semibold tracking-tight">APPROVAL CENTER — PERMISSION REQUIRED</h2>
+        </div>
+
+        {#each pendingPermissions as perm}
+          <div class="bg-surface border border-outline-variant/60 rounded-md p-3 space-y-2">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-label-caps font-semibold uppercase bg-amber-950/60 text-amber-300 border border-amber-800/60">
+                  {perm.risk_level || 'HIGH RISK'}
+                </span>
+                <span class="font-ui-medium text-[13px] text-primary">{perm.tool_name} → {perm.operation}</span>
+              </div>
+              <span class="font-status-log text-[11px] text-on-surface-variant/70 font-mono">Req ID: {perm.request_id}</span>
+            </div>
+
+            <p class="font-ui-main text-[12px] text-on-surface-variant">{perm.reason}</p>
+            {#if perm.target}
+              <div class="font-mono text-[11px] text-secondary bg-surface-container-high px-2 py-1 rounded border border-outline-variant/40 truncate">
+                Target: {perm.target}
+              </div>
+            {/if}
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+              <button
+                onclick={() => handlePermissionDecision(perm.request_id, false, 'ONCE')}
+                class="btn-destructive btn-sm"
+              >
+                DENY
+              </button>
+              <button
+                onclick={() => handlePermissionDecision(perm.request_id, true, 'SESSION')}
+                class="btn-secondary btn-sm"
+              >
+                ALLOW FOR TASK
+              </button>
+              <button
+                onclick={() => handlePermissionDecision(perm.request_id, true, 'ONCE')}
+                class="btn-primary btn-sm"
+              >
+                ALLOW ONCE
+              </button>
+            </div>
+          </div>
+        {/each}
+      </section>
+    {/if}
+
     <!-- TOP HEADER -->
-    <header class="py-2.5 border-b border-outline-variant/50 mb-3">
+    <header class="py-2.5 border-b border-outline-variant/50 my-2">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-1">
         <div class="flex items-center gap-3 flex-wrap">
           <h1 class="font-headline-md text-[18px] text-primary font-semibold truncate max-w-2xl">
@@ -205,6 +328,23 @@
             <span class="material-symbols-outlined text-[12px]">{getStatusBadge(activeTask.status).icon}</span>
             <span>{getStatusBadge(activeTask.status).label}</span>
           </div>
+
+          <!-- Context Routing Mode Badge -->
+          {#if activeTask.plan_data?.context_routing}
+            {@const mode = activeTask.plan_data.context_routing}
+            <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-caps text-[10px]
+              {mode === 'PROJECT_RAG' ? 'bg-indigo-950/50 text-indigo-300 border border-indigo-700/50' :
+               mode === 'WEB_RESEARCH' ? 'bg-sky-950/50 text-sky-300 border border-sky-700/50' :
+               mode === 'BOTH' ? 'bg-purple-950/50 text-purple-300 border border-purple-700/50' :
+               'bg-surface-container-high text-on-surface-variant border border-outline-variant/60'}">
+              <span class="material-symbols-outlined text-[12px]">
+                {mode === 'PROJECT_RAG' ? 'code_blocks' : mode === 'WEB_RESEARCH' ? 'public' : mode === 'BOTH' ? 'travel_explore' : 'terminal'}
+              </span>
+              <span>
+                {mode === 'PROJECT_RAG' ? 'Project RAG' : mode === 'WEB_RESEARCH' ? 'Web Research' : mode === 'BOTH' ? 'Project + Web' : 'Direct Execution'}
+              </span>
+            </div>
+          {/if}
         </div>
       </div>
 
@@ -216,7 +356,7 @@
       <div class="flex items-center gap-4 font-status-log text-[11px] text-on-surface-variant/70 flex-wrap">
         <div class="flex items-center gap-1">
           <span class="material-symbols-outlined text-[14px]">folder_open</span>
-          <span>Project: {activeTask.project_id || 'Global Strategy'}</span>
+          <span>Project: {activeTask.project_id || 'Global Workspace'}</span>
         </div>
         <div class="flex items-center gap-1">
           <span class="material-symbols-outlined text-[14px]">schedule</span>
@@ -230,19 +370,19 @@
     </header>
 
     <!-- HORIZONTAL TAB SYSTEM -->
-    <nav class="flex items-center gap-4 border-b border-outline-variant/40 mb-4 select-none">
+    <nav class="flex items-center gap-4 border-b border-outline-variant/40 mb-3 select-none">
       <button
         onclick={() => activeTab = 'overview'}
-        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5
+        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5 cursor-pointer
           {activeTab === 'overview' ? 'text-primary border-b-2 border-secondary font-semibold' : 'text-on-surface-variant hover:text-primary'}"
       >
         <span class="material-symbols-outlined text-[16px]">account_tree</span>
-        Overview
+        Overview & Plan
       </button>
 
       <button
         onclick={() => activeTab = 'activity'}
-        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5
+        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5 cursor-pointer
           {activeTab === 'activity' ? 'text-primary border-b-2 border-secondary font-semibold' : 'text-on-surface-variant hover:text-primary'}"
       >
         <span class="material-symbols-outlined text-[16px]">history</span>
@@ -251,11 +391,11 @@
 
       <button
         onclick={() => activeTab = 'result'}
-        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5
+        class="pb-1.5 font-ui-medium text-[13px] transition-colors relative flex items-center gap-1.5 px-0.5 cursor-pointer
           {activeTab === 'result' ? 'text-primary border-b-2 border-secondary font-semibold' : 'text-on-surface-variant hover:text-primary'}"
       >
         <span class="material-symbols-outlined text-[16px]">fact_check</span>
-        Result
+        Result & Synthesis
       </button>
     </nav>
 
@@ -278,6 +418,75 @@
             {activities.length > 0 ? activities[0].timestamp : ''}
           </span>
         </section>
+
+        <!-- Context Pipeline & Provenance Card -->
+        {#if activeTask.plan_data && (activeTask.plan_data.context_routing || (activeTask.plan_data.sources && activeTask.plan_data.sources.length > 0))}
+          <section class="bg-surface-container-lowest border border-outline-variant/60 rounded-md p-3.5 space-y-2.5 shadow-sm">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-secondary text-[16px]">manage_search</span>
+                <h2 class="font-label-caps text-[11px] text-on-surface-variant/80 tracking-wider font-semibold">
+                  CONTEXT PIPELINE & PROVENANCE
+                </h2>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] font-mono text-on-surface-variant/70 flex-wrap">
+                {#if activeTask.plan_data.rag_chunks_count}
+                  <span class="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-300 border border-indigo-800/40 font-semibold">
+                    {activeTask.plan_data.rag_chunks_count} RAG chunks
+                  </span>
+                {/if}
+                {#if activeTask.plan_data.web_sources_count}
+                  <span class="px-2 py-0.5 rounded bg-sky-950/40 text-sky-300 border border-sky-800/40 font-semibold">
+                    {activeTask.plan_data.web_sources_count} Web sources ({activeTask.plan_data.provider_used || 'web'})
+                  </span>
+                {/if}
+              </div>
+            </div>
+
+            {#if activeTask.plan_data.reasoning}
+              <p class="font-ui-main text-[12px] text-on-surface-variant/90 italic bg-surface-container/40 p-2 rounded border border-outline-variant/30">
+                "{activeTask.plan_data.reasoning}"
+              </p>
+            {/if}
+
+            {#if activeTask.plan_data.sources && activeTask.plan_data.sources.length > 0}
+              <div class="mt-1 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {#each activeTask.plan_data.sources as src}
+                  <div class="p-2 rounded bg-surface-container border border-outline-variant/40 flex items-start justify-between gap-2 text-[11px]">
+                    <div class="flex items-start gap-2 min-w-0">
+                      <span class="material-symbols-outlined text-[15px] shrink-0 mt-0.5 {src.type === 'project' ? 'text-indigo-400' : 'text-sky-400'}">
+                        {src.type === 'project' ? 'code' : 'public'}
+                      </span>
+                      <div class="truncate">
+                        {#if src.type === 'project'}
+                          <div class="font-mono text-primary font-medium truncate">{src.file || src.path}</div>
+                          {#if src.symbol}
+                            <div class="text-[10px] text-on-surface-variant/70">Symbol: <span class="text-secondary">{src.symbol}</span></div>
+                          {/if}
+                        {:else}
+                          <a href={src.url} target="_blank" rel="noreferrer" class="font-ui-medium text-sky-400 hover:underline truncate block">
+                            {src.title || src.url}
+                          </a>
+                          <div class="text-[10px] text-on-surface-variant/70 flex items-center gap-2">
+                            <span>{src.domain || src.url}</span>
+                            {#if src.published_date}
+                              <span>• {src.published_date}</span>
+                            {/if}
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                    {#if src.relevance !== undefined}
+                      <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-outline-variant/50 text-on-surface-variant/80 shrink-0">
+                        rel: {typeof src.relevance === 'number' ? src.relevance.toFixed(2) : src.relevance}
+                      </span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </section>
+        {/if}
 
         <!-- EXECUTION PLAN Timeline -->
         <section>
@@ -304,7 +513,7 @@
                   <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 text-[11px]
                     {step.status === 'completed' ? 'bg-secondary/15 text-secondary border border-secondary/30' :
                      step.status === 'executing' ? 'bg-secondary text-on-secondary animate-pulse' :
-                     step.status === 'failed' ? 'bg-error/15 text-error border border-error/30' :
+                     step.status === 'failed' ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' :
                      'bg-surface-container-high text-on-surface-variant border border-outline-variant/60'}"
                   >
                     {#if step.status === 'completed'}
@@ -354,13 +563,13 @@
         <section class="bg-surface-container-lowest border border-outline-variant/60 rounded-md p-3 shadow-sm">
           <h2 class="font-label-caps text-[11px] text-on-surface-variant/80 tracking-wider mb-2 flex items-center gap-1 font-semibold">
             <span class="material-symbols-outlined text-[14px]">info</span>
-            TASK CONTEXT & PERMISSIONS
+            TASK CONTEXT & BOUNDARIES
           </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-4 gap-2 font-ui-main text-[12px]">
             <div class="p-2 bg-surface rounded border border-outline-variant/40">
               <div class="font-label-caps text-[10px] text-on-surface-variant/70 mb-0.5">PROJECT</div>
-              <div class="font-ui-medium text-primary text-[12px] truncate">{activeTask.project_id || 'Global Strategy'}</div>
+              <div class="font-ui-medium text-primary text-[12px] truncate">{activeTask.project_id || 'Global Workspace'}</div>
             </div>
 
             <div class="p-2 bg-surface rounded border border-outline-variant/40">
@@ -370,7 +579,7 @@
 
             <div class="p-2 bg-surface rounded border border-outline-variant/40">
               <div class="font-label-caps text-[10px] text-on-surface-variant/70 mb-0.5">TOOL PERMISSIONS</div>
-              <div class="font-ui-medium text-primary text-[12px]">Read / Write Sandbox</div>
+              <div class="font-ui-medium text-primary text-[12px]">Enforced PermissionManager</div>
             </div>
 
             <div class="p-2 bg-surface rounded border border-outline-variant/40">
@@ -413,7 +622,7 @@
                   {#if entry.details}
                     <button
                       onclick={() => toggleLogExpand(entry.id)}
-                      class="text-on-surface-variant hover:text-primary font-ui-medium text-[11px] inline-flex items-center gap-1 border border-outline-variant/50 px-1.5 py-0.5 rounded transition-colors"
+                      class="text-on-surface-variant hover:text-primary font-ui-medium text-[11px] inline-flex items-center gap-1 border border-outline-variant/50 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
                     >
                       {expandedLogs[entry.id] ? 'Hide Details' : 'Technical Details'}
                       <span class="material-symbols-outlined text-[14px]">
@@ -477,8 +686,8 @@
             </div>
           </div>
         {:else if activeTask.status === 'failed'}
-          <div class="bg-surface-container-lowest border border-error/30 rounded-md p-4 shadow-sm space-y-2">
-            <div class="flex items-center gap-2 text-error">
+          <div class="bg-surface-container-lowest border border-rose-800/40 rounded-md p-4 shadow-sm space-y-2">
+            <div class="flex items-center gap-2 text-rose-300">
               <span class="material-symbols-outlined text-2xl">error</span>
               <h2 class="font-headline-md text-[16px] font-semibold">Execution Failed</h2>
             </div>

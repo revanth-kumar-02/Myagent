@@ -45,6 +45,22 @@ async def init_db():
             async with pg_engine.begin() as conn:
                 await conn.execute(text("SELECT 1"))
                 await conn.run_sync(Base.metadata.create_all)
+                # Safe schema migration for Postgres
+                try:
+                    await conn.execute(text("ALTER TABLE agent_memories ADD COLUMN IF NOT EXISTS source_reliability VARCHAR(50) DEFAULT 'USER_CONFIRMED';"))
+                except Exception: pass
+                try:
+                    await conn.execute(text("ALTER TABLE agent_memories ADD COLUMN IF NOT EXISTS confidence FLOAT DEFAULT 1.0;"))
+                except Exception: pass
+                try:
+                    await conn.execute(text("ALTER TABLE agent_memories ADD COLUMN IF NOT EXISTS verification_status VARCHAR(50) DEFAULT 'ACTIVE';"))
+                except Exception: pass
+                try:
+                    await conn.execute(text("ALTER TABLE agent_memories ADD COLUMN IF NOT EXISTS supersedes_id VARCHAR(36);"))
+                except Exception: pass
+                try:
+                    await conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);"))
+                except Exception: pass
                 
             engine = pg_engine
             AsyncSessionLocal.configure(bind=engine)
@@ -88,6 +104,34 @@ async def init_db():
     sqlite_engine = create_async_engine(settings.sqlite_dsn, echo=False, future=True)
     async with sqlite_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Safe schema migration for SQLite
+        columns = [
+            ("source_reliability", "VARCHAR(50) DEFAULT 'USER_CONFIRMED'"),
+            ("confidence", "FLOAT DEFAULT 1.0"),
+            ("verification_status", "VARCHAR(50) DEFAULT 'ACTIVE'"),
+            ("supersedes_id", "VARCHAR(36)"),
+            ("last_accessed_at", "TIMESTAMP"),
+            ("access_count", "INTEGER DEFAULT 0"),
+            ("embedding", "JSON")
+        ]
+        for col_name, col_type in columns:
+            try:
+                await conn.execute(text(f"ALTER TABLE agent_memories ADD COLUMN {col_name} {col_type};"))
+            except Exception: pass
+        
+        automation_cols = [
+            ("workflow_config", "JSON"),
+            ("next_run_at", "TIMESTAMP"),
+            ("last_run_status", "VARCHAR(50)"),
+            ("updated_at", "TIMESTAMP")
+        ]
+        for col_name, col_type in automation_cols:
+            try:
+                await conn.execute(text(f"ALTER TABLE automations ADD COLUMN {col_name} {col_type};"))
+            except Exception: pass
+        try:
+            await conn.execute(text("ALTER TABLE project_files ADD COLUMN content_hash VARCHAR(64);"))
+        except Exception: pass
     engine = sqlite_engine
     AsyncSessionLocal.configure(bind=engine)
     IS_POSTGRES_ACTIVE = False

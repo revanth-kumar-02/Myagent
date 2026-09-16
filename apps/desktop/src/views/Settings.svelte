@@ -64,7 +64,7 @@
   }
 </script>
 
-<main class="ml-56 pt-12 px-6 pb-6 min-h-[calc(100vh-48px)] bg-background flex flex-col flex-1">
+<main class="ml-56 pt-12 px-6 pb-6 min-h-[calc(100vh-48px)] bg-background flex flex-col flex-1 animate-page-enter">
   <div class="max-w-2xl w-full pt-2">
     <div class="mb-4 border-b border-outline-variant/40 pb-3 flex items-center justify-between">
       <div>
@@ -130,7 +130,7 @@
             type="button"
             on:click={handleSaveSettings}
             disabled={isSaving}
-            class="bg-primary text-on-primary hover:bg-primary-container disabled:opacity-50 px-3.5 py-1 rounded-md font-ui-medium text-[12px] transition-colors shadow-sm h-8 flex items-center gap-1.5"
+            class="btn-primary h-8"
           >
             {#if isSaving}
               <span class="animate-spin text-[12px]">⌛</span>

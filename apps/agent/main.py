@@ -15,6 +15,7 @@ from api.filesystem import router as filesystem_router
 from api.browser import router as browser_router
 from api.memory import router as memory_router
 from api.permissions import router as permissions_router
+from api.rag import router as rag_router
 from core.browser.session_manager import browser_session_manager
 from core.scheduler_manager import automation_scheduler
 from api.websocket import ws_manager
@@ -48,6 +49,7 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(health_router)
 app.include_router(health_router, prefix=settings.API_V1_STR)
 app.include_router(agent_run_router, prefix=settings.API_V1_STR)
 app.include_router(tasks_router, prefix=settings.API_V1_STR)
@@ -60,6 +62,8 @@ app.include_router(filesystem_router, prefix=settings.API_V1_STR)
 app.include_router(browser_router, prefix=settings.API_V1_STR)
 app.include_router(memory_router, prefix=settings.API_V1_STR)
 app.include_router(permissions_router, prefix=settings.API_V1_STR)
+app.include_router(rag_router)
+app.include_router(rag_router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

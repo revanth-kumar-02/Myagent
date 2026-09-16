@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
-from core.llm import LLMProviderGateway, BaseLLMProvider
+from core.llm import LLMProviderGateway, BaseLLMProvider, ModelRole
 
 class VerificationResult(BaseModel):
     success: bool = Field(description="True if step or overall goal objectives were successfully met")
@@ -9,9 +9,20 @@ class VerificationResult(BaseModel):
 
 class AgentVerifier:
     def __init__(self, llm_provider: Optional[BaseLLMProvider] = None):
-        self.llm = llm_provider or LLMProviderGateway.get_provider()
+        self.llm = llm_provider or LLMProviderGateway.get_provider(role=ModelRole.REASONING)
 
     async def verify_step(self, goal: str, step_title: str, tool_result: Any) -> VerificationResult:
+        # Hard check for process / tool failure
+        if isinstance(tool_result, dict):
+            if tool_result.get("success") is False or (tool_result.get("exit_code") is not None and tool_result.get("exit_code") != 0):
+                exit_code = tool_result.get("exit_code", -1)
+                err_msg = tool_result.get("stderr") or tool_result.get("error") or "Non-zero exit code"
+                return VerificationResult(
+                    success=False,
+                    reason=f"COMMAND/TEST FAILED (exit code {exit_code}): {str(err_msg)[:200]}",
+                    needs_retry=True
+                )
+
         system_prompt = (
             "You are an autonomous AI Verifier. "
             "Evaluate whether the tool output successfully addresses the step objective for the overall user goal."

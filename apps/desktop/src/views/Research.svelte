@@ -108,7 +108,7 @@
   </header>
 
   <!-- Main Area -->
-  <main class="flex-1 overflow-hidden flex flex-col p-4 pt-3 gap-3">
+  <main class="flex-1 overflow-hidden flex flex-col p-4 pt-3 gap-3 animate-page-enter">
     <!-- Compact Quick Launcher Bar -->
     <section class="bg-surface-container-lowest border border-outline-variant/60 rounded-md p-2 shadow-sm shrink-0">
       <form onsubmit={handleStartResearch} class="flex items-center gap-2">
@@ -125,7 +125,7 @@
         <button
           type="submit"
           disabled={isSubmitting || !newResearchQuery.trim()}
-          class="bg-primary hover:bg-primary-container disabled:opacity-50 text-on-primary font-ui-medium text-[12px] px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors shrink-0 h-8"
+          class="btn-primary shrink-0"
         >
           {#if isSubmitting}
             <span class="material-symbols-outlined animate-spin text-[16px]">sync</span>
@@ -182,7 +182,7 @@
         {#if currentSession && ['planning', 'researching', 'verifying', 'synthesizing'].includes(currentSession.status)}
           <button
             onclick={() => currentSession && handleCancelSession(currentSession.id)}
-            class="border border-error/30 text-error hover:bg-error/10 font-ui-medium text-[12px] px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors shrink-0 h-7"
+            class="btn-destructive btn-sm shrink-0"
           >
             <span class="material-symbols-outlined text-[16px]">cancel</span>
             Cancel Session

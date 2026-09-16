@@ -128,7 +128,7 @@
   $: hasRealUsername = Boolean($userProfile.username && $userProfile.username.trim() && $userProfile.username.toLowerCase() !== 'user');
 </script>
 
-<main class="ml-56 pt-12 min-h-[calc(100vh-48px)] w-[calc(100vw-14rem)] bg-background flex flex-col items-center select-none overflow-y-auto">
+<main class="ml-56 pt-12 min-h-[calc(100vh-48px)] w-[calc(100vw-14rem)] bg-background flex flex-col items-center select-none overflow-y-auto animate-page-enter">
   <!-- Centered Content Column (width: calc(100% - 48px); max-width: 900px; margin-inline: auto) -->
   <div class="w-[calc(100%-48px)] max-w-[900px] mx-auto flex flex-col items-center pt-[12vh] pb-12">
 
@@ -212,7 +212,7 @@
             <button
               type="button"
               onclick={handleFileButtonClick}
-              class="flex items-center gap-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container-low px-3 py-1.5 rounded-md transition-colors font-ui-medium text-[12px] cursor-pointer"
+              class="btn-secondary"
             >
               <span class="material-symbols-outlined text-[16px]">attach_file</span>
               + File
@@ -222,14 +222,14 @@
               <div class="relative inline-block">
                 <select
                   bind:value={selectedProjectId}
-                  class="appearance-none bg-surface-container-low border border-outline-variant/50 hover:border-outline text-on-surface-variant pl-7 pr-7 py-1.5 rounded-full font-label-caps text-[11px] focus:outline-none transition-colors cursor-pointer"
+                  class="appearance-none bg-[#e8d2cc] border border-[#d6b2aa] text-[#1f1514] hover:bg-[#dfc4bd] pl-7 pr-7 py-1.5 rounded-full font-label-caps text-[11px] focus:outline-none transition-colors cursor-pointer shadow-sm"
                 >
                   {#each projects as proj}
                     <option value={proj.id}>Project: {proj.title}</option>
                   {/each}
                 </select>
-                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-on-surface-variant pointer-events-none">folder_open</span>
-                <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[14px] text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-[#1f1514] pointer-events-none">folder_open</span>
+                <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[14px] text-[#1f1514] pointer-events-none">arrow_drop_down</span>
               </div>
             {:else}
               <span class="flex items-center gap-1.5 text-on-surface-variant border border-outline-variant/50 px-3 py-1 rounded-full font-label-caps text-[11px] opacity-70">
@@ -244,7 +244,7 @@
             <button
               onclick={handleRunGoal}
               disabled={isSubmitting || (!commandText.trim() && attachedFiles.length === 0)}
-              class="bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50 px-4 py-1.5 rounded-full font-ui-medium text-[12px] flex items-center gap-1.5 transition-colors shadow-sm group"
+              class="btn-primary btn-pill group"
             >
               {isSubmitting ? 'Planning...' : 'Run'}
               <span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
@@ -260,7 +260,7 @@
       {#each quickActions as action}
         <button
           onclick={() => handleQuickAction(action.prompt)}
-          class="bg-surface border border-outline-variant/60 hover:bg-surface-container hover:border-outline-variant px-3.5 py-1.5 rounded-full font-ui-medium text-[12px] text-on-surface-variant flex items-center gap-1.5 transition-all cursor-pointer shadow-xs group"
+          class="btn-secondary btn-pill text-on-surface-variant group"
         >
           <span class="material-symbols-outlined text-[15px] text-secondary group-hover:scale-110 transition-transform">{action.icon}</span>
           <span>{action.label}</span>
@@ -273,7 +273,7 @@
       <section class="mt-9 w-full max-w-[900px] text-left">
         <div class="flex items-center justify-between mb-2.5">
           <h2 class="font-label-caps text-[10px] text-on-surface-variant/80 uppercase tracking-wider font-semibold">ACTIVE WORK</h2>
-          <button onclick={() => navigate('tasks')} class="font-ui-medium text-[11px] text-secondary hover:underline">View all</button>
+          <button onclick={() => navigate('tasks')} class="btn-ghost btn-sm text-secondary">View all</button>
         </div>
         <div class="space-y-2">
           {#each activeTasks as task}
@@ -301,32 +301,6 @@
       </section>
     {/if}
 
-    <!-- Recent Work (Centered 900px column) -->
-    {#if projects.length > 0}
-      <section class="mt-7 w-full max-w-[900px] text-left">
-        <div class="flex items-center justify-between mb-2.5">
-          <h2 class="font-label-caps text-[10px] text-on-surface-variant/80 uppercase tracking-wider font-semibold">RECENT WORK</h2>
-          <button onclick={() => navigate('projects')} class="font-ui-medium text-[11px] text-secondary hover:underline">View all</button>
-        </div>
-        <div class="bg-surface border border-outline-variant/60 rounded-md divide-y divide-outline-variant/40 overflow-hidden">
-          {#each projects.slice(0, 4) as project}
-            <div
-              onclick={() => navigate('projects')}
-              onkeydown={(e) => e.key === 'Enter' && navigate('projects')}
-              role="button"
-              tabindex={0}
-              class="p-3 px-3.5 flex items-center justify-between hover:bg-surface-container-lowest transition-colors cursor-pointer group"
-            >
-              <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-[16px] text-secondary">folder_open</span>
-                <span class="font-ui-medium text-[12px] text-primary truncate max-w-md">{project.title}</span>
-              </div>
-              <span class="font-status-log text-[10px] text-on-surface-variant/60 opacity-80">Project</span>
-            </div>
-          {/each}
-        </div>
-      </section>
-    {/if}
-
   </div>
 </main>
+

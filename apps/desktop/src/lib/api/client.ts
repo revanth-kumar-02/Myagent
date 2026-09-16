@@ -10,8 +10,15 @@ import type {
   ResearchSource,
   ResearchFinding,
   Automation,
+  AutomationRun,
   AgentRunResponse,
   UserProfile,
+  SystemHealth,
+  DiagnosticsInfo,
+  MemoryItem,
+  RagStatus,
+  RagChunkResult,
+  RagContextResponse,
 } from './types';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -220,7 +227,7 @@ export class CocoaApiClient {
   }
 
   // ─── Settings API ────────────────────────────────────────────
-  async getSettings(): Promise<Array<{ key: string; value: str; updated_at: string }>> {
+  async getSettings(): Promise<Array<{ key: string; value: string; updated_at: string }>> {
     const res = await fetch(`${API_BASE_URL}/settings`);
     if (!res.ok) throw new Error('Failed to fetch settings');
     return res.json();
@@ -272,35 +279,94 @@ export class CocoaApiClient {
     };
   }
 
-  async respondPermission(requestId: string, granted: boolean): Promise<{ status: string; request_id: string; granted: boolean }> {
-    const res = await fetch(`${API_BASE_URL}/filesystem/permissions/respond`, {
+  async getReadiness(): Promise<SystemHealth> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/readyz`);
+      if (!res.ok) throw new Error('System readiness check failed');
+      return res.json();
+    } catch {
+      return {
+        status: 'degraded',
+        database: 'disconnected',
+        pgvector: 'not_configured',
+        groq: 'not_configured',
+        tavily: 'not_configured',
+        brave: 'not_configured',
+        playwright: 'unavailable',
+        scheduler: 'idle',
+        websocket: 'disconnected',
+        tool_registry: 'degraded',
+        permission_manager: 'active',
+        service: 'Cocoa Agent Core',
+        version: '0.1.0',
+      };
+    }
+  }
+
+  async getDiagnostics(): Promise<DiagnosticsInfo> {
+    const res = await fetch(`${API_BASE_URL}/diagnostics`);
+    if (!res.ok) throw new Error('Failed to fetch diagnostics');
+    return res.json();
+  }
+
+  async getMemories(projectId?: string): Promise<MemoryItem[]> {
+    const url = projectId ? `${API_BASE_URL}/memories?project_id=${projectId}` : `${API_BASE_URL}/memories`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch memories');
+    return res.json();
+  }
+
+  async searchMemories(query: string, projectId?: string): Promise<MemoryItem[]> {
+    const res = await fetch(`${API_BASE_URL}/memories/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId, granted })
+      body: JSON.stringify({ query, project_id: projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to search memories');
+    return res.json();
+  }
+
+  async verifyMemory(memoryId: string): Promise<MemoryItem> {
+    const res = await fetch(`${API_BASE_URL}/memories/${memoryId}/verify`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to verify memory');
+    return res.json();
+  }
+
+  async supersedeMemory(memoryId: string, newContent: string, projectId?: string): Promise<MemoryItem> {
+    const res = await fetch(`${API_BASE_URL}/memories/${memoryId}/supersede`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_content: newContent, project_id: projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to supersede memory');
+    return res.json();
+  }
+
+  async archiveMemory(memoryId: string): Promise<MemoryItem> {
+    const res = await fetch(`${API_BASE_URL}/memories/${memoryId}/archive`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to archive memory');
+    return res.json();
+  }
+
+  async refreshProjectKnowledge(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/refresh-knowledge`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to refresh project knowledge');
+    return res.json();
+  }
+
+  async respondPermission(requestId: string, granted: boolean, scope: string = 'ONCE'): Promise<{ status: string; request_id: string; granted: boolean; scope: string }> {
+    const res = await fetch(`${API_BASE_URL}/permissions/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId, granted, scope: scope.toUpperCase() })
     });
     if (!res.ok) throw new Error('Failed to respond to permission request');
     return res.json();
   }
 
-  async getBrowserSessions(): Promise<{ sessions: any[]; count: number }> {
-    const res = await fetch(`${API_BASE_URL}/browser/sessions`);
-    if (!res.ok) throw new Error('Failed to fetch browser sessions');
-    return res.json();
-  }
-
-  async respondBrowserPermission(requestId: string, granted: boolean): Promise<{ status: string; request_id: string; granted: boolean }> {
-    const res = await fetch(`${API_BASE_URL}/browser/permissions/respond`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId, granted })
-    });
-    if (!res.ok) throw new Error('Failed to respond to browser permission request');
-    return res.json();
-  }
-
-  async browseDirectory(path: string = '.'): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/filesystem/browse?path=${encodeURIComponent(path)}`);
-    if (!res.ok) throw new Error(`Failed to browse directory: ${path}`);
+  async getAuditLogs(limit: number = 50): Promise<ActivityLog[]> {
+    const res = await fetch(`${API_BASE_URL}/permissions/audit-logs?limit=${limit}`);
+    if (!res.ok) throw new Error('Failed to fetch permission audit logs');
     return res.json();
   }
 
@@ -323,6 +389,107 @@ export class CocoaApiClient {
       body: JSON.stringify({ username }),
     });
     if (!res.ok) throw new Error('Failed to update profile');
+    return res.json();
+  }
+
+  async enableAutomation(id: string): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/enable`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to enable automation');
+    return res.json();
+  }
+
+  async disableAutomation(id: string): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/disable`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to disable automation');
+    return res.json();
+  }
+
+  async runAutomation(id: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/run`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to run automation');
+    return res.json();
+  }
+
+  async getAutomationRuns(id: string): Promise<AutomationRun[]> {
+    const res = await fetch(`${API_BASE_URL}/automations/${id}/runs`);
+    if (!res.ok) throw new Error('Failed to fetch automation runs');
+    return res.json();
+  }
+
+  async parseNLAutomation(prompt: string, projectId?: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/automations/parse-nl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, project_id: projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to parse natural language automation');
+    return res.json();
+  }
+
+  // ─── Project RAG API ─────────────────────────────────────────
+  async getRagStatus(projectId: string): Promise<RagStatus> {
+    const res = await fetch(`${API_BASE_URL}/rag/status?project_id=${projectId}`);
+    if (!res.ok) throw new Error(`Failed to fetch RAG status for project ${projectId}`);
+    return res.json();
+  }
+
+  async indexProjectRag(projectId: string, workspacePath?: string, forceFull: boolean = false): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/rag/index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        workspace_path: workspacePath,
+        force_full: forceFull,
+      }),
+    });
+    if (!res.ok) throw new Error(`Failed to index RAG for project ${projectId}`);
+    return res.json();
+  }
+
+  async refreshProjectRag(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/rag/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId }),
+    });
+    if (!res.ok) throw new Error(`Failed to refresh RAG for project ${projectId}`);
+    return res.json();
+  }
+
+  async searchRag(
+    projectId: string,
+    query: string,
+    limit: number = 10,
+    language?: string,
+    filePathFilter?: string
+  ): Promise<RagChunkResult[]> {
+    const res = await fetch(`${API_BASE_URL}/rag/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        query,
+        limit,
+        language,
+        file_path_filter: filePathFilter,
+      }),
+    });
+    if (!res.ok) throw new Error('Failed to perform RAG search');
+    return res.json();
+  }
+
+  async getRagContext(projectId: string, query: string, maxChars: number = 12000): Promise<RagContextResponse> {
+    const res = await fetch(`${API_BASE_URL}/rag/context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        query,
+        max_chars: maxChars,
+      }),
+    });
+    if (!res.ok) throw new Error('Failed to build RAG context');
     return res.json();
   }
 }

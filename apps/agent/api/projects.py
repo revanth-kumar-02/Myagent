@@ -159,3 +159,15 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
     return proj
+
+@router.post("/{project_id}/refresh-knowledge")
+async def refresh_project_knowledge(project_id: str, db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Project).where(Project.id == project_id))
+    proj = res.scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    from core.knowledge.indexer import knowledge_indexer
+    result = await knowledge_indexer.scan_and_index_project(project_id, proj.path)
+    return result
+

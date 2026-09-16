@@ -5,6 +5,8 @@ export type Route =
   | 'projects'
   | 'research'
   | 'tasks'
+  | 'activity'
+  | 'diagnostics'
   | 'automations'
   | 'settings';
 

@@ -156,3 +156,26 @@ async def test_memory_deduplication():
 
     # Clean up
     await memory_manager.delete(mem_first.id)
+
+@pytest.mark.asyncio
+async def test_memory_persistence_after_restart():
+    await init_db()
+    proj_id = "proj_persistence_test"
+
+    mem = await memory_manager.remember(
+        memory_type="PROJECT",
+        content="Persistent state memory stored in PostgreSQL.",
+        project_id=proj_id,
+        importance=10
+    )
+
+    # Re-initialize database session simulating backend restart
+    await init_db()
+
+    retrieved = await memory_manager.get_by_id(mem.id)
+    assert retrieved is not None
+    assert retrieved.content == "Persistent state memory stored in PostgreSQL."
+    assert retrieved.embedding is not None
+
+    # Clean up
+    await memory_manager.delete(mem.id)

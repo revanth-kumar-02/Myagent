@@ -27,6 +27,9 @@ class PermissionLevel(str, Enum):
     BROWSER_EXTERNAL_ACTION = "BROWSER_EXTERNAL_ACTION"
 
     AUTOMATION_EXECUTE = "AUTOMATION_EXECUTE"
+    TERMINAL_EXECUTE = "TERMINAL_EXECUTE"
+    GIT_READ = "GIT_READ"
+    GIT_WRITE = "GIT_WRITE"
 
 class PermissionScope(str, Enum):
     ONCE = "ONCE"
@@ -88,6 +91,11 @@ class PermissionManager:
         if norm_path not in self.project_paths[project_id]:
             self.project_paths[project_id].append(norm_path)
 
+    def register_root(self, root_path: str, project_id: str = "default"):
+        """Alias for register_project_boundary for root workspace registration."""
+        self.register_project_boundary(project_id, root_path)
+
+
     async def log_audit(
         self,
         tool_name: str,
@@ -133,6 +141,12 @@ class PermissionManager:
         Evaluates system, filesystem, browser, and automation permissions.
         Returns True if granted, False if denied/blocked.
         """
+        if isinstance(permission_level, str):
+            try:
+                permission_level = PermissionLevel(permission_level)
+            except ValueError:
+                permission_level = PermissionLevel.READ
+
         norm_resource = os.path.abspath(path) if (path and "/" in path) else (path or "global")
 
         # 1. PATH-SCOPED SECURITY & CROSS-PROJECT ISOLATION CHECK
@@ -162,12 +176,12 @@ class PermissionManager:
             return True
 
         # 4. SAFE AUTO-APPROVALS (Read-only operations)
-        if permission_level in (PermissionLevel.READ, PermissionLevel.FILESYSTEM_READ, PermissionLevel.BROWSER_READ):
+        if permission_level in (PermissionLevel.READ, PermissionLevel.FILESYSTEM_READ, PermissionLevel.BROWSER_READ, PermissionLevel.GIT_READ):
             await self.log_audit(tool_name, operation, path, permission_level.value, "granted", scope.value, task_id, project_id)
             return True
 
-        # 5. WRITE & BROWSER_INTERACT AUTO-APPROVAL (if enabled)
-        if permission_level in (PermissionLevel.WRITE, PermissionLevel.FILESYSTEM_WRITE, PermissionLevel.BROWSER_INTERACT) and self.auto_approve_writes:
+        # 5. WRITE, TERMINAL & BROWSER_INTERACT AUTO-APPROVAL (if enabled)
+        if permission_level in (PermissionLevel.WRITE, PermissionLevel.FILESYSTEM_WRITE, PermissionLevel.BROWSER_INTERACT, PermissionLevel.TERMINAL_EXECUTE) and self.auto_approve_writes:
             await self.log_audit(tool_name, operation, path, permission_level.value, "granted", scope.value, task_id, project_id)
             return True
 

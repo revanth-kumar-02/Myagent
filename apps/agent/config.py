@@ -29,9 +29,19 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
-    # Default LLM Provider Settings
-    LLM_PROVIDER: str = "groq"  # groq | openai | gemini | ollama
-    LLM_MODEL: str = "llama-3.3-70b-versatile"
+    # Default LLM Provider Settings (Hugging Face primary)
+    LLM_PROVIDER: str = "huggingface"
+    HF_TOKEN: Optional[str] = None
+    HF_PROVIDER: str = "huggingface"
+    HF_CHAT_MODEL: str = "meta-llama/Llama-3.3-70B-Instruct"
+    HF_REASONING_MODEL: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+    HF_CODING_MODEL: str = "Qwen/Qwen2.5-Coder-32B-Instruct"
+    HF_VISION_MODEL: str = "meta-llama/Llama-3.2-11B-Vision-Instruct"
+    HF_STT_MODEL: str = "openai/whisper-large-v3"
+    HF_TTS_MODEL: str = "facebook/mms-tts-eng"
+
+    # Legacy fallback fields
+    LLM_MODEL: str = "meta-llama/Llama-3.3-70B-Instruct"
     LLM_API_KEY: Optional[str] = None
 
     # Web Search Engine Keys (Server-side only)

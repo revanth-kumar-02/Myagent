@@ -16,6 +16,10 @@ from core.browser.tools import (
     BrowserDownloadInput, BrowserCloseInput
 )
 from core.research.providers.router import SearchProviderRouter
+from core.tools.terminal import TerminalTool
+from core.tools.git import (
+    GitStatusTool, GitDiffTool, GitLogTool, GitBranchTool, GitShowTool, GitRemoteTool
+)
 
 logger = logging.getLogger(__name__)
 
@@ -310,11 +314,23 @@ class ToolRegistry:
         self.register(BrowserDownloadTool())
         self.register(BrowserCloseTool())
 
+        # Terminal & Git tools
+        self.register(TerminalTool(default_validator))
+        self.register(GitStatusTool())
+        self.register(GitDiffTool())
+        self.register(GitLogTool())
+        self.register(GitBranchTool())
+        self.register(GitShowTool())
+        self.register(GitRemoteTool())
+
     def set_filesystem_root(self, root_path: str):
         global_filesystem_toolset.validator.add_authorized_root(root_path)
 
     def register(self, tool: BaseTool) -> None:
         self._tools[tool.name] = tool
+
+    def list_tools(self) -> List[str]:
+        return list(self._tools.keys())
 
     def get_tool(self, name: str) -> Optional[BaseTool]:
         return self._tools.get(name) or self._tools.get("web_search")

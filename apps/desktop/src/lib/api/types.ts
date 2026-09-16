@@ -1,6 +1,17 @@
 // Cocoa API Types
 
-export type TaskStatus = 'idle' | 'planning' | 'executing' | 'observing' | 'verifying' | 'completed' | 'failed' | 'cancelled';
+export type TaskStatus = 
+  | 'pending' | 'PENDING'
+  | 'ready' | 'READY'
+  | 'running' | 'RUNNING' | 'idle' | 'executing' | 'observing' | 'planning'
+  | 'waiting_permission' | 'WAITING_PERMISSION'
+  | 'waiting_dependency' | 'WAITING_DEPENDENCY'
+  | 'verifying' | 'VERIFYING'
+  | 'completed' | 'COMPLETED'
+  | 'failed' | 'FAILED'
+  | 'replanning' | 'REPLANNING'
+  | 'cancelled' | 'CANCELLED';
+
 export type ResearchStatus = 'idle' | 'planning' | 'researching' | 'verifying' | 'synthesizing' | 'completed' | 'failed' | 'cancelled';
 
 export interface Workspace {
@@ -35,35 +46,44 @@ export interface ScanWorkspaceResponse {
   projects: Project[];
 }
 
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  result?: string;
-  error?: string;
-  project_id?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface TaskStep {
   id: string;
   task_id: string;
   step_number: number;
-  title: string;
-  description: string;
+  label?: string;
+  title?: string;
+  description?: string;
   tool?: string;
+  arguments?: Record<string, any>;
+  dependencies?: string[];
   status: TaskStatus;
   result?: string;
+  error?: string;
+  retry_count?: number;
   created_at?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  result?: string;
+  error?: string;
+  project_id?: string;
+  retry_count?: number;
+  created_at: string;
+  updated_at: string;
+  steps?: TaskStep[];
+  plan_data?: Record<string, any>;
 }
 
 export interface ActivityLog {
   id: string;
-  task_id: string;
-  event_type: string;
+  task_id?: string;
+  event_type?: string;
   message: string;
+  status?: string;
   details?: Record<string, any>;
   timestamp: string;
 }
@@ -122,14 +142,38 @@ export interface AutomationNode {
   status: string;
 }
 
+export interface AutomationRun {
+  id: string;
+  automation_id: string;
+  status: string;
+  trigger_reason?: string;
+  started_at: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  retry_count: number;
+  tool_call_count: number;
+  llm_call_count: number;
+  result_summary?: string;
+  error_message?: string;
+  execution_logs?: any[];
+}
+
 export interface Automation {
   id: string;
-  name: string;
-  description: string;
+  title: string;
+  description?: string;
   trigger_type: string;
-  nodes: AutomationNode[];
+  trigger_config?: Record<string, any>;
+  workflow_config?: Record<string, any>;
+  nodes?: AutomationNode[];
   is_active: boolean;
-  last_run?: string;
+  next_run_at?: string;
+  last_run_at?: string;
+  last_run_status?: string;
+  last_run_result?: string;
+  project_id?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface AgentRunResponse {
@@ -137,23 +181,104 @@ export interface AgentRunResponse {
   message: string;
 }
 
-export interface BrowserSessionDomain {
-  domain: string;
-  first_visited: string;
-  last_visited: string;
-  visit_count: number;
-}
-
-export interface BrowserSessionData {
-  session_id: string;
-  task_id?: string;
-  created_at: string;
-  active_page_id?: string;
-  pages_count: number;
-  domains: BrowserSessionDomain[];
-}
-
 export interface UserProfile {
   username: string;
 }
 
+export interface SystemHealth {
+  status: string;
+  database: string;
+  pgvector: string;
+  groq: string;
+  tavily: string;
+  brave: string;
+  playwright: string;
+  scheduler: string;
+  websocket: string;
+  tool_registry: string;
+  permission_manager: string;
+  service: string;
+  version: string;
+}
+
+export interface DiagnosticsInfo {
+  cocoa_version: string;
+  python_version: string;
+  database_backend: string;
+  postgres_version: string;
+  pgvector_version: string;
+  active_llm: string;
+  active_research_provider: string;
+  browser_runtime: string;
+  scheduler_status: string;
+  tool_registry: string;
+  permission_manager: string;
+}
+
+export interface MemoryItem {
+  id: string;
+  memory_type: string;
+  content: string;
+  source: string;
+  source_reliability?: string;
+  project_id?: string;
+  session_id?: string;
+  importance: number;
+  confidence?: number;
+  verification_status?: string;
+  supersedes_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PendingPermission {
+  request_id: string;
+  tool_name: string;
+  operation: string;
+  target?: string;
+  resource?: string;
+  permission_level: string;
+  risk_level?: string;
+  reason?: string;
+  project_id?: string;
+  task_id?: string;
+}
+
+export interface RagStatus {
+  project_id: string;
+  title: string;
+  workspace_path?: string;
+  indexing_status: string;
+  total_files: number;
+  total_chunks: number;
+  languages: string[];
+  last_indexed?: string;
+  vector_backend: string;
+}
+
+export interface RagChunkResult {
+  id: string;
+  project_id: string;
+  file_path: string;
+  language: string;
+  chunk_index: number;
+  symbol?: string;
+  content: string;
+  relevance: number;
+  match_type: string;
+}
+
+export interface RagContextResponse {
+  project_id: string;
+  query: string;
+  chunks: Array<{
+    file: string;
+    path: string;
+    language: string;
+    symbol?: string;
+    relevance: number;
+    content: string;
+  }>;
+  total_chars: number;
+  formatted_context: string;
+}

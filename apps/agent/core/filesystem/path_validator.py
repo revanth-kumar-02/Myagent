@@ -31,6 +31,14 @@ class PathValidator:
         except Exception as e:
             raise PathSecurityError(f"Invalid authorized root path: {root_path} ({e})")
 
+    def is_path_authorized(self, target_path: Union[str, Path]) -> bool:
+        """Returns True if target_path is within authorized roots, False otherwise."""
+        try:
+            self.validate_path(target_path, allow_non_existent=True)
+            return True
+        except Exception:
+            return False
+
     def validate_path(self, target_path: Union[str, Path], allow_non_existent: bool = False) -> Path:
         """
         Validates that target_path resolves strictly within one of the authorized_roots.

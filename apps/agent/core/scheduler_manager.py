@@ -126,9 +126,8 @@ class AutomationSchedulerManager:
         """Wrapper invoked by APScheduler to handle task execution safely."""
         await self._execute_automation(automation_id)
 
-    async def _execute_automation(self, automation_id: str):
-        """Executes an automation through the Agent Orchestrator with complete event reporting."""
-        # Prevent overlapping execution of the same job
+    async def _execute_automation(self, automation_id: str, trigger_reason: str = "SCHEDULED"):
+        """Executes an automation through AutonomousWorkflowEngine with complete run persistence."""
         if self.running_jobs.get(automation_id):
             logger.warning(f"Automation {automation_id} is already running. Skipping overlap.")
             return
@@ -136,65 +135,8 @@ class AutomationSchedulerManager:
         self.running_jobs[automation_id] = True
         
         try:
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(select(Automation).where(Automation.id == automation_id))
-                auto = result.scalar_one_or_none()
-
-                if not auto:
-                    logger.error(f"Automation {automation_id} not found in DB.")
-                    return
-
-                if not auto.is_active:
-                    logger.info(f"Automation {automation_id} is disabled. Skipping execution.")
-                    self.remove_automation_job(automation_id)
-                    return
-
-                prompt = auto.description or auto.title
-                project_id = auto.project_id
-
-                # Broadcast start event
-                await ws_manager.broadcast({
-                    "event": "automation.started",
-                    "automation_id": auto.id,
-                    "title": auto.title,
-                    "message": f"Automation '{auto.title}' triggered"
-                })
-
-                # Lazy import agent_orchestrator to prevent circular imports
-                from core.agent import agent_orchestrator
-                
-                # Execute via agent orchestrator
-                task = await agent_orchestrator.run_goal(
-                    goal=prompt,
-                    project_id=project_id
-                )
-
-                now_utc = datetime.utcnow()
-                auto.last_run_at = now_utc
-
-                if task.status in ["completed", "done", "verified"]:
-                    auto.last_run_result = task.result or "Completed successfully"
-                    await db.commit()
-
-                    await ws_manager.broadcast({
-                        "event": "automation.completed",
-                        "automation_id": auto.id,
-                        "title": auto.title,
-                        "task_id": task.id,
-                        "result": auto.last_run_result
-                    })
-                else:
-                    auto.last_run_result = f"Failed: {task.result or 'Task failed step execution'}"
-                    await db.commit()
-
-                    await ws_manager.broadcast({
-                        "event": "automation.failed",
-                        "automation_id": auto.id,
-                        "title": auto.title,
-                        "task_id": task.id,
-                        "error": auto.last_run_result
-                    })
-
+            from core.automations.workflow_engine import workflow_engine
+            await workflow_engine.execute_automation_workflow(automation_id=automation_id, trigger_reason=trigger_reason)
         except Exception as e:
             logger.error(f"Error executing automation {automation_id}: {e}", exc_info=True)
             await ws_manager.broadcast({

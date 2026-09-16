@@ -3,11 +3,11 @@ import os
 import time
 from pydantic import BaseModel
 
-from core.llm import GroqProvider
+from core.llm import GroqProvider, LLMRateLimitError
 from core.research.providers.tavily import TavilyProvider
 from core.research.providers.brave import BraveProvider
 from core.browser.session_manager import BrowserSessionManager
-from core.filesystem.permission_manager import permission_manager
+from core.filesystem.permission_manager import permission_manager, PermissionLevel
 from config import settings
 
 LIVE_TEST_GUARD = os.getenv("COCOA_LIVE_TESTS") == "true"
@@ -26,27 +26,30 @@ async def test_live_groq_llm_execution():
         pytest.skip("LLM_API_KEY not configured for live Groq test.")
 
     provider = GroqProvider(api_key=api_key, model=settings.LLM_MODEL or "llama-3.3-70b-versatile")
-    start = time.time()
-    text_resp = await provider.generate_text("Respond with the single word: READY")
-    latency = time.time() - start
+    try:
+        start = time.time()
+        text_resp = await provider.generate_text("Respond with the single word: READY")
+        latency = time.time() - start
 
-    assert "READY" in text_resp.upper()
-    print(f"\n[LIVE E2E] Groq Response: '{text_resp}' (Latency: {latency:.2f}s)")
+        assert "READY" in text_resp.upper()
+        print(f"\n[LIVE E2E] Groq Response: '{text_resp}' (Latency: {latency:.2f}s)")
 
-    # Pydantic Structured Generation
-    struct_resp = await provider.generate_structured(
-        prompt="Analyze system state and return summary='All systems active', status='OK'",
-        schema=SampleSchema
-    )
-    assert isinstance(struct_resp, SampleSchema)
-    assert struct_resp.status == "OK"
-    print(f"[LIVE E2E] Groq Structured Response: {struct_resp}")
+        # Pydantic Structured Generation
+        struct_resp = await provider.generate_structured(
+            prompt="Analyze system state and return summary='All systems active', status='OK'",
+            schema=SampleSchema
+        )
+        assert isinstance(struct_resp, SampleSchema)
+        assert struct_resp.status == "OK"
+        print(f"[LIVE E2E] Groq Structured Response: {struct_resp}")
+    except LLMRateLimitError:
+        pytest.skip("Groq API rate limit (429) hit during live test.")
 
 @pytest.mark.asyncio
 @skip_unless_live
 async def test_live_tavily_search_execution():
     """Level 3 E2E: Real Tavily Search API request and source parsing."""
-    api_key = os.getenv("TAVILY_API_KEY")
+    api_key = os.getenv("TAVILY_API_KEY") or getattr(settings, "TAVILY_API_KEY", None)
     if not api_key or api_key.startswith("tvly-placeholder"):
         pytest.skip("TAVILY_API_KEY not configured for live search test.")
 
@@ -80,18 +83,19 @@ async def test_live_brave_search_execution():
 async def test_live_playwright_chromium_browser_operations():
     """Level 3 E2E: Real Playwright Chromium browser launch, navigation, permission gate, and text extraction."""
     # 1. Permission Gate Check
-    perm = await permission_manager.check_permission(
-        domain="browser",
-        action="navigate",
-        resource="https://example.com"
+    has_perm = await permission_manager.check_permission(
+        tool_name="browser_navigate",
+        path="https://example.com",
+        operation="navigate",
+        permission_level=PermissionLevel.BROWSER_READ
     )
-    assert perm["decision"] in ["granted", "approval_required"]
+    assert has_perm is True
 
-    session_mgr = BrowserSessionManager()
-    session_id = await session_mgr.create_session(session_id="live_test_session")
+    session_mgr = BrowserSessionManager(headless=True)
+    session = await session_mgr.get_or_create_session(session_id="live_test_session")
+    page_id, page = await session_mgr.create_page(session)
 
     try:
-        page = await session_mgr.get_page(session_id)
         start = time.time()
         response = await page.goto("https://example.com")
         latency = time.time() - start
@@ -105,5 +109,5 @@ async def test_live_playwright_chromium_browser_operations():
         print(f"\n[LIVE E2E] Playwright Chromium Navigated to 'https://example.com' (Title: '{title}', Latency: {latency:.2f}s)")
 
     finally:
-        await session_mgr.close_session(session_id)
-        await session_mgr.shutdown()
+        await session_mgr.close_session(session.session_id)
+        await session_mgr.close_all()

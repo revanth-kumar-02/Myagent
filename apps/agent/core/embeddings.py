@@ -23,23 +23,27 @@ class MockEmbeddingProvider(BaseEmbeddingProvider):
         super().__init__(dimension=dimension)
 
     async def get_embedding(self, text: str) -> List[float]:
-        if not text:
+        if not text or not text.strip():
             return [0.0] * self.dimension
             
-        # Create deterministic pseudo-embedding based on sha256 of text
-        text_bytes = text.strip().lower().encode("utf-8")
-        vec = []
-        for i in range(self.dimension):
-            h = hashlib.sha256(text_bytes + str(i).encode("utf-8")).digest()
-            val = (int.from_bytes(h[:4], "big") / 4294967295.0) * 2.0 - 1.0
-            vec.append(round(val, 6))
+        words = [w.strip(".,!?()[]{}'\"") for w in text.lower().split() if w.strip(".,!?()[]{}'\"")]
+        if not words:
+            return [0.0] * self.dimension
+            
+        combined = [0.0] * self.dimension
+        for word in words:
+            word_bytes = word.encode("utf-8")
+            for i in range(self.dimension):
+                h = hashlib.sha256(word_bytes + str(i).encode("utf-8")).digest()
+                val = (int.from_bytes(h[:4], "big") / 4294967295.0) * 2.0 - 1.0
+                combined[i] += val
             
         # Normalize vector
-        magnitude = (sum(x * x for x in vec)) ** 0.5
+        magnitude = (sum(x * x for x in combined)) ** 0.5
         if magnitude > 0:
-            vec = [round(x / magnitude, 6) for x in vec]
+            combined = [round(x / magnitude, 6) for x in combined]
             
-        return vec
+        return combined
 
 class ConfiguredEmbeddingProvider(BaseEmbeddingProvider):
     """Handles embedding generation with safety guards, timeouts, and fallback to mock if unconfigured."""

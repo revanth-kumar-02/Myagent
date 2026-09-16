@@ -1,63 +1,74 @@
 import logging
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from core.research.providers.base import WebSearchProvider, SearchResultItem
 from core.research.providers.tavily import TavilyProvider
-from core.research.providers.brave import BraveProvider
+from core.research.providers.duckduckgo import DuckDuckGoProvider
 from core.observability import record_fallback_event
 
 logger = logging.getLogger(__name__)
 
 class SearchProviderRouter:
-    def __init__(self, tavily: WebSearchProvider = None, brave: WebSearchProvider = None):
+    """
+    Locked Search Provider Router:
+    Tavily = PRIMARY
+    DuckDuckGo = FALLBACK
+    Real external search results only — zero synthetic or mock search items.
+    """
+
+    def __init__(
+        self,
+        tavily: Optional[WebSearchProvider] = None,
+        duckduckgo: Optional[WebSearchProvider] = None,
+        brave: Optional[WebSearchProvider] = None
+    ):
         self.primary = tavily or TavilyProvider()
-        self.fallback = brave or BraveProvider()
+        self.fallback = duckduckgo or brave or DuckDuckGoProvider()
 
     async def search(self, query: str, max_results: int = 5) -> Tuple[List[SearchResultItem], str]:
         """
         Attempts search via Tavily (primary).
-        If Tavily fails (missing key, timeout, rate limit, provider error), falls back to Brave.
-        If both fail, returns simulated/fallback search items tagged with provider 'mock_fallback'.
+        If Tavily fails or is unavailable, falls back strictly to DuckDuckGo.
         Returns (results, provider_used).
         """
-        # Try primary (Tavily)
+        clean_query = query.strip()
+        if not clean_query:
+            return [], "none"
+
+        # 1. Try Primary: Tavily
         try:
-            results = await self.primary.search(query, max_results=max_results)
+            results = await self.primary.search(clean_query, max_results=max_results)
             if results:
-                logger.info(f"Search successful using primary provider ({self.primary.name})")
+                logger.info(f"Web search successful using primary provider ({self.primary.name})")
                 return results, self.primary.name
         except Exception as e:
-            record_fallback_event(provider=self.primary.name, reason=str(e), fallback_provider=self.fallback.name)
-            logger.warning(f"Primary provider ({self.primary.name}) search failed: {e}. Falling back to ({self.fallback.name}).")
-
-        # Try fallback (Brave)
-        try:
-            results = await self.fallback.search(query, max_results=max_results)
-            if results:
-                logger.info(f"Search successful using fallback provider ({self.fallback.name})")
-                return results, self.fallback.name
-        except Exception as e:
-            record_fallback_event(provider=self.fallback.name, reason=str(e), fallback_provider="web_search")
-            logger.warning(f"Fallback provider ({self.fallback.name}) search failed: {e}.")
-
-        # If both fail / keys missing, provide graceful search items for goal continuation
-        logger.info("Using built-in autonomous web search fallback results")
-        fallback_results = [
-            SearchResultItem(
-                title=f"Technical Guide: {query[:50]}",
-                url=f"https://docs.dev/search?q={query.replace(' ', '+')}",
-                snippet=f"Comprehensive documentation and benchmark analysis regarding {query}.",
-                score=0.9,
-                provider_name="web_search"
-            ),
-            SearchResultItem(
-                title=f"Architecture Overview - {query[:40]}",
-                url=f"https://github.com/topics/{query.split()[0] if query.split() else 'ai'}",
-                snippet=f"Open source implementations and architecture design patterns for {query}.",
-                score=0.85,
-                provider_name="web_search"
+            record_fallback_event(
+                provider=self.primary.name,
+                reason=str(e),
+                fallback_provider=self.fallback.name
             )
-        ]
-        return fallback_results, "web_search"
+            logger.warning(
+                f"Primary provider ({self.primary.name}) search failed: {e}. Falling back to ({self.fallback.name})."
+            )
+
+        # 2. Try Fallback: DuckDuckGo
+        try:
+            results = await self.fallback.search(clean_query, max_results=max_results)
+            if results:
+                logger.info(f"Web search successful using fallback provider ({self.fallback.name})")
+                return results, self.fallback.name
+            else:
+                logger.warning(f"Fallback provider ({self.fallback.name}) returned 0 results for '{clean_query}'")
+        except Exception as e:
+            record_fallback_event(
+                provider=self.fallback.name,
+                reason=str(e),
+                fallback_provider="none"
+            )
+            logger.error(f"Fallback provider ({self.fallback.name}) search failed: {e}")
+
+        # Both real providers failed or returned no results — return empty without fabricating results
+        logger.error(f"All web search providers exhausted for query: '{clean_query}'")
+        return [], "none"
 
     async def extract(self, urls: List[str], preferred_provider: str = "tavily") -> Dict[str, str]:
         if not urls:
@@ -71,10 +82,14 @@ class SearchProviderRouter:
         except Exception as e:
             logger.warning(f"Extraction with {preferred_provider} failed: {e}")
 
-        # Fallback provider extract attempt
+        # Fallback extraction attempt
         alt_provider = self.fallback if provider == self.primary else self.primary
         try:
             return await alt_provider.extract(urls)
         except Exception as e:
             logger.warning(f"Fallback extraction with {alt_provider.name} failed: {e}")
             return {}
+
+search_provider_router = SearchProviderRouter()
+search_router = search_provider_router
+

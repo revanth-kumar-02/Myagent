@@ -72,3 +72,25 @@ async def add_activity_log(task_id: str, activity_in: ActivityLogCreate, db: Asy
     })
 
     return log
+
+@router.post("/{task_id}/cancel")
+async def cancel_task_endpoint(task_id: str, db: AsyncSession = Depends(get_db)):
+    from core.dag_scheduler import dag_scheduler
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    cancelled = dag_scheduler.cancel_task(task_id)
+    task.status = "cancelled"
+    await db.commit()
+
+    await ws_manager.broadcast({
+        "event": "task.cancelled",
+        "task_id": task_id,
+        "status": "cancelled",
+        "message": "Task cancellation requested by user"
+    })
+
+    return {"status": "cancelled", "task_id": task_id, "cancelled": cancelled}
+
