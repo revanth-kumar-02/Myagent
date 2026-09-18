@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     rag_rrf_candidates: int = 80
     rag_reranker_top_k: int = 8
     rag_embedding_batch_size: int = 32
+    rag_embed_model: str = "BAAI/bge-m3"
+    rag_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    rag_max_file_size_bytes: int = 26_214_400  # 25 MB
 
     # ── Web Research ──────────────────────────────────────────────────────────
     tavily_api_key: str = Field(default="", description="Tavily API key")
