@@ -1,15 +1,17 @@
 """
-permissions.types — Permission system type definitions.
+permissions.types — Permission system type definitions (V8).
 """
 
 from __future__ import annotations
 
+import enum
 import uuid
 from dataclasses import dataclass
-from enum import Enum
+
+from tools.types import PermissionLevel
 
 
-class PermissionDecision(str, Enum):
+class PermissionDecision(str, enum.Enum):
     ALLOW  = "allow"
     PROMPT = "prompt"   # requires user approval at runtime
     DENY   = "deny"
@@ -23,6 +25,7 @@ class PermissionRequest:
     action: str
     scope: str
     description: str
+    permission_level: PermissionLevel = PermissionLevel.HIGH_IMPACT_ACTION
 
 
 @dataclass
