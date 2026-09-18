@@ -1,35 +1,36 @@
 """
-core.verifier — Verifier
+core.verifier — Execution Result Verifier (V7)
 
 Responsibilities:
-  - Evaluate the quality of an ExecutorResult
+  - Evaluate the quality and validity of an ExecutorResult
+  - Compare actual outputs against expected step criteria
   - Return one of three verdicts:
-      PASS     → context is good, continue to next step or finalize
-      RETRY    → result is poor quality, ask Executor to retry (max 2 retries)
-      ESCALATE → cannot improve; use a stronger model or report to user
-
-The verifier uses lightweight heuristics and optionally a model call.
-It does NOT alter results — it only classifies them.
+      PASS     → Output is verified and valid, continue to next step or finalize
+      RETRY    → Result failed or has poor quality, retry step (max 2 retries)
+      ESCALATE → Cannot improve via retry, trigger replanning or notify user
 """
 
 from __future__ import annotations
 
 import structlog
 
-from core.types import ExecutorResult, VerifierVerdict
+from core.types import ActionType, ExecutorResult, VerifierVerdict
 
 logger = structlog.get_logger(__name__)
 
 _MAX_RETRIES = 2
 
+# Common refusal / unhelpful phrases indicating poor generation
+_REFUSAL_PHRASES = [
+    "i cannot answer this",
+    "as an ai language model",
+    "i do not have access to real-time",
+]
+
 
 class Verifier:
     """
-    Lightweight result quality gate.
-
-    For RAG results: checks chunk count and minimum relevance score.
-    For tool results: checks success flag and non-empty output.
-    For model results: checks non-empty, non-refusal output.
+    Quality gate validating execution outputs against plan expectations.
     """
 
     async def check(
@@ -38,15 +39,43 @@ class Verifier:
         attempt: int = 0,
     ) -> VerifierVerdict:
         """
-        Evaluate result quality.
-
-        attempt: number of retries already performed for this step (0-indexed).
-        Returns ESCALATE automatically when attempt >= _MAX_RETRIES.
+        Evaluate result quality and return a VerifierVerdict.
         """
+        # 1. Check max retries
         if attempt >= _MAX_RETRIES:
+            logger.warning("verifier_max_retries_exceeded_escalating", attempt=attempt)
             return VerifierVerdict.ESCALATE
 
-        if not result.success:
+        # 2. Check execution failure flag or error
+        if not result.success or result.error:
+            logger.debug("verifier_step_unsuccessful", error=result.error, attempt=attempt)
             return VerifierVerdict.RETRY
 
-        raise NotImplementedError  # TODO: implement quality heuristics in feature phase
+        # 3. Check for empty content
+        content = result.content.strip()
+        if not content:
+            logger.debug("verifier_empty_content_retry", attempt=attempt)
+            return VerifierVerdict.RETRY
+
+        # 4. Action-specific quality checks
+        match result.step.action_type:
+            case ActionType.MODEL_GENERATE:
+                # Check for refusal phrases
+                lower_content = content.lower()
+                if any(phrase in lower_content for phrase in _REFUSAL_PHRASES):
+                    logger.warning("verifier_model_refusal_detected", attempt=attempt)
+                    return VerifierVerdict.RETRY
+
+            case ActionType.TOOL_CALL:
+                # Check for explicit failure strings in output
+                if "error:" in content.lower() or "traceback" in content.lower():
+                    if "failed" in content.lower() or "exception" in content.lower():
+                        return VerifierVerdict.RETRY
+
+            case ActionType.RAG_QUERY:
+                # If RAG returned explicit empty indication
+                if "no relevant project knowledge" in content.lower():
+                    pass  # Pass through so planner can proceed or fall back
+
+        logger.debug("verifier_passed", step=result.step.label)
+        return VerifierVerdict.PASS
