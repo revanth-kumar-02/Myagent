@@ -1,5 +1,5 @@
 """
-core.types — Shared type definitions for the agent core loop.
+core.types — Shared type definitions for the agent core loop (RAG V4).
 
 All components communicate through these typed dataclasses.
 No business logic lives here.
@@ -19,6 +19,7 @@ class ActionType(str, Enum):
     """Possible action types a planner step can resolve to."""
     RAG_QUERY       = "rag_query"
     WEB_RESEARCH    = "web_research"
+    MEMORY_QUERY    = "memory_query"
     TOOL_CALL       = "tool_call"
     MODEL_GENERATE  = "model_generate"
 
@@ -34,6 +35,15 @@ class StepStatus(str, Enum):
     RUNNING = "running"
     DONE    = "done"
     FAILED  = "failed"
+
+
+class SourceType(str, Enum):
+    """Origin of a retrieved context item."""
+    RAG     = "rag"
+    MEMORY  = "memory"
+    WEB     = "web"
+    USER    = "user"
+    SYSTEM  = "system"
 
 
 # ── Request / Response ────────────────────────────────────────────────────────
@@ -53,6 +63,11 @@ class Source:
     file_path: str
     start_line: int | None = None
     end_line: int | None = None
+    symbol: str | None = None
+    page: int | None = None
+    sheet: str | None = None
+    slide: int | None = None
+    score: float | None = None
 
 
 @dataclass
@@ -60,6 +75,36 @@ class WebSource:
     url: str
     title: str
     snippet: str
+    score: float | None = None
+
+
+@dataclass
+class ContextItem:
+    """Individual item in the assembled context package."""
+    content: str
+    source_type: SourceType
+    score: float = 0.0
+    file_path: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    symbol: str | None = None
+    page: int | None = None
+    sheet: str | None = None
+    slide: int | None = None
+    url: str | None = None
+    title: str | None = None
+    chunk_id: uuid.UUID | None = None
+
+
+@dataclass
+class AgentContextPackage:
+    """Unified bounded context package across RAG, Memory, and Web."""
+    items: list[ContextItem] = field(default_factory=list)
+    rag_sources: list[Source] = field(default_factory=list)
+    web_sources: list[WebSource] = field(default_factory=list)
+    formatted_text: str = ""
+    token_count: int = 0
+    resolved_sources: set[SourceType] = field(default_factory=set)
 
 
 @dataclass
@@ -111,5 +156,7 @@ class ContextWindow:
     rag_context: str
     tool_history: list[dict[str, Any]]
     memory_context: str
-    token_budget: int
+    web_context: str = ""
+    token_budget: int = 8192
     token_used: int = 0
+    package: AgentContextPackage | None = None

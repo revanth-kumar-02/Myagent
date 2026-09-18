@@ -1,4 +1,7 @@
-"""research.providers package."""
-from research.providers.tavily import TavilyProvider, TavilyError
-from research.providers.duckduckgo import DuckDuckGoProvider
-__all__ = ["TavilyProvider", "TavilyError", "DuckDuckGoProvider"]
+"""
+research.providers package — Exclusive DuckDuckGo Web Search.
+"""
+
+from research.providers.duckduckgo import DuckDuckGoProvider, DuckDuckGoSearchError
+
+__all__ = ["DuckDuckGoProvider", "DuckDuckGoSearchError"]
