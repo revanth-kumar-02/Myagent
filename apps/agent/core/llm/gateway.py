@@ -84,6 +84,24 @@ class LLMProviderGateway:
             logger.error(f"[LLMGateway] Structured generation error in role='{role}': {e}")
             raise
 
+    async def generate_code(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        profile: str = "primary",
+        **kwargs
+    ) -> str:
+        """
+        Generates code and debugging solutions using the designated coding role model (Qwen3-Coder-30B-A3B-Instruct).
+        """
+        return await self.generate_text(
+            prompt=prompt,
+            role=ModelRole.CODING,
+            system_prompt=system_prompt,
+            profile=profile,
+            **kwargs
+        )
+
     async def chat(
         self,
         messages: List[Dict[str, str]],

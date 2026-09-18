@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Any, Type, TypeVar, Optional, List
 from pydantic import BaseModel
+from pydantic_core import PydanticUndefined
 
 from core.llm.registry import ModelConfig
 from core.llm.providers.base import BaseLLMProvider
@@ -80,10 +81,23 @@ class RuleBasedLLMProvider(BaseLLMProvider):
                 mock_data["reason"] = "All step objectives verified and completed successfully."
             elif f_name == "needs_retry":
                 mock_data["needs_retry"] = False
-            elif f_name == "mode":
-                mock_data["mode"] = "NONE"
+            elif f_info.default is not None and f_info.default != PydanticUndefined:
+                mock_data[f_name] = f_info.default
             else:
-                mock_data[f_name] = "default_value"
+                # Infer type from annotation
+                annotation = f_info.annotation
+                if annotation in (int, "int"):
+                    mock_data[f_name] = 1
+                elif annotation in (float, "float"):
+                    mock_data[f_name] = 1.0
+                elif annotation in (bool, "bool"):
+                    mock_data[f_name] = True
+                elif annotation in (list, "list") or (hasattr(annotation, "__origin__") and annotation.__origin__ is list):
+                    mock_data[f_name] = []
+                elif annotation in (dict, "dict") or (hasattr(annotation, "__origin__") and annotation.__origin__ is dict):
+                    mock_data[f_name] = {}
+                else:
+                    mock_data[f_name] = f"rule_based_{f_name}"
         return schema.model_validate(mock_data)
 
     async def understand_vision(

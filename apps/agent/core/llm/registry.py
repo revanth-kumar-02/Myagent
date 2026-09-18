@@ -4,6 +4,11 @@ from enum import Enum
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 from config import settings
+from core.llm.providers.base import (
+    LLMRoleUnavailableError,
+    LLMDisabledRoleError,
+    LLMUnsupportedTaskError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +27,7 @@ class ModelProfile(str, Enum):
     DEEP = "deep"
 
 class ModelConfig(BaseModel):
-    model_id: str = Field(description="Hugging Face model repository ID")
+    model_id: Optional[str] = Field(default=None, description="Hugging Face model repository ID")
     provider: str = Field(default="huggingface", description="Inference provider name")
     role: ModelRole = Field(description="Functional role of the model")
     profile: str = Field(default="primary", description="Profile slot: primary | fallback | fast | deep")
@@ -40,7 +45,7 @@ class ModelConfig(BaseModel):
 
 # Required capabilities per task type
 TASK_CAPABILITY_MAP: Dict[str, List[str]] = {
-    "text-generation": ["chat", "text_generation", "structured_output"],
+    "text-generation": ["chat", "text_generation", "structured_output", "reasoning", "coding"],
     "automatic-speech-recognition": ["speech_to_text", "transcription"],
     "text-to-speech": ["text_to_speech", "voice_synthesis"],
     "image-to-text": ["vision", "image_understanding"],
@@ -50,8 +55,16 @@ TASK_CAPABILITY_MAP: Dict[str, List[str]] = {
 class ModelRegistry:
     """
     Centralized Model Configuration & Registry.
-    Ensures model IDs are strictly configuration-driven and decoupling Agent Core
+    Ensures model IDs are strictly configuration-driven, decoupling Agent Core
     from provider-specific IDs.
+    
+    LOCKED LINEUP:
+    - Chat:       Qwen/Qwen3-4B-Instruct-2507
+    - Reasoning:  Qwen/Qwen3-30B-A3B-Instruct-2507
+    - Coding:     Qwen/Qwen3-Coder-30B-A3B-Instruct
+    - Vision:     google/gemma-4-E4B-it
+    - STT:        Configurable placeholder (disabled until dedicated ASR model is selected)
+    - TTS:        Configurable placeholder (disabled until dedicated TTS model is selected)
     """
 
     def __init__(self):
@@ -60,43 +73,46 @@ class ModelRegistry:
         self._load_configuration()
 
     def _load_configuration(self) -> None:
-        """Loads model registry configurations from environment variables or settings."""
-        # Read from environment/settings with sensible default HF models
+        """Loads locked model registry configurations with environment variable overrides."""
         chat_model = (
             os.getenv("HF_CHAT_MODEL")
             or getattr(settings, "HF_CHAT_MODEL", None)
             or os.getenv("LLM_MODEL")
-            or "meta-llama/Llama-3.3-70B-Instruct"
+            or "Qwen/Qwen3-4B-Instruct-2507"
         )
         reasoning_model = (
             os.getenv("HF_REASONING_MODEL")
             or getattr(settings, "HF_REASONING_MODEL", None)
-            or "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+            or "Qwen/Qwen3-30B-A3B-Instruct-2507"
         )
         coding_model = (
             os.getenv("HF_CODING_MODEL")
             or getattr(settings, "HF_CODING_MODEL", None)
-            or "Qwen/Qwen2.5-Coder-32B-Instruct"
+            or "Qwen/Qwen3-Coder-30B-A3B-Instruct"
         )
         vision_model = (
             os.getenv("HF_VISION_MODEL")
             or getattr(settings, "HF_VISION_MODEL", None)
-            or "meta-llama/Llama-3.2-11B-Vision-Instruct"
+            or "google/gemma-4-E4B-it"
         )
-        stt_model = (
-            os.getenv("HF_STT_MODEL")
-            or getattr(settings, "HF_STT_MODEL", None)
-            or "openai/whisper-large-v3"
-        )
-        tts_model = (
-            os.getenv("HF_TTS_MODEL")
-            or getattr(settings, "HF_TTS_MODEL", None)
-            or "facebook/mms-tts-eng"
-        )
+        # STT and TTS placeholders - disabled by default, model_id=None
+        stt_model = os.getenv("HF_STT_MODEL") or getattr(settings, "HF_STT_MODEL", None)
+        stt_enabled_env = os.getenv("HF_STT_ENABLED")
+        if stt_enabled_env is not None:
+            stt_enabled = stt_enabled_env.lower() in ("true", "1", "yes")
+        else:
+            stt_enabled = bool(getattr(settings, "HF_STT_ENABLED", False) and stt_model)
+
+        tts_model = os.getenv("HF_TTS_MODEL") or getattr(settings, "HF_TTS_MODEL", None)
+        tts_enabled_env = os.getenv("HF_TTS_ENABLED")
+        if tts_enabled_env is not None:
+            tts_enabled = tts_enabled_env.lower() in ("true", "1", "yes")
+        else:
+            tts_enabled = bool(getattr(settings, "HF_TTS_ENABLED", False) and tts_model)
 
         hf_provider = os.getenv("HF_PROVIDER") or getattr(settings, "HF_PROVIDER", "huggingface")
 
-        # 1. Chat Model (Primary)
+        # 1. Chat Model (Primary) - Qwen3-4B-Instruct-2507
         self.register_model(
             ModelConfig(
                 model_id=chat_model,
@@ -109,11 +125,13 @@ class ModelRegistry:
                 temperature_default=0.7,
                 max_tokens_default=4096,
                 supports_streaming=True,
-                supports_tool_calling=True
+                supports_tool_calling=True,
+                enabled=True,
+                configuration={}
             )
         )
 
-        # 2. Reasoning Model (Primary) - Planning, Analysis, Verification
+        # 2. Reasoning Model (Primary) - Qwen3-30B-A3B-Instruct-2507
         self.register_model(
             ModelConfig(
                 model_id=reasoning_model,
@@ -125,11 +143,13 @@ class ModelRegistry:
                 context_limit=131072,
                 temperature_default=0.2,
                 max_tokens_default=8192,
-                supports_streaming=True
+                supports_streaming=True,
+                enabled=True,
+                configuration={}
             )
         )
 
-        # 3. Coding Model (Primary) - Code Generation & Debugging
+        # 3. Coding Model (Primary) - Qwen3-Coder-30B-A3B-Instruct
         self.register_model(
             ModelConfig(
                 model_id=coding_model,
@@ -141,11 +161,13 @@ class ModelRegistry:
                 context_limit=131072,
                 temperature_default=0.1,
                 max_tokens_default=8192,
-                supports_streaming=True
+                supports_streaming=True,
+                enabled=True,
+                configuration={}
             )
         )
 
-        # 4. Vision Model (Primary) - Screenshot & Image Understanding
+        # 4. Vision Model (Primary) - google/gemma-4-E4B-it
         self.register_model(
             ModelConfig(
                 model_id=vision_model,
@@ -157,11 +179,13 @@ class ModelRegistry:
                 context_limit=131072,
                 temperature_default=0.2,
                 max_tokens_default=4096,
-                supports_vision=True
+                supports_vision=True,
+                enabled=True,
+                configuration={}
             )
         )
 
-        # 5. Speech-to-Text Model (Primary) - Audio Transcription
+        # 5. Speech-to-Text Model (Placeholder) - Disabled until dedicated ASR model is selected
         self.register_model(
             ModelConfig(
                 model_id=stt_model,
@@ -170,11 +194,13 @@ class ModelRegistry:
                 profile=ModelProfile.PRIMARY.value,
                 capabilities=["speech_to_text", "transcription"],
                 task="automatic-speech-recognition",
-                timeout_seconds=90.0
+                timeout_seconds=90.0,
+                enabled=stt_enabled,
+                configuration={}
             )
         )
 
-        # 6. Text-to-Speech Model (Primary) - Spoken Responses
+        # 6. Text-to-Speech Model (Placeholder) - Disabled until dedicated TTS model is selected
         self.register_model(
             ModelConfig(
                 model_id=tts_model,
@@ -183,23 +209,26 @@ class ModelRegistry:
                 profile=ModelProfile.PRIMARY.value,
                 capabilities=["text_to_speech", "voice_synthesis"],
                 task="text-to-speech",
-                timeout_seconds=60.0
+                timeout_seconds=60.0,
+                enabled=tts_enabled,
+                configuration={}
             )
         )
 
     def register_model(self, config: ModelConfig) -> None:
-        """Registers a model configuration under its specified role and profile."""
+        """Registers a model configuration under its specified role and profile slot."""
         if config.role not in self._registry:
             self._registry[config.role] = {}
         self._registry[config.role][config.profile] = config
-        logger.debug(f"[ModelRegistry] Registered {config.role.value}:{config.profile} -> {config.model_id}")
+        logger.debug(f"[ModelRegistry] Registered {config.role.value}:{config.profile} -> {config.model_id} (enabled={config.enabled})")
 
     def get_model_config(
         self,
         role: Union[str, ModelRole],
-        profile: str = "primary"
+        profile: str = "primary",
+        require_enabled: bool = False
     ) -> Optional[ModelConfig]:
-        """Resolves the active ModelConfig for a given role and profile slot."""
+        """Resolves the ModelConfig for a given role and profile slot."""
         if isinstance(role, str):
             try:
                 role_enum = ModelRole(role.lower())
@@ -210,13 +239,11 @@ class ModelRegistry:
             role_enum = role
 
         profiles = self._registry.get(role_enum, {})
-        if profile in profiles and profiles[profile].enabled:
-            return profiles[profile]
-
-        # Fallback to primary if requested profile is not found but primary exists
-        if "primary" in profiles and profiles["primary"].enabled:
-            return profiles["primary"]
-
+        cfg = profiles.get(profile) or profiles.get("primary")
+        if cfg:
+            if require_enabled and not cfg.enabled:
+                return None
+            return cfg
         return None
 
     def list_roles(self) -> List[str]:
@@ -241,5 +268,45 @@ class ModelRegistry:
     def validate_task_compatibility(self, config: ModelConfig, requested_task: str) -> bool:
         """Validates that the model's configured task matches the requested operation."""
         return config.task == requested_task or requested_task in config.capabilities
+
+    def validate_model_config(
+        self,
+        config: Optional[ModelConfig],
+        role: Union[str, ModelRole],
+        capability: Optional[str] = None
+    ) -> None:
+        """
+        Validates model configuration against all required constraints:
+        - Role is supported
+        - ModelConfig exists
+        - Model is enabled
+        - Model ID exists
+        - Requested capability is supported
+        """
+        role_str = role.value if isinstance(role, ModelRole) else str(role)
+        if config is None:
+            raise LLMRoleUnavailableError(
+                role=role_str,
+                message=f"Functional role '{role_str}' is not supported or not configured.",
+                reason="unsupported"
+            )
+        if not config.enabled:
+            raise LLMDisabledRoleError(
+                role=role_str,
+                message=f"Role '{role_str}' is currently disabled. Dedicated model has not been selected.",
+                model_id=config.model_id
+            )
+        if not config.model_id or not config.model_id.strip():
+            raise LLMDisabledRoleError(
+                role=role_str,
+                message=f"Role '{role_str}' has no model ID configured (placeholder).",
+                model_id=None
+            )
+        if capability and not self.validate_capability(config, capability):
+            raise LLMUnsupportedTaskError(
+                f"Model '{config.model_id}' for role '{role_str}' does not support requested capability '{capability}'.",
+                provider=config.provider,
+                model_id=config.model_id
+            )
 
 model_registry = ModelRegistry()

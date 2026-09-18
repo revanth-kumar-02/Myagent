@@ -25,6 +25,38 @@ class LLMInvalidModelError(LLMProviderError):
     """Raised when the specified model ID does not exist or is not accessible."""
     pass
 
+class LLMRoleUnavailableError(LLMInvalidModelError):
+    """Raised when a requested role is unconfigured, not supported, or unavailable."""
+    def __init__(
+        self,
+        role: str,
+        message: str,
+        provider: str = "huggingface",
+        reason: str = "unsupported",
+        model_id: Optional[str] = None
+    ):
+        super().__init__(message, provider=provider, model_id=model_id)
+        self.role = role
+        self.reason = reason
+
+class LLMDisabledRoleError(LLMRoleUnavailableError):
+    """Raised when a requested role is explicitly disabled (e.g., placeholder STT/TTS)."""
+    def __init__(
+        self,
+        role: str,
+        message: Optional[str] = None,
+        provider: str = "huggingface",
+        model_id: Optional[str] = None
+    ):
+        default_msg = f"Role '{role}' is currently disabled. Dedicated model has not been selected."
+        super().__init__(
+            role=role,
+            message=message or default_msg,
+            provider=provider,
+            reason="disabled",
+            model_id=model_id
+        )
+
 class LLMUnsupportedTaskError(LLMProviderError):
     """Raised when the model does not support the requested task (e.g. text model asked to transcribe audio)."""
     pass

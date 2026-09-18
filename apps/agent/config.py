@@ -33,15 +33,17 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "huggingface"
     HF_TOKEN: Optional[str] = None
     HF_PROVIDER: str = "huggingface"
-    HF_CHAT_MODEL: str = "meta-llama/Llama-3.3-70B-Instruct"
-    HF_REASONING_MODEL: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
-    HF_CODING_MODEL: str = "Qwen/Qwen2.5-Coder-32B-Instruct"
-    HF_VISION_MODEL: str = "meta-llama/Llama-3.2-11B-Vision-Instruct"
-    HF_STT_MODEL: str = "openai/whisper-large-v3"
-    HF_TTS_MODEL: str = "facebook/mms-tts-eng"
+    HF_CHAT_MODEL: str = "Qwen/Qwen3-4B-Instruct-2507"
+    HF_REASONING_MODEL: str = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    HF_CODING_MODEL: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    HF_VISION_MODEL: str = "google/gemma-4-E4B-it"
+    HF_STT_MODEL: Optional[str] = None
+    HF_TTS_MODEL: Optional[str] = None
+    HF_STT_ENABLED: bool = False
+    HF_TTS_ENABLED: bool = False
 
     # Legacy fallback fields
-    LLM_MODEL: str = "meta-llama/Llama-3.3-70B-Instruct"
+    LLM_MODEL: str = "Qwen/Qwen3-4B-Instruct-2507"
     LLM_API_KEY: Optional[str] = None
 
     # Web Search Engine Keys (Server-side only)

@@ -3,7 +3,13 @@ import logging
 from typing import Optional, Union, Dict, Any
 
 from core.llm.registry import ModelRegistry, ModelConfig, ModelRole, model_registry
-from core.llm.providers.base import BaseLLMProvider, LLMInvalidModelError
+from core.llm.providers.base import (
+    BaseLLMProvider,
+    LLMInvalidModelError,
+    LLMRoleUnavailableError,
+    LLMDisabledRoleError,
+    LLMUnsupportedTaskError
+)
 from core.llm.providers.huggingface import HuggingFaceProvider
 from core.llm.providers.rule_based import RuleBasedLLMProvider
 
@@ -12,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ModelRouter:
     """
     Decoupled Model Router.
-    Agent components request a functional capability/role (e.g. 'chat', 'reasoning', 'coding'),
+    Agent components request a functional capability/role (e.g. 'chat', 'reasoning', 'coding', 'vision'),
     NOT raw provider model IDs.
     
     Flow:
@@ -32,20 +38,21 @@ class ModelRouter:
     def get_model(
         self,
         role: Union[str, ModelRole],
-        profile: str = "primary"
+        profile: str = "primary",
+        capability: Optional[str] = None
     ) -> ModelConfig:
         """
         Resolves a functional role to its active ModelConfig from the registry.
-        Raises LLMInvalidModelError if the role is not configured.
+        Validates that:
+        - Role is supported
+        - Model exists in registry
+        - Model is enabled
+        - Model ID is configured
+        - Requested capability is supported
+        Raises structured LLMRoleUnavailableError / LLMDisabledRoleError if invalid.
         """
         config = self.registry.get_model_config(role=role, profile=profile)
-        if not config:
-            role_str = role.value if isinstance(role, ModelRole) else str(role)
-            logger.error(f"[ModelRouter] No model configured or enabled for role '{role_str}' (profile: {profile})")
-            raise LLMInvalidModelError(
-                f"No model configured or enabled for functional role '{role_str}' (profile: {profile}).",
-                provider="huggingface"
-            )
+        self.registry.validate_model_config(config, role=role, capability=capability)
         return config
 
     def get_provider(
@@ -67,12 +74,13 @@ class ModelRouter:
     def route(
         self,
         role: Union[str, ModelRole],
-        profile: str = "primary"
+        profile: str = "primary",
+        capability: Optional[str] = None
     ) -> tuple[BaseLLMProvider, ModelConfig]:
         """
         Convenience router method returning both the resolved provider and ModelConfig.
         """
-        model_config = self.get_model(role, profile=profile)
+        model_config = self.get_model(role, profile=profile, capability=capability)
         provider = self.get_provider(role, profile=profile)
         return provider, model_config
 
