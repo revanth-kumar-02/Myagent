@@ -1,26 +1,56 @@
-# Node / Frontend
-node_modules/
-dist/
-.vite/
-*.log
-
-# Python / Agent
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 .venv/
 venv/
-__pycache__/
-*.pyc
+env/
+dist/
+build/
+*.egg-info/
+.eggs/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 *.pyo
 *.pyd
-.pytest_cache/
-*.db
-*.sqlite3
+htmlcov/
+.coverage
+coverage.xml
+
+# ─── Environment ──────────────────────────────────────────────────────────────
 .env
-.env.local
+.env.*
+!.env.example
+secrets.yaml
 
-# Tauri / Rust
-apps/desktop/src-tauri/target/
+# ─── Alembic ──────────────────────────────────────────────────────────────────
+infra/migrations/versions/*.py
+!infra/migrations/versions/.gitkeep
 
-# OS / IDE
-.DS_Store
-.vscode/
+# ─── Flutter / Dart ───────────────────────────────────────────────────────────
+apps/desktop/.dart_tool/
+apps/desktop/.flutter-plugins
+apps/desktop/.flutter-plugins-dependencies
+apps/desktop/.packages
+apps/desktop/build/
+apps/desktop/pubspec.lock
+apps/desktop/**/*.g.dart
+apps/desktop/**/*.freezed.dart
+
+# ─── IDEs ─────────────────────────────────────────────────────────────────────
 .idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+.docker/

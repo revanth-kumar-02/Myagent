@@ -1,62 +1,74 @@
-# Cocoa Personal Agent
+# Kora
 
-A production-ready desktop AI agent built with Tauri 2, Svelte, TypeScript, Python, and FastAPI.
+**RAG-First Autonomous Personal AI Agent**
 
-## Quick Start
+Kora understands your projects, files, documents, code, and knowledge through RAG, then reasons and acts using AI models and tools.
 
-### Phase 1 — UI Shell (no backend required)
+---
 
-```bash
-# Install system build dependencies (first time only)
-sudo apt install -y pkg-config libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-  librsvg2-dev libssl-dev patchelf postgresql postgresql-contrib redis-server
+## Architecture
 
-cd apps/desktop
-npm install
-npm run dev          # Vite dev server on http://localhost:1420
-npm run tauri dev    # Full Tauri desktop window (requires Rust build)
+```
+apps/desktop/    Flutter desktop app (Windows · Linux · macOS)
+apps/agent/      Python FastAPI backend (Agent · RAG · Models · Tools)
+shared/protocol/ WebSocket message schema (canonical, language-agnostic)
+infra/           Docker Compose + Alembic migrations
+tests/           Backend unit + integration tests
+docs/            Architecture, data-flow, and RAG design docs
 ```
 
-### Phase 2 — Backend (PostgreSQL + Redis required)
+See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
-```bash
-# Start services
-sudo systemctl start postgresql redis-server
-
-# Create venv + install
-cd apps/agent
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-# Run backend
-.venv/bin/uvicorn main:app --reload --port 8000
-```
+---
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Desktop | Tauri 2 + Rust |
-| Frontend | Svelte + TypeScript + Vite |
-| Styling | Tailwind CSS v3 (Stitch design tokens) |
-| Backend | Python 3.14 + FastAPI + Uvicorn |
-| Database | PostgreSQL + SQLAlchemy + asyncpg + pgvector |
-| Cache | Redis |
-| LLM | Provider-agnostic gateway (Groq / OpenAI / Gemini) |
-| Browser | Playwright |
-| PDF | PyMuPDF |
-| Scheduler | APScheduler |
-| Realtime | WebSockets |
-| Testing | pytest |
+| Desktop UI | Flutter + Dart |
+| Backend API | Python + FastAPI |
+| Realtime | WebSocket (typed JSON protocol) |
+| Database | PostgreSQL + pgvector |
+| Cache / Queue | Redis |
+| AI Models | HuggingFace (Qwen + Gemma) |
+| Browser automation | Playwright |
+| Task scheduling | APScheduler |
+| Web research | Tavily (primary) · DuckDuckGo (fallback) |
 
-## Structure
+---
 
+## Quick Start (development)
+
+### 1. Start services
+
+```bash
+cd infra
+docker compose up -d
 ```
-apps/
-  desktop/     ← Tauri + Svelte frontend
-  agent/       ← Python FastAPI backend
-packages/
-  shared/      ← Shared TypeScript types
-stitch/        ← Visual design reference (do not modify)
-docs/
+
+### 2. Backend
+
+```bash
+cd apps/agent
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn main:app --reload --port 8765
 ```
+
+### 3. Desktop
+
+```bash
+cd apps/desktop
+flutter pub get
+flutter run -d linux   # or windows / macos
+```
+
+---
+
+## Rules
+
+- RAG and Web Research are **completely separate** — no shared DB writes.
+- Model IDs exist **only** in `apps/agent/models/registry.yaml`.
+- Every RAG query is **project-scoped** — no cross-project data leakage.
+- All OS-specific code lives behind **platform abstractions**.

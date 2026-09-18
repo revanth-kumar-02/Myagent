@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KoraWebSocketProtocol",
+  "description": "Canonical schema for all Kora WebSocket messages",
+
+  "definitions": {
+    "MessageType": {
+      "type": "string",
+      "enum": [
+        "CHAT_REQUEST",
+        "CHAT_CHUNK",
+        "CHAT_DONE",
+        "PLAN_UPDATE",
+        "TOOL_CALL_NOTIFY",
+        "TOOL_RESULT_NOTIFY",
+        "PERMISSION_REQUEST",
+        "PERMISSION_RESPONSE",
+        "INDEX_REQUEST",
+        "INDEX_PROGRESS",
+        "INDEX_DONE",
+        "INDEX_ERROR",
+        "HEARTBEAT",
+        "ERROR"
+      ]
+    },
+
+    "Envelope": {
+      "type": "object",
+      "required": ["id", "type", "session_id", "project_id", "payload", "ts"],
+      "properties": {
+        "id":         { "type": "string", "format": "uuid" },
+        "type":       { "$ref": "#/definitions/MessageType" },
+        "session_id": { "type": "string", "format": "uuid" },
+        "project_id": { "oneOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }] },
+        "payload":    { "type": "object" },
+        "ts":         { "type": "integer", "description": "Unix epoch milliseconds" }
+      }
+    },
+
+    "Source": {
+      "type": "object",
+      "required": ["chunk_id", "file_path"],
+      "properties": {
+        "chunk_id":   { "type": "string", "format": "uuid" },
+        "file_path":  { "type": "string" },
+        "start_line": { "type": "integer" },
+        "end_line":   { "type": "integer" }
+      }
+    },
+
+    "WebSource": {
+      "type": "object",
+      "required": ["url", "title", "snippet"],
+      "properties": {
+        "url":     { "type": "string", "format": "uri" },
+        "title":   { "type": "string" },
+        "snippet": { "type": "string" }
+      }
+    },
+
+    "ChatRequestPayload": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message":     { "type": "string", "minLength": 1 },
+        "attachments": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "ChatChunkPayload": {
+      "type": "object",
+      "required": ["delta"],
+      "properties": {
+        "delta": { "type": "string" }
+      }
+    },
+
+    "ChatDonePayload": {
+      "type": "object",
+      "required": ["full_text", "sources", "web_sources", "model_used", "input_tokens", "output_tokens", "latency_ms"],
+      "properties": {
+        "full_text":     { "type": "string" },
+        "sources":       { "type": "array", "items": { "$ref": "#/definitions/Source" } },
+        "web_sources":   { "type": "array", "items": { "$ref": "#/definitions/WebSource" } },
+        "model_used":    { "type": "string" },
+        "input_tokens":  { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "latency_ms":    { "type": "integer" }
+      }
+    },
+
+    "PlanUpdatePayload": {
+      "type": "object",
+      "required": ["step_index", "step_label", "status"],
+      "properties": {
+        "step_index": { "type": "integer" },
+        "step_label": { "type": "string" },
+        "status":     { "type": "string", "enum": ["pending", "running", "done", "failed"] }
+      }
+    },
+
+    "ToolCallNotifyPayload": {
+      "type": "object",
+      "required": ["call_id", "tool_name", "params"],
+      "properties": {
+        "call_id":   { "type": "string", "format": "uuid" },
+        "tool_name": { "type": "string" },
+        "params":    { "type": "object" }
+      }
+    },
+
+    "ToolResultNotifyPayload": {
+      "type": "object",
+      "required": ["call_id", "tool_name", "success"],
+      "properties": {
+        "call_id":   { "type": "string", "format": "uuid" },
+        "tool_name": { "type": "string" },
+        "success":   { "type": "boolean" },
+        "result":    { "type": "object" },
+        "error":     { "oneOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+
+    "PermissionRequestPayload": {
+      "type": "object",
+      "required": ["request_id", "tool_name", "action", "scope", "description"],
+      "properties": {
+        "request_id":  { "type": "string", "format": "uuid" },
+        "tool_name":   { "type": "string" },
+        "action":      { "type": "string" },
+        "scope":       { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+
+    "PermissionResponsePayload": {
+      "type": "object",
+      "required": ["request_id", "granted"],
+      "properties": {
+        "request_id": { "type": "string", "format": "uuid" },
+        "granted":    { "type": "boolean" }
+      }
+    },
+
+    "IndexRequestPayload": {
+      "type": "object",
+      "required": ["project_id", "root_path"],
+      "properties": {
+        "project_id":  { "type": "string", "format": "uuid" },
+        "root_path":   { "type": "string" },
+        "incremental": { "type": "boolean", "default": true }
+      }
+    },
+
+    "IndexProgressPayload": {
+      "type": "object",
+      "required": ["file_path", "event", "done", "total"],
+      "properties": {
+        "file_path": { "type": "string" },
+        "event":     { "type": "string", "enum": ["added", "changed", "deleted", "skipped"] },
+        "done":      { "type": "integer" },
+        "total":     { "type": "integer" }
+      }
+    },
+
+    "IndexDonePayload": {
+      "type": "object",
+      "required": ["project_id", "files_added", "files_changed", "files_deleted", "chunks_total", "duration_ms"],
+      "properties": {
+        "project_id":    { "type": "string", "format": "uuid" },
+        "files_added":   { "type": "integer" },
+        "files_changed": { "type": "integer" },
+        "files_deleted": { "type": "integer" },
+        "chunks_total":  { "type": "integer" },
+        "duration_ms":   { "type": "integer" }
+      }
+    },
+
+    "ErrorPayload": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code":    { "type": "string" },
+        "message": { "type": "string" },
+        "detail":  { "type": "object" }
+      }
+    }
+  }
+}

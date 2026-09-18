@@ -1,61 +1,52 @@
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
-from core.llm import LLMProviderGateway, BaseLLMProvider, ModelRole
+"""
+core.verifier — Verifier
 
-class VerificationResult(BaseModel):
-    success: bool = Field(description="True if step or overall goal objectives were successfully met")
-    reason: str = Field(description="Detailed explanation of verification outcome")
-    needs_retry: bool = Field(default=False, description="True if step execution should be retried with adjustments")
+Responsibilities:
+  - Evaluate the quality of an ExecutorResult
+  - Return one of three verdicts:
+      PASS     → context is good, continue to next step or finalize
+      RETRY    → result is poor quality, ask Executor to retry (max 2 retries)
+      ESCALATE → cannot improve; use a stronger model or report to user
 
-class AgentVerifier:
-    def __init__(self, llm_provider: Optional[BaseLLMProvider] = None):
-        self.llm = llm_provider or LLMProviderGateway.get_provider(role=ModelRole.REASONING)
+The verifier uses lightweight heuristics and optionally a model call.
+It does NOT alter results — it only classifies them.
+"""
 
-    async def verify_step(self, goal: str, step_title: str, tool_result: Any) -> VerificationResult:
-        # Hard check for process / tool failure
-        if isinstance(tool_result, dict):
-            if tool_result.get("success") is False or (tool_result.get("exit_code") is not None and tool_result.get("exit_code") != 0):
-                exit_code = tool_result.get("exit_code", -1)
-                err_msg = tool_result.get("stderr") or tool_result.get("error") or "Non-zero exit code"
-                return VerificationResult(
-                    success=False,
-                    reason=f"COMMAND/TEST FAILED (exit code {exit_code}): {str(err_msg)[:200]}",
-                    needs_retry=True
-                )
+from __future__ import annotations
 
-        system_prompt = (
-            "You are an autonomous AI Verifier. "
-            "Evaluate whether the tool output successfully addresses the step objective for the overall user goal."
-        )
-        prompt = (
-            f"Overall Goal: '{goal}'\n"
-            f"Step Objective: '{step_title}'\n"
-            f"Tool Execution Result: {tool_result}"
-        )
+import structlog
 
-        try:
-            return await self.llm.generate_structured(prompt, VerificationResult, system_prompt)
-        except Exception:
-            # Deterministic rule-based fallback
-            if isinstance(tool_result, dict) and tool_result.get("success") is False:
-                return VerificationResult(success=False, reason="Tool execution returned failure error status", needs_retry=True)
-            return VerificationResult(success=True, reason="Verified tool output against step requirements.", needs_retry=False)
+from core.types import ExecutorResult, VerifierVerdict
 
-    async def verify_goal_completion(self, goal: str, observations: list) -> VerificationResult:
-        system_prompt = (
-            "You are an autonomous AI Verifier. "
-            "Evaluate all collected step observations to confirm if the overall user goal has been fully completed."
-        )
-        prompt = (
-            f"User Goal: '{goal}'\n"
-            f"Completed Step Observations: {observations}"
-        )
+logger = structlog.get_logger(__name__)
 
-        try:
-            return await self.llm.generate_structured(prompt, VerificationResult, system_prompt)
-        except Exception:
-            return VerificationResult(
-                success=True,
-                reason="Goal execution completed and verified across all plan steps.",
-                needs_retry=False
-            )
+_MAX_RETRIES = 2
+
+
+class Verifier:
+    """
+    Lightweight result quality gate.
+
+    For RAG results: checks chunk count and minimum relevance score.
+    For tool results: checks success flag and non-empty output.
+    For model results: checks non-empty, non-refusal output.
+    """
+
+    async def check(
+        self,
+        result: ExecutorResult,
+        attempt: int = 0,
+    ) -> VerifierVerdict:
+        """
+        Evaluate result quality.
+
+        attempt: number of retries already performed for this step (0-indexed).
+        Returns ESCALATE automatically when attempt >= _MAX_RETRIES.
+        """
+        if attempt >= _MAX_RETRIES:
+            return VerifierVerdict.ESCALATE
+
+        if not result.success:
+            return VerifierVerdict.RETRY
+
+        raise NotImplementedError  # TODO: implement quality heuristics in feature phase

@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: kora_postgres
+    environment:
+      POSTGRES_DB: kora
+      POSTGRES_USER: kora
+      POSTGRES_PASSWORD: kora_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - kora_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kora -d kora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kora_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - kora_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  kora_pgdata:
+  kora_redisdata:
