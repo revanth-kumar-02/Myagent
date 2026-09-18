@@ -1,18 +1,18 @@
 """
-rag.chunker — Structural Chunker
+rag.chunker — Format-Aware Smart Chunker (RAG V3)
 
 Responsibilities:
-  - Accept a ParsedDocument and produce a list of Chunks
-  - Use structure-aware strategies per document type:
-      CODE     → function/class boundary splitting
-      MARKDOWN → heading-hierarchy splitting
-      DOCUMENT → paragraph/section/page/slide splitting
-      PLAIN    → sliding window (token-based)
-  - Each chunk carries full provenance metadata
-  - Respects chunk_size_tokens and chunk_overlap_tokens from settings
-  - Never embeds or stores chunks — that is the Embedder/Indexer's job
-
-All chunking strategies target token counts (via tiktoken), not character counts.
+  - Format-native chunking strategies:
+      Code:           functions, classes, components, interfaces
+      Markdown:       heading hierarchies with breadcrumbs
+      PDF:            pages and section paragraphs
+      Word (DOCX):    sections, headings, tables
+      Spreadsheets:   sheets and logical cell ranges / row blocks
+      Presentations:  slide-level units
+      CSV:            header-aware row groups (headers attached to each batch)
+  - Strict token budgeting using tiktoken
+  - Preserve rich structural metadata (page_number, sheet_name, slide_number, cell_range, symbol, headings)
+  - Only store format-applicable metadata
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# Use cl100k_base as a universal token counter (approximate for all models)
 _TOKENIZER = tiktoken.get_encoding("cl100k_base")
 
 
@@ -40,25 +39,25 @@ def _count_tokens(text: str) -> int:
     return len(_TOKENIZER.encode(text))
 
 
-# Regex patterns for identifying code symbol definitions across multiple languages
 _CODE_SPLIT_PATTERNS = [
-    # Python: def / async def / class
     re.compile(r"^(?:async\s+)?(?:def|class)\s+([a-zA-Z0-9_]+)", re.MULTILINE),
-    # JS/TS/Dart/Java/Kotlin: class / interface / function / enum / struct
     re.compile(
         r"^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function|class|interface|enum|struct|type)\s+([a-zA-Z0-9_]+)",
         re.MULTILINE,
     ),
-    # C/C++/Go/Rust: fn / func / void / int / etc.
     re.compile(r"^(?:pub\s+)?(?:fn|func)\s+([a-zA-Z0-9_]+)", re.MULTILINE),
 ]
 
 _MD_HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+_PAGE_PATTERN = re.compile(r"^\[Page\s+(\d+)(?::\s*([^\]]+))?\]", re.MULTILINE)
+_SLIDE_PATTERN = re.compile(r"^\[Slide\s+(\d+)(?::\s*([^\]]+))?\]", re.MULTILINE)
+_SHEET_PATTERN = re.compile(r"^\[Sheet:\s*([^|\]]+)(?:\s*\|\s*Range:\s*([^\]]+))?\]", re.MULTILINE)
+_CSV_PATTERN = re.compile(r"^\[CSV:\s*([^|\]]+)(?:\s*\|\s*Range:\s*([^\]]+))?\]", re.MULTILINE)
 
 
 class StructuralChunker:
     """
-    Converts a ParsedDocument into a list of Chunks using structure-aware splitting.
+    Converts a ParsedDocument into a list of Chunks using format-aware smart chunking.
     """
 
     def __init__(
@@ -73,38 +72,51 @@ class StructuralChunker:
 
     def chunk(self, doc: ParsedDocument) -> list[Chunk]:
         """
-        Dispatch to the appropriate chunking strategy and return Chunks.
+        Dispatch to the appropriate format-aware strategy.
         """
         if not doc.content.strip():
             return []
 
-        match doc.doc_type:
-            case DocumentType.CODE:
-                return self._chunk_code(doc)
-            case DocumentType.MARKDOWN:
-                return self._chunk_markdown(doc)
-            case DocumentType.DOCUMENT | DocumentType.SPREADSHEET:
-                return self._chunk_document(doc)
-            case DocumentType.PLAIN:
-                return self._chunk_sliding_window(doc)
-            case _:
-                return self._chunk_sliding_window(doc)
+        ext = doc.extension
+        file_type = doc.metadata.get("file_type", "")
 
-    # ── Private strategies ─────────────────────────────────────────────────────
+        # 1. Spreadsheets & CSV
+        if file_type == "csv" or ext == ".csv":
+            return self._chunk_csv(doc)
+        if doc.doc_type == DocumentType.SPREADSHEET or ext in (".xlsx", ".xls"):
+            return self._chunk_spreadsheet(doc)
+
+        # 2. Presentations (PPTX)
+        if file_type == "pptx" or ext in (".pptx", ".ppt"):
+            return self._chunk_presentation(doc)
+
+        # 3. PDF
+        if file_type == "pdf" or ext == ".pdf":
+            return self._chunk_pdf(doc)
+
+        # 4. Code
+        if doc.doc_type == DocumentType.CODE:
+            return self._chunk_code(doc)
+
+        # 5. Markdown
+        if doc.doc_type == DocumentType.MARKDOWN:
+            return self._chunk_markdown(doc)
+
+        # 6. DOCX / General Document
+        if doc.doc_type == DocumentType.DOCUMENT:
+            return self._chunk_document(doc)
+
+        # 7. Fallback: Sliding Window
+        return self._chunk_sliding_window(doc)
+
+    # ── Code Strategy ─────────────────────────────────────────────────────────
 
     def _chunk_code(self, doc: ParsedDocument) -> list[Chunk]:
-        """
-        Split at function/class boundaries.
-        Falls back to sliding window for files with no clear boundaries.
-        Metadata includes: symbol, start_line, end_line, language.
-        """
         lines = doc.content.splitlines(keepends=True)
         if not lines:
             return []
 
-        # Find boundary lines (0-indexed line indices)
-        boundaries: list[tuple[int, str]] = []  # (line_idx, symbol_name)
-
+        boundaries: list[tuple[int, str]] = []
         for line_idx, line in enumerate(lines):
             for pattern in _CODE_SPLIT_PATTERNS:
                 match = pattern.match(line)
@@ -113,7 +125,6 @@ class StructuralChunker:
                     break
 
         if not boundaries or len(boundaries) == 1 and boundaries[0][0] == 0:
-            # Check if entire file fits in one chunk
             tokens = _count_tokens(doc.content)
             if tokens <= self.chunk_size:
                 symbol = boundaries[0][1] if boundaries else None
@@ -134,9 +145,8 @@ class StructuralChunker:
 
         chunks: list[Chunk] = []
         chunk_idx = 0
+        sections: list[tuple[int, int, str | None]] = []
 
-        # Include header preamble if boundaries don't start at line 0
-        sections: list[tuple[int, int, str | None]] = []  # (start_line_idx, end_line_idx, symbol)
         if boundaries[0][0] > 0:
             sections.append((0, boundaries[0][0] - 1, None))
 
@@ -165,7 +175,6 @@ class StructuralChunker:
                 )
                 chunk_idx += 1
             else:
-                # Sub-split oversized sections using sliding window
                 sub_chunks = self._sub_split_lines(
                     doc,
                     sec_lines,
@@ -178,16 +187,14 @@ class StructuralChunker:
 
         return chunks
 
+    # ── Markdown Strategy ─────────────────────────────────────────────────────
+
     def _chunk_markdown(self, doc: ParsedDocument) -> list[Chunk]:
-        """
-        Split at heading boundaries (h1 > h2 > h3 hierarchy).
-        Each chunk includes heading breadcrumb in metadata.
-        """
         lines = doc.content.splitlines(keepends=True)
         if not lines:
             return []
 
-        heading_indices: list[tuple[int, int, str]] = []  # (line_idx, level, text)
+        heading_indices: list[tuple[int, int, str]] = []
         for idx, line in enumerate(lines):
             match = _MD_HEADING_PATTERN.match(line.rstrip("\r\n"))
             if match:
@@ -200,14 +207,11 @@ class StructuralChunker:
 
         chunks: list[Chunk] = []
         chunk_idx = 0
+        sections: list[tuple[int, int, list[str], int]] = []
+        heading_stack: list[tuple[int, str]] = []
 
-        # Build sections with active breadcrumbs
-        sections: list[tuple[int, int, list[str], int]] = []  # (start_line, end_line, breadcrumbs, level)
-        heading_stack: list[tuple[int, str]] = []  # (level, text)
-
-        # Optional preamble
         if heading_indices[0][0] > 0:
-            sections.append((0, heading_indices[0][0] - 1, ["Document Overview"], 0))
+            sections.append((0, heading_indices[0][0] - 1, ["Overview"], 0))
 
         for i, (line_idx, level, h_text) in enumerate(heading_indices):
             while heading_stack and heading_stack[-1][0] >= level:
@@ -237,6 +241,7 @@ class StructuralChunker:
                             "start_line": start_l + 1,
                             "end_line": end_l + 1,
                             "headings": breadcrumbs,
+                            "section": breadcrumbs[-1] if breadcrumbs else None,
                             "level": level,
                             "token_count": tokens,
                         },
@@ -249,18 +254,272 @@ class StructuralChunker:
                     sec_lines,
                     start_line_offset=start_l + 1,
                     base_chunk_index=chunk_idx,
-                    extra_meta={"headings": breadcrumbs, "level": level},
+                    extra_meta={"headings": breadcrumbs, "section": breadcrumbs[-1], "level": level},
                 )
                 chunks.extend(sub_chunks)
                 chunk_idx += len(sub_chunks)
 
         return chunks
 
+    # ── PDF Strategy ──────────────────────────────────────────────────────────
+
+    def _chunk_pdf(self, doc: ParsedDocument) -> list[Chunk]:
+        """Page-aware and section-aware PDF chunking."""
+        page_blocks = re.split(r"(?=\[Page\s+\d+.*?\])", doc.content)
+        chunks: list[Chunk] = []
+        chunk_idx = 0
+
+        for block in page_blocks:
+            block_clean = block.strip()
+            if not block_clean:
+                continue
+
+            # Extract page number and heading
+            page_match = _PAGE_PATTERN.match(block_clean)
+            page_num = int(page_match.group(1)) if page_match else None
+            heading = page_match.group(2).strip() if (page_match and page_match.group(2)) else None
+
+            tokens = _count_tokens(block_clean)
+            if tokens <= self.chunk_size:
+                chunks.append(
+                    self._make_chunk(
+                        doc,
+                        index=chunk_idx,
+                        content=block_clean,
+                        extra_metadata={
+                            "page_number": page_num,
+                            **({"heading": heading} if heading else {}),
+                            "token_count": tokens,
+                        },
+                    )
+                )
+                chunk_idx += 1
+            else:
+                lines = [l + "\n" for l in block_clean.splitlines()]
+                sub_chunks = self._sub_split_lines(
+                    doc,
+                    lines,
+                    start_line_offset=1,
+                    base_chunk_index=chunk_idx,
+                    extra_meta={"page_number": page_num, **({"heading": heading} if heading else {})},
+                )
+                chunks.extend(sub_chunks)
+                chunk_idx += len(sub_chunks)
+
+        return chunks or self._chunk_sliding_window(doc)
+
+    # ── Presentation (PPTX) Strategy ──────────────────────────────────────────
+
+    def _chunk_presentation(self, doc: ParsedDocument) -> list[Chunk]:
+        """Slide-level chunking for presentations."""
+        slide_blocks = re.split(r"(?=\[Slide\s+\d+.*?\])", doc.content)
+        chunks: list[Chunk] = []
+        chunk_idx = 0
+
+        for block in slide_blocks:
+            block_clean = block.strip()
+            if not block_clean:
+                continue
+
+            slide_match = _SLIDE_PATTERN.match(block_clean)
+            slide_num = int(slide_match.group(1)) if slide_match else chunk_idx + 1
+            slide_title = slide_match.group(2).strip() if (slide_match and slide_match.group(2)) else None
+
+            tokens = _count_tokens(block_clean)
+            if tokens <= self.chunk_size:
+                chunks.append(
+                    self._make_chunk(
+                        doc,
+                        index=chunk_idx,
+                        content=block_clean,
+                        extra_metadata={
+                            "slide_number": slide_num,
+                            "slide_title": slide_title or f"Slide {slide_num}",
+                            "token_count": tokens,
+                        },
+                    )
+                )
+                chunk_idx += 1
+            else:
+                lines = [l + "\n" for l in block_clean.splitlines()]
+                sub_chunks = self._sub_split_lines(
+                    doc,
+                    lines,
+                    start_line_offset=1,
+                    base_chunk_index=chunk_idx,
+                    extra_meta={"slide_number": slide_num, "slide_title": slide_title or f"Slide {slide_num}"},
+                )
+                chunks.extend(sub_chunks)
+                chunk_idx += len(sub_chunks)
+
+        return chunks or self._chunk_sliding_window(doc)
+
+    # ── Spreadsheet Strategy ──────────────────────────────────────────────────
+
+    def _chunk_spreadsheet(self, doc: ParsedDocument) -> list[Chunk]:
+        """Sheet and cell-range chunking for spreadsheets."""
+        sheet_blocks = re.split(r"(?=\[Sheet:\s*.*?\])", doc.content)
+        chunks: list[Chunk] = []
+        chunk_idx = 0
+
+        for block in sheet_blocks:
+            block_clean = block.strip()
+            if not block_clean:
+                continue
+
+            sheet_match = _SHEET_PATTERN.match(block_clean)
+            sheet_name = sheet_match.group(1).strip() if sheet_match else "Sheet1"
+            cell_range = sheet_match.group(2).strip() if (sheet_match and sheet_match.group(2)) else None
+
+            lines = block_clean.splitlines(keepends=True)
+            header_line = lines[0] if lines else ""
+            data_lines = lines[1:] if len(lines) > 1 else lines
+
+            # Batch data rows into chunks under chunk_size tokens
+            current_batch: list[str] = []
+            current_tokens = _count_tokens(header_line)
+            row_start = 1
+
+            for r_idx, row in enumerate(data_lines, start=1):
+                row_tokens = _count_tokens(row)
+                if current_tokens + row_tokens > self.chunk_size and current_batch:
+                    chunk_text = header_line + "".join(current_batch)
+                    chunks.append(
+                        self._make_chunk(
+                            doc,
+                            index=chunk_idx,
+                            content=chunk_text.strip(),
+                            extra_metadata={
+                                "sheet_name": sheet_name,
+                                "cell_range": cell_range,
+                                "row_start": row_start,
+                                "row_end": row_start + len(current_batch) - 1,
+                                "token_count": current_tokens,
+                            },
+                        )
+                    )
+                    chunk_idx += 1
+                    row_start = r_idx
+                    current_batch = [row]
+                    current_tokens = _count_tokens(header_line) + row_tokens
+                else:
+                    current_batch.append(row)
+                    current_tokens += row_tokens
+
+            if current_batch:
+                chunk_text = header_line + "".join(current_batch)
+                chunks.append(
+                    self._make_chunk(
+                        doc,
+                        index=chunk_idx,
+                        content=chunk_text.strip(),
+                        extra_metadata={
+                            "sheet_name": sheet_name,
+                            "cell_range": cell_range,
+                            "row_start": row_start,
+                            "row_end": row_start + len(current_batch) - 1,
+                            "token_count": current_tokens,
+                        },
+                    )
+                )
+                chunk_idx += 1
+
+        return chunks or self._chunk_sliding_window(doc)
+
+    # ── CSV Strategy ──────────────────────────────────────────────────────────
+
+    def _chunk_csv(self, doc: ParsedDocument) -> list[Chunk]:
+        """Header-aware row group chunking for CSV."""
+        lines = doc.content.splitlines(keepends=True)
+        if not lines:
+            return []
+
+        # Preamble header tag
+        preamble = ""
+        data_rows = lines
+        if lines[0].startswith("[CSV:"):
+            preamble = lines[0]
+            data_rows = lines[1:]
+
+        if not data_rows:
+            return []
+
+        csv_header_line = data_rows[0]
+        data_rows_only = data_rows[1:]
+        headers = doc.metadata.get("headers", [])
+
+        if not data_rows_only:
+            # Only header row
+            return [
+                self._make_chunk(
+                    doc,
+                    index=0,
+                    content=doc.content,
+                    extra_metadata={
+                        "headers": headers,
+                        "row_start": 1,
+                        "row_end": 1,
+                        "cell_range": doc.metadata.get("cell_range"),
+                    },
+                )
+            ]
+
+        chunks: list[Chunk] = []
+        chunk_idx = 0
+        current_rows: list[str] = []
+        base_header = (preamble + "\n" if preamble else "") + csv_header_line
+        base_tokens = _count_tokens(base_header)
+        current_tokens = base_tokens
+        row_start = 1
+
+        for r_idx, row in enumerate(data_rows_only, start=1):
+            r_tokens = _count_tokens(row)
+            if current_tokens + r_tokens > self.chunk_size and current_rows:
+                chunk_text = base_header + "".join(current_rows)
+                chunks.append(
+                    self._make_chunk(
+                        doc,
+                        index=chunk_idx,
+                        content=chunk_text.strip(),
+                        extra_metadata={
+                            "headers": headers,
+                            "row_start": row_start,
+                            "row_end": row_start + len(current_rows) - 1,
+                            "cell_range": doc.metadata.get("cell_range"),
+                            "token_count": current_tokens,
+                        },
+                    )
+                )
+                chunk_idx += 1
+                row_start = r_idx
+                current_rows = [row]
+                current_tokens = base_tokens + r_tokens
+            else:
+                current_rows.append(row)
+                current_tokens += r_tokens
+
+        if current_rows:
+            chunk_text = base_header + "".join(current_rows)
+            chunks.append(
+                self._make_chunk(
+                    doc,
+                    index=chunk_idx,
+                    content=chunk_text.strip(),
+                    extra_metadata={
+                        "headers": headers,
+                        "row_start": row_start,
+                        "row_end": row_start + len(current_rows) - 1,
+                        "cell_range": doc.metadata.get("cell_range"),
+                        "token_count": current_tokens,
+                    },
+                )
+            )
+
+        return chunks
+
+    # ── General Document Strategy ─────────────────────────────────────────────
+
     def _chunk_document(self, doc: ParsedDocument) -> list[Chunk]:
-        """
-        Split at paragraph/section boundaries or sheet/page boundaries.
-        Falls back to sliding window for dense text.
-        """
         paragraphs = re.split(r"\n\s*\n", doc.content)
         if len(paragraphs) <= 1:
             return self._chunk_sliding_window(doc)
@@ -279,7 +538,6 @@ class StructuralChunker:
             para_tokens = _count_tokens(para_clean)
 
             if para_tokens > self.chunk_size:
-                # Flush pending paragraphs first
                 if current_paragraphs:
                     combined_text = "\n\n".join(current_paragraphs)
                     line_cnt = len(combined_text.splitlines())
@@ -300,7 +558,6 @@ class StructuralChunker:
                     current_paragraphs = []
                     current_tokens = 0
 
-                # Sub-split the oversized paragraph
                 sub_lines = [l + "\n" for l in para_clean.splitlines()]
                 sub_chunks = self._sub_split_lines(
                     doc,
@@ -354,11 +611,9 @@ class StructuralChunker:
 
         return chunks
 
+    # ── Sliding Window Strategy ───────────────────────────────────────────────
+
     def _chunk_sliding_window(self, doc: ParsedDocument) -> list[Chunk]:
-        """
-        Token-based sliding window with overlap.
-        Used for plain text and as fallback for other types.
-        """
         lines = doc.content.splitlines(keepends=True)
         if not lines:
             return []
@@ -378,11 +633,8 @@ class StructuralChunker:
         base_chunk_index: int,
         extra_meta: dict[str, Any] | None = None,
     ) -> list[Chunk]:
-        """
-        Helper that slides a token window over a sequence of lines, preserving line numbers.
-        """
         chunks: list[Chunk] = []
-        token_lines: list[tuple[list[int], str, int]] = []  # (tokens, line_text, 1-based line num)
+        token_lines: list[tuple[list[int], str, int]] = []
 
         for idx, line in enumerate(lines):
             line_tokens = _TOKENIZER.encode(line)
@@ -408,7 +660,6 @@ class StructuralChunker:
                 j += 1
 
             if not chunk_line_texts and j < len(token_lines):
-                # Single line exceeds chunk size; hard slice its tokens
                 line_toks, line_txt, line_num = token_lines[j]
                 sub_toks = line_toks[: self.chunk_size]
                 chunk_line_texts.append(_TOKENIZER.decode(sub_toks))
@@ -436,7 +687,6 @@ class StructuralChunker:
             if j >= len(token_lines):
                 break
 
-            # Calculate step with overlap
             overlap_tokens = 0
             step_back = 0
             for back_idx in range(j - 1, i, -1):
@@ -456,12 +706,23 @@ class StructuralChunker:
         content: str,
         extra_metadata: dict | None = None,
     ) -> Chunk:
-        metadata = {**doc.metadata, **(extra_metadata or {})}
+        # Merge only relevant metadata
+        base_meta = {
+            "file_name": doc.file_name,
+            "file_type": doc.metadata.get("file_type", doc.doc_type.value),
+            **doc.metadata,
+        }
+        # Remove noisy bulk fields from chunk metadata
+        base_meta.pop("pages", None)
+        base_meta.pop("slides", None)
+        base_meta.pop("sheets", None)
+
+        merged = {**base_meta, **(extra_metadata or {})}
         return Chunk(
             chunk_index=index,
             content=content,
             doc_type=doc.doc_type,
             file_path=doc.file_path,
             project_id=self.project_id,
-            metadata=metadata,
+            metadata=merged,
         )

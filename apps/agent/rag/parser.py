@@ -1,24 +1,24 @@
 """
-rag.parser — Document Parser
+rag.parser — Document-Aware Parser (RAG V3)
 
 Responsibilities:
-  - Route files to the correct parser by extension
-  - Produce a normalised ParsedDocument for every supported file type
-  - Extract metadata useful for chunking (headings, language, page/slide numbers)
-  - Never perform chunking — that is the Chunker's job
-
-Supported parsers:
-  CodeParser        — .py .js .ts .java .kt .dart .html .css .sql
-  MarkdownParser    — .md
-  PDFParser         — .pdf
-  DocxParser        — .docx .doc
-  PptxParser        — .pptx .ppt
-  SpreadsheetParser — .xls .xlsx
-  PlainTextParser   — .json .yaml .yml .xml .csv .txt
+  - Route files to the correct format-aware parser by extension
+  - Produce a normalized ParsedDocument for every supported file type
+  - Extract rich structural metadata:
+      PDF:         pages, headings, paragraphs, tables
+      DOC/DOCX:    headings with levels, paragraphs, tables
+      XLS/XLSX:    workbooks, sheets, cell ranges, row/column counts
+      PPT/PPTX:    slides, titles, text, slide tables
+      CSV:         headers, row counts, column counts, tabular data
+      Code:        language, lines, symbols
+      Markdown:    heading hierarchy with breadcrumbs
 """
 
 from __future__ import annotations
 
+import csv
+import io
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -45,12 +45,13 @@ _EXT_MAP: dict[str, DocumentType] = {
     ".pdf": DocumentType.DOCUMENT,
     ".docx": DocumentType.DOCUMENT, ".doc": DocumentType.DOCUMENT,
     ".pptx": DocumentType.DOCUMENT, ".ppt": DocumentType.DOCUMENT,
-    # Spreadsheets
+    # Spreadsheets & Tabular Data
     ".xls": DocumentType.SPREADSHEET, ".xlsx": DocumentType.SPREADSHEET,
+    ".csv": DocumentType.SPREADSHEET,
     # Plain text / config
     ".txt": DocumentType.PLAIN, ".yaml": DocumentType.PLAIN,
     ".yml": DocumentType.PLAIN, ".json": DocumentType.PLAIN,
-    ".xml": DocumentType.PLAIN, ".csv": DocumentType.PLAIN,
+    ".xml": DocumentType.PLAIN,
 }
 
 # Language name for code files (used in metadata)
@@ -63,9 +64,18 @@ _LANG_MAP: dict[str, str] = {
 }
 
 
+def _col_num_to_letter(n: int) -> str:
+    """Convert 1-based column index to Excel letter (1 -> A, 27 -> AA)."""
+    result = ""
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        result = chr(65 + remainder) + result
+    return result or "A"
+
+
 class Parser:
     """
-    Routes files to the appropriate parser and returns a ParsedDocument.
+    Document-aware parser producing structured ParsedDocuments.
     """
 
     async def parse(self, file_path: Path | str) -> ParsedDocument | None:
@@ -88,6 +98,8 @@ class Parser:
                 case DocumentType.DOCUMENT:
                     return await self._parse_document(path, ext)
                 case DocumentType.SPREADSHEET:
+                    if ext == ".csv":
+                        return await self._parse_csv(path)
                     return await self._parse_spreadsheet(path)
                 case DocumentType.PLAIN:
                     return await self._parse_plain(path, ext)
@@ -106,9 +118,11 @@ class Parser:
             doc_type=DocumentType.CODE,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "code",
                 "language": language,
                 "line_count": line_count,
-                "file_size": path.stat().st_size,
+                "file_size": path.stat().st_size if path.exists() else len(content),
                 "extension": ext,
             },
         )
@@ -117,7 +131,6 @@ class Parser:
 
     async def _parse_markdown(self, path: Path) -> ParsedDocument:
         content = await self._read_text(path)
-        # Extract headings for metadata
         headings: list[dict[str, Any]] = []
         for i, line in enumerate(content.splitlines(), start=1):
             m = re.match(r"^(#{1,6})\s+(.+)", line)
@@ -128,9 +141,12 @@ class Parser:
             doc_type=DocumentType.MARKDOWN,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "markdown",
                 "headings": headings,
                 "line_count": content.count("\n") + 1,
                 "heading_count": len(headings),
+                "extension": ".md",
             },
         )
 
@@ -148,24 +164,41 @@ class Parser:
 
     async def _parse_pdf(self, path: Path) -> ParsedDocument:
         import pypdf
+
         reader = pypdf.PdfReader(str(path))
-        pages: list[str] = []
+        pages_content: list[str] = []
         page_metadata: list[dict[str, Any]] = []
+
         for i, page in enumerate(reader.pages, start=1):
             text = page.extract_text() or ""
-            if text.strip():
-                pages.append(f"[Page {i}]\n{text}")
-                page_metadata.append({"page": i, "char_count": len(text)})
-        content = "\n\n".join(pages)
+            text_clean = text.strip()
+            if not text_clean:
+                continue
+
+            # Detect potential heading on this page (first prominent line)
+            lines = [l.strip() for l in text_clean.splitlines() if l.strip()]
+            page_heading = lines[0] if lines and len(lines[0]) < 80 else None
+
+            page_block = f"[Page {i}" + (f": {page_heading}]" if page_heading else "]") + f"\n{text_clean}"
+            pages_content.append(page_block)
+            page_metadata.append({
+                "page_number": i,
+                "char_count": len(text_clean),
+                "heading": page_heading,
+            })
+
+        content = "\n\n".join(pages_content)
         info = reader.metadata or {}
         return ParsedDocument(
             file_path=str(path),
             doc_type=DocumentType.DOCUMENT,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "pdf",
                 "page_count": len(reader.pages),
                 "pages": page_metadata,
-                "title": str(info.get("/Title", "")),
+                "title": str(info.get("/Title", "") or path.stem),
                 "author": str(info.get("/Author", "")),
                 "extension": ".pdf",
             },
@@ -179,43 +212,51 @@ class Parser:
         tables_text: list[str] = []
         headings: list[dict[str, Any]] = []
 
-        line_num = 0
+        line_num = 1
+        current_heading = None
+
         for para in doc.paragraphs:
             text = para.text.strip()
             if not text:
                 line_num += 1
                 continue
-            # Detect heading styles
+
             style_name = para.style.name if para.style else ""
             if "Heading" in style_name:
                 try:
                     level = int(style_name.split()[-1])
                 except (ValueError, IndexError):
                     level = 1
+                current_heading = text
                 headings.append({"level": level, "text": text, "line": line_num})
-            sections.append(text)
+                sections.append(f"## {text}")
+            else:
+                sections.append(text)
             line_num += 1
 
-        # Extract tables
-        for table in doc.tables:
-            rows: list[str] = []
+        # Extract structured tables
+        for table_idx, table in enumerate(doc.tables, start=1):
+            table_rows: list[str] = []
             for row in table.rows:
                 cells = [cell.text.strip() for cell in row.cells]
-                rows.append(" | ".join(cells))
-            if rows:
-                tables_text.append("\n".join(rows))
+                table_rows.append(" | ".join(cells))
+            if table_rows:
+                table_str = f"[Table {table_idx}]\n" + "\n".join(table_rows)
+                tables_text.append(table_str)
 
-        content = "\n\n".join(sections)
+        full_content = "\n\n".join(sections)
         if tables_text:
-            content += "\n\n=== Tables ===\n" + "\n\n".join(tables_text)
+            full_content += "\n\n=== Tables ===\n\n" + "\n\n".join(tables_text)
 
         return ParsedDocument(
             file_path=str(path),
             doc_type=DocumentType.DOCUMENT,
-            content=content,
+            content=full_content,
             metadata={
+                "file_name": path.name,
+                "file_type": "docx",
                 "section_count": len(sections),
-                "table_count": len(tables_text),
+                "table_count": len(doc.tables),
                 "headings": headings,
                 "extension": path.suffix.lower(),
             },
@@ -223,6 +264,7 @@ class Parser:
 
     async def _parse_pptx(self, path: Path) -> ParsedDocument:
         from pptx import Presentation
+
         prs = Presentation(str(path))
         slides_text: list[str] = []
         slide_metadata: list[dict[str, Any]] = []
@@ -230,18 +272,40 @@ class Parser:
         for i, slide in enumerate(prs.slides, start=1):
             parts: list[str] = []
             title = ""
+            tables_in_slide: list[str] = []
+
             for shape in slide.shapes:
-                if not shape.has_text_frame:
-                    continue
-                text = shape.text_frame.text.strip()
-                if not text:
-                    continue
-                if shape.shape_type == 13:  # TITLE
-                    title = text
-                parts.append(text)
-            slide_text = f"[Slide {i}] {title}\n" + "\n".join(parts)
-            slides_text.append(slide_text)
-            slide_metadata.append({"slide": i, "title": title, "char_count": len(slide_text)})
+                if shape.has_text_frame:
+                    text = shape.text_frame.text.strip()
+                    if not text:
+                        continue
+                    if shape.shape_type == 13 or shape.name.lower().startswith("title") or not title:
+                        if not title:
+                            title = text.splitlines()[0]
+                    parts.append(text)
+
+                elif shape.has_table:
+                    table = shape.table
+                    rows_str = []
+                    for row in table.rows:
+                        cells = [c.text.strip() for c in row.cells]
+                        rows_str.append(" | ".join(cells))
+                    if rows_str:
+                        tables_in_slide.append("\n".join(rows_str))
+
+            slide_body = "\n".join(parts)
+            if tables_in_slide:
+                slide_body += "\n" + "\n".join(tables_in_slide)
+
+            slide_heading = f"[Slide {i}: {title}]" if title else f"[Slide {i}]"
+            full_slide_text = f"{slide_heading}\n{slide_body}"
+            slides_text.append(full_slide_text)
+
+            slide_metadata.append({
+                "slide_number": i,
+                "title": title or f"Slide {i}",
+                "char_count": len(full_slide_text),
+            })
 
         content = "\n\n".join(slides_text)
         return ParsedDocument(
@@ -249,19 +313,20 @@ class Parser:
             doc_type=DocumentType.DOCUMENT,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "pptx",
                 "slide_count": len(prs.slides),
                 "slides": slide_metadata,
                 "extension": path.suffix.lower(),
             },
         )
 
-    # ── Spreadsheets (XLS / XLSX) ─────────────────────────────────────────────
+    # ── Spreadsheets (XLS / XLSX / CSV) ───────────────────────────────────────
 
     async def _parse_spreadsheet(self, path: Path) -> ParsedDocument:
         import openpyxl
-        ext = path.suffix.lower()
 
-        # openpyxl handles .xlsx natively; for .xls use read-only text fallback
+        ext = path.suffix.lower()
         if ext == ".xls":
             return await self._parse_xls_fallback(path)
 
@@ -275,23 +340,29 @@ class Parser:
             ws = wb[sheet_name]
             rows: list[str] = []
             row_count = 0
-            col_count = 0
+            max_cols = 0
+
             for row in ws.iter_rows(values_only=True):
-                # Skip entirely empty rows
                 values = [str(v) if v is not None else "" for v in row]
                 if not any(v.strip() for v in values):
                     continue
                 rows.append(" | ".join(values))
                 row_count += 1
-                col_count = max(col_count, len(values))
+                max_cols = max(max_cols, len(values))
 
-            sheet_text = f"[Sheet: {sheet_name}]\n" + "\n".join(rows)
+            end_col_letter = _col_num_to_letter(max(1, max_cols))
+            cell_range = f"A1:{end_col_letter}{max(1, row_count)}"
+
+            sheet_header = f"[Sheet: {sheet_name} | Range: {cell_range}]"
+            sheet_text = f"{sheet_header}\n" + "\n".join(rows)
             all_text.append(sheet_text)
             total_rows += row_count
+
             sheets_meta.append({
                 "sheet_name": sheet_name,
+                "cell_range": cell_range,
                 "row_count": row_count,
-                "col_count": col_count,
+                "col_count": max_cols,
             })
 
         wb.close()
@@ -301,6 +372,8 @@ class Parser:
             doc_type=DocumentType.SPREADSHEET,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "spreadsheet",
                 "sheet_names": sheet_names,
                 "sheet_count": len(sheet_names),
                 "total_rows": total_rows,
@@ -309,10 +382,44 @@ class Parser:
             },
         )
 
+    async def _parse_csv(self, path: Path) -> ParsedDocument:
+        """Parse CSV into structured tabular text with headers and cell ranges."""
+        raw_text = await self._read_text(path)
+        reader = csv.reader(io.StringIO(raw_text))
+        rows: list[list[str]] = [r for r in reader if any(cell.strip() for cell in r)]
+
+        if not rows:
+            return ParsedDocument(
+                file_path=str(path),
+                doc_type=DocumentType.SPREADSHEET,
+                content="",
+                metadata={"file_name": path.name, "file_type": "csv", "headers": [], "row_count": 0},
+            )
+
+        headers = [h.strip() for h in rows[0]]
+        formatted_rows = [" | ".join(r) for r in rows]
+        col_count = len(headers)
+        row_count = len(rows) - 1
+        end_col = _col_num_to_letter(max(1, col_count))
+        cell_range = f"A1:{end_col}{len(rows)}"
+
+        content = f"[CSV: {path.name} | Range: {cell_range}]\n" + "\n".join(formatted_rows)
+        return ParsedDocument(
+            file_path=str(path),
+            doc_type=DocumentType.SPREADSHEET,
+            content=content,
+            metadata={
+                "file_name": path.name,
+                "file_type": "csv",
+                "headers": headers,
+                "row_count": row_count,
+                "col_count": col_count,
+                "cell_range": cell_range,
+                "extension": ".csv",
+            },
+        )
+
     async def _parse_xls_fallback(self, path: Path) -> ParsedDocument:
-        """
-        Fallback for legacy .xls files using xlrd if available, else raw text.
-        """
         try:
             import xlrd
             wb = xlrd.open_workbook(str(path))
@@ -328,16 +435,15 @@ class Parser:
                 file_path=str(path),
                 doc_type=DocumentType.SPREADSHEET,
                 content=content,
-                metadata={"extension": ".xls", "sheet_count": wb.nsheets},
+                metadata={"file_name": path.name, "file_type": "xls", "extension": ".xls", "sheet_count": wb.nsheets},
             )
         except ImportError:
-            # xlrd not installed — read raw bytes as best-effort text
             content = await self._read_text(path)
             return ParsedDocument(
                 file_path=str(path),
                 doc_type=DocumentType.SPREADSHEET,
                 content=content,
-                metadata={"extension": ".xls", "note": "xlrd not available; raw text extracted"},
+                metadata={"file_name": path.name, "file_type": "xls", "extension": ".xls"},
             )
 
     # ── Plain text / config ───────────────────────────────────────────────────
@@ -349,6 +455,8 @@ class Parser:
             doc_type=DocumentType.PLAIN,
             content=content,
             metadata={
+                "file_name": path.name,
+                "file_type": "plain",
                 "extension": ext or path.suffix.lower(),
                 "line_count": content.count("\n") + 1,
                 "char_count": len(content),
@@ -362,6 +470,6 @@ class Parser:
         """Read file content, auto-detecting encoding with chardet."""
         async with aiofiles.open(path, "rb") as f:
             raw = await f.read()
-        detected = chardet.detect(raw[:4096])  # sample first 4KB for speed
+        detected = chardet.detect(raw[:4096])
         encoding = detected.get("encoding") or "utf-8"
         return raw.decode(encoding, errors="replace")

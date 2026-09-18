@@ -1,9 +1,10 @@
 """
-rag.types — Shared type definitions for the RAG pipeline.
+rag.types — Shared type definitions for the RAG pipeline (RAG V3).
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -24,8 +25,14 @@ class DocumentType(str, Enum):
     CODE        = "code"
     MARKDOWN    = "markdown"
     DOCUMENT    = "document"       # PDF, DOCX, DOC, PPTX, PPT
-    SPREADSHEET = "spreadsheet"    # XLS, XLSX
+    SPREADSHEET = "spreadsheet"    # XLS, XLSX, CSV
     PLAIN       = "plain"
+
+
+class SearchMode(str, Enum):
+    HYBRID   = "hybrid"
+    SEMANTIC = "semantic"
+    KEYWORD  = "keyword"
 
 
 @dataclass
@@ -42,55 +49,142 @@ class ParsedDocument:
     doc_type: DocumentType
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
-    # Metadata keys (type-dependent):
-    #   code:        language, line_count, file_size
-    #   markdown:    headings (list), line_count
-    #   document:    title, page_count, author (PDF); section_count (DOCX); slide_count (PPTX)
-    #   spreadsheet: sheet_names (list), sheet_count, total_rows
-    #   plain:       extension, line_count, encoding
+
+    @property
+    def file_name(self) -> str:
+        return os.path.basename(self.file_path)
+
+    @property
+    def extension(self) -> str:
+        return os.path.splitext(self.file_path)[1].lower()
 
 
 @dataclass
 class Chunk:
-    """A single indexable unit of content."""
+    """A single indexable unit of content with structural metadata."""
     chunk_index: int
     content: str
     doc_type: DocumentType
     file_path: str
     project_id: uuid.UUID
     metadata: dict[str, Any] = field(default_factory=dict)
-    # Metadata keys (type-dependent):
-    #   ALL:         start_line, end_line
-    #   code:        symbol, language
-    #   markdown:    headings (breadcrumb list), level
-    #   document:    page, slide, section
-    #   spreadsheet: sheet_name, row_start, row_end
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     embedding: list[float] | None = None
+
+    @property
+    def file_name(self) -> str:
+        return os.path.basename(self.file_path)
 
 
 @dataclass
 class RetrievedChunk:
-    """A chunk returned from hybrid retrieval, with scores."""
+    """A chunk returned from retrieval, with multi-signal scores & provenance."""
     chunk: Chunk
     dense_rank: int | None = None       # rank from vector search
     sparse_rank: int | None = None      # rank from full-text search
-    rrf_score: float = 0.0             # Reciprocal Rank Fusion score
+    dense_score: float | None = None    # cosine similarity score (0.0 - 1.0)
+    sparse_score: float | None = None   # BM25/ts_rank score
+    exact_match_boost: float = 0.0      # boost for exact symbol/token matches
+    path_match_boost: float = 0.0       # boost for file path query matches
+    metadata_boost: float = 0.0         # boost for metadata/structural matches
+    structural_boost: float = 0.0       # boost for page/sheet/slide/symbol queries
+    rrf_score: float = 0.0              # Reciprocal Rank Fusion score
+    combined_score: float = 0.0         # Final multi-signal combined score
     reranker_score: float | None = None # cross-encoder score (post-rerank)
-    db_id: uuid.UUID | None = None     # chunk.id in PostgreSQL
-    # Convenience accessors
+    db_id: uuid.UUID | None = None      # chunk.id in PostgreSQL
+
+    # Convenience accessors for rich provenance
     @property
     def file_path(self) -> str:
         return self.chunk.file_path
+
+    @property
+    def file_name(self) -> str:
+        return os.path.basename(self.chunk.file_path)
+
     @property
     def chunk_id(self) -> uuid.UUID:
         return self.db_id or self.chunk.id
+
+    @property
+    def doc_type(self) -> DocumentType:
+        return self.chunk.doc_type
+
+    @property
+    def content(self) -> str:
+        return self.chunk.content
+
     @property
     def start_line(self) -> int | None:
         return self.chunk.metadata.get("start_line")
+
     @property
     def end_line(self) -> int | None:
         return self.chunk.metadata.get("end_line")
+
+    @property
+    def symbol(self) -> str | None:
+        return self.chunk.metadata.get("symbol")
+
+    @property
+    def headings(self) -> list[str] | None:
+        return self.chunk.metadata.get("headings")
+
+    @property
+    def section(self) -> str | None:
+        return self.chunk.metadata.get("section")
+
+    @property
+    def page_number(self) -> int | None:
+        return self.chunk.metadata.get("page_number") or self.chunk.metadata.get("page")
+
+    @property
+    def sheet_name(self) -> str | None:
+        return self.chunk.metadata.get("sheet_name") or self.chunk.metadata.get("sheet")
+
+    @property
+    def cell_range(self) -> str | None:
+        return self.chunk.metadata.get("cell_range")
+
+    @property
+    def slide_number(self) -> int | None:
+        return self.chunk.metadata.get("slide_number") or self.chunk.metadata.get("slide")
+
+    @property
+    def slide_title(self) -> str | None:
+        return self.chunk.metadata.get("slide_title") or self.chunk.metadata.get("title")
+
+    @property
+    def headers(self) -> list[str] | None:
+        return self.chunk.metadata.get("headers")
+
+    @property
+    def row_start(self) -> int | None:
+        return self.chunk.metadata.get("row_start")
+
+    @property
+    def row_end(self) -> int | None:
+        return self.chunk.metadata.get("row_end")
+
+    @property
+    def effective_score(self) -> float:
+        """Returns reranker score if present, else combined score or rrf score."""
+        if self.reranker_score is not None:
+            return self.reranker_score
+        if self.combined_score > 0.0:
+            return self.combined_score
+        return self.rrf_score
+
+
+@dataclass
+class RetrievalResult:
+    """Public retrieval API response container."""
+    chunks: list[RetrievedChunk]
+    query: str
+    project_id: uuid.UUID
+    mode: SearchMode
+    total_count: int = 0
+    latency_ms: int = 0
 
 
 @dataclass
@@ -100,6 +194,7 @@ class RAGContext:
     sources: list[RetrievedChunk]
     query: str
     project_id: uuid.UUID
+    token_count: int = 0
 
 
 @dataclass

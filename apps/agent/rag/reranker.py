@@ -1,19 +1,16 @@
 """
-rag.reranker — Cross-Encoder Reranker
+rag.reranker — Cross-Encoder Reranker (RAG V2)
 
 Responsibilities:
-  - Accept a list of RetrievedChunks (post-RRF fusion)
-  - Re-score each chunk against the original query using a cross-encoder model
-  - Return top-k chunks sorted by reranker score (highest first)
-  - Model is resolved lazily via sentence-transformers CrossEncoder or model router
-
-The cross-encoder evaluates (query, chunk_content) pairs jointly,
-producing a relevance score that is significantly more accurate than
-the cosine / BM25 scores from first-stage retrieval.
+  - BaseReranker abstract base class for interchangeable reranker providers
+  - CrossEncoderReranker implementing joint query-candidate relevance scoring
+  - NoOpReranker for pass-through or lightweight low-latency mode
+  - Deterministic score assignment and top-k candidate truncation
 """
 
 from __future__ import annotations
 
+import abc
 import asyncio
 from typing import Any
 
@@ -44,10 +41,24 @@ def _get_reranker_model() -> Any:
     return _RERANKER_INSTANCE
 
 
-class Reranker:
+class BaseReranker(abc.ABC):
+    """Abstract interface for all Reranker implementations."""
+
+    @abc.abstractmethod
+    async def rerank(
+        self,
+        query: str,
+        candidates: list[RetrievedChunk],
+        top_k: int | None = None,
+    ) -> list[RetrievedChunk]:
+        """Score candidate chunks and return top_k sorted by score."""
+        ...
+
+
+class CrossEncoderReranker(BaseReranker):
     """
-    Cross-encoder reranker.
-    Reduces the candidate pool from rrf_candidates → reranker_top_k.
+    Cross-encoder reranker using sentence-transformers CrossEncoder.
+    Reduces candidate pool to top_k with calibrated relevance scores.
     """
 
     def __init__(
@@ -62,17 +73,20 @@ class Reranker:
         self,
         query: str,
         candidates: list[RetrievedChunk],
+        top_k: int | None = None,
     ) -> list[RetrievedChunk]:
         """
         Score all candidates with the cross-encoder, sort by score, return top_k.
         Sets reranker_score on each returned RetrievedChunk.
         """
+        k = top_k if top_k is not None else self._top_k
+
         if not candidates:
             return []
         if len(candidates) <= 1:
             if candidates:
                 candidates[0].reranker_score = 1.0
-            return candidates
+            return candidates[:k]
 
         try:
             pairs = [(query, rc.chunk.content) for rc in candidates]
@@ -87,12 +101,35 @@ class Reranker:
                 key=lambda rc: rc.reranker_score if rc.reranker_score is not None else -1e9,
                 reverse=True,
             )
-            return sorted_candidates[: self._top_k]
+            return sorted_candidates[:k]
         except Exception as e:
-            logger.warning("reranker_failed_falling_back_to_rrf", error=str(e))
-            return candidates[: self._top_k]
+            logger.warning("reranker_failed_falling_back_to_initial_ranking", error=str(e))
+            return candidates[:k]
 
     def _sync_predict(self, pairs: list[tuple[str, str]]) -> list[float]:
         model = _get_reranker_model()
         scores = model.predict(pairs, show_progress_bar=False)
         return [float(s) for s in scores]
+
+
+class NoOpReranker(BaseReranker):
+    """
+    Pass-through reranker that preserves retrieval ordering.
+    Useful for testing, benchmarking, or low-latency profiles.
+    """
+
+    def __init__(self, top_k: int = settings.rag_reranker_top_k) -> None:
+        self._top_k = top_k
+
+    async def rerank(
+        self,
+        query: str,
+        candidates: list[RetrievedChunk],
+        top_k: int | None = None,
+    ) -> list[RetrievedChunk]:
+        k = top_k if top_k is not None else self._top_k
+        return candidates[:k]
+
+
+# Alias for backwards compatibility
+Reranker = CrossEncoderReranker
