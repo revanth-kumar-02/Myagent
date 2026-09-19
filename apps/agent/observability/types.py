@@ -57,6 +57,7 @@ class ComponentType(str, enum.Enum):
     AUTOMATION   = "automation"
     WEBSOCKET    = "websocket"
     MULTIMODAL   = "multimodal"
+    PROACTIVE    = "proactive"
 
 
 class ErrorSeverity(str, enum.Enum):

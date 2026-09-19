@@ -270,3 +270,69 @@ class AgentError(Base):
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ProactiveEventRecord(Base):
+    __tablename__ = "proactive_events"
+    __table_args__ = (
+        Index("idx_proactive_events_source", "source_type"),
+        Index("idx_proactive_events_project", "project_id"),
+        Index("idx_proactive_events_hash", "content_hash"),
+        Index("idx_proactive_events_ts", "ts"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agent_tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    content_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    urgency: Mapped[str | None] = mapped_column(Text, default="normal", nullable=True)
+    importance: Mapped[float | None] = mapped_column(Float, default=0.5, nullable=True)
+    decision: Mapped[str | None] = mapped_column(Text, default="ignore", nullable=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProactiveNotificationRecord(Base):
+    __tablename__ = "proactive_notifications"
+    __table_args__ = (
+        Index("idx_proactive_notifs_status", "status"),
+        Index("idx_proactive_notifs_priority", "priority"),
+        Index("idx_proactive_notifs_category", "category"),
+        Index("idx_proactive_notifs_project", "project_id"),
+        Index("idx_proactive_notifs_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("proactive_events.id", ondelete="CASCADE"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    priority: Mapped[str] = mapped_column(Text, default="normal", nullable=False)
+    decision: Mapped[str] = mapped_column(Text, default="inform", nullable=False)
+    category: Mapped[str] = mapped_column(Text, default="system", nullable=False)
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+    related_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agent_tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    action_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    snooze_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+
