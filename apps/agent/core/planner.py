@@ -37,9 +37,11 @@ class Planner:
         self,
         model_router: object | None = None,
         intent_analyzer: IntentAnalyzer | None = None,
+        learning_manager: Any | None = None,
     ) -> None:
         self._model_router = model_router
         self._analyzer = intent_analyzer or IntentAnalyzer()
+        self._learning_manager = learning_manager
 
     async def plan(
         self,
@@ -49,6 +51,17 @@ class Planner:
         """
         Produce an ordered Plan with explicit goals, dependencies, and verification criteria.
         """
+        # 0. Check Adaptive Learnings for prior workflow advice or constraints
+        relevant_learnings = []
+        if self._learning_manager is not None:
+            try:
+                relevant_learnings = await self._learning_manager.get_relevant_learnings(
+                    request.message,
+                    project_id=request.project_id,
+                )
+            except Exception as exc:
+                logger.debug("planner_learning_retrieval_skipped", error=str(exc))
+
         intent, context_need = self._analyzer.analyze(
             message=request.message,
             project_id=request.project_id,

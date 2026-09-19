@@ -145,7 +145,10 @@ class DuckDuckGoProvider:
         soup = bs4.BeautifulSoup(html_content, "html.parser")
         results: list[WebResult] = []
 
-        result_divs = soup.find_all("div", class_=lambda c: c and ("result" in c and "results_links" in c))
+        result_divs = [
+            div for div in soup.find_all("div")
+            if any("result" in str(cls) and "results_links" in str(cls) for cls in (div.get("class") or []))
+        ]
         if not result_divs:
             result_divs = soup.find_all("div", class_="result")
 
@@ -158,7 +161,7 @@ class DuckDuckGoProvider:
             if not a_tag or not a_tag.get("href"):
                 continue
 
-            raw_url = a_tag["href"]
+            raw_url = str(a_tag.get("href") or "")
             title = a_tag.get_text(strip=True)
 
             # Snippet
@@ -191,7 +194,7 @@ class DuckDuckGoProvider:
             while i < len(rows) and len(results) < max_results:
                 link_tag = rows[i].find("a", class_="result-link")
                 if link_tag and link_tag.get("href"):
-                    raw_url = link_tag["href"]
+                    raw_url = str(link_tag.get("href") or "")
                     title = link_tag.get_text(strip=True)
                     snippet = ""
                     if i + 1 < len(rows):

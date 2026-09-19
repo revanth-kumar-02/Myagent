@@ -7,7 +7,7 @@ Provides:
   - Lifecycle helpers (startup / shutdown)
 """
 
-from __future__ import annotations
+from collections.abc import AsyncGenerator
 
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -33,7 +33,7 @@ AsyncSessionFactory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncSession:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: yields an async DB session."""
     async with AsyncSessionFactory() as session:
         yield session

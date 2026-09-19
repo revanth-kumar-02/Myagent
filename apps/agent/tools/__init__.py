@@ -6,6 +6,13 @@ from tools.audit import ToolAuditLogger, sanitize_audit_payload
 from tools.base import BaseTool, ToolPlatformError, ToolValidationError
 from tools.platforms.factory import get_platform_adapter
 from tools.registry import ToolNotFoundError, ToolRegistry, build_default_registry
+from tools.scheduler import (
+    CancelTaskTool,
+    ListTasksTool,
+    PauseTaskTool,
+    ResumeTaskTool,
+    ScheduleTaskTool,
+)
 from tools.types import (
     AuditRecord,
     PermissionLevel,
@@ -31,4 +38,9 @@ __all__ = [
     "ToolPlatformError",
     "ToolNotFoundError",
     "get_platform_adapter",
+    "ScheduleTaskTool",
+    "CancelTaskTool",
+    "ListTasksTool",
+    "PauseTaskTool",
+    "ResumeTaskTool",
 ]

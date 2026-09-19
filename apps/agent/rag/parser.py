@@ -421,7 +421,7 @@ class Parser:
 
     async def _parse_xls_fallback(self, path: Path) -> ParsedDocument:
         try:
-            import xlrd
+            import xlrd  # type: ignore[import-not-found,import-untyped]
             wb = xlrd.open_workbook(str(path))
             parts: list[str] = []
             for sheet in wb.sheets():

@@ -14,7 +14,7 @@ API used:
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import httpx
 import structlog
@@ -24,19 +24,19 @@ from models.types import GenerationResult
 
 logger = structlog.get_logger(__name__)
 
-_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=5.0)
-_MAX_RETRIES = 3
+_BASE_URL = "https://api-inference.huggingface.co"
+_TIMEOUT = 60.0
 
 
 class HuggingFaceProvider:
     """
-    Async HTTP client for the HuggingFace Inference API.
-    One provider instance is shared across all model calls.
+    Provider for HuggingFace hosted Inference API.
+    Used for Qwen (chat/reasoning/coding) and BGE (embeddings).
     """
 
-    def __init__(self) -> None:
-        self._client = httpx.AsyncClient(
-            base_url=settings.huggingface_base_url,
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        self._client = client or httpx.AsyncClient(
+            base_url=_BASE_URL,
             headers={
                 "Authorization": f"Bearer {settings.huggingface_api_token}",
                 "Content-Type": "application/json",
@@ -47,7 +47,7 @@ class HuggingFaceProvider:
     async def chat_stream(
         self,
         model_id: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> AsyncIterator[str]:
@@ -60,7 +60,7 @@ class HuggingFaceProvider:
     async def chat_complete(
         self,
         model_id: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> GenerationResult:

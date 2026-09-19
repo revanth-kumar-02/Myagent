@@ -16,7 +16,7 @@ from typing import Any
 import structlog
 import tiktoken
 
-from core.types import AgentContextPackage, ContextItem, Source, SourceType, WebSource
+from core.types import AgentContextPackage, ContextItem, GraphEvidence, Source, SourceType, WebSource
 from rag.types import RAGContext, RetrievedChunk
 
 logger = structlog.get_logger(__name__)
@@ -30,6 +30,7 @@ DEFAULT_MAX_MEMORY_ITEMS = 4
 DEFAULT_MAX_MEMORY_TOKENS = 512
 DEFAULT_MAX_WEB_SOURCES = 4
 DEFAULT_MAX_WEB_TOKENS = 1024
+DEFAULT_MAX_GRAPH_TOKENS = 1024
 DEFAULT_MAX_TOTAL_TOKENS = 6144
 
 
@@ -46,6 +47,7 @@ class ContextPackageBuilder:
         max_memory_tokens: int = DEFAULT_MAX_MEMORY_TOKENS,
         max_web_sources: int = DEFAULT_MAX_WEB_SOURCES,
         max_web_tokens: int = DEFAULT_MAX_WEB_TOKENS,
+        max_graph_tokens: int = DEFAULT_MAX_GRAPH_TOKENS,
         max_total_tokens: int = DEFAULT_MAX_TOTAL_TOKENS,
     ) -> None:
         self.max_rag_chunks = max_rag_chunks
@@ -54,6 +56,7 @@ class ContextPackageBuilder:
         self.max_memory_tokens = max_memory_tokens
         self.max_web_sources = max_web_sources
         self.max_web_tokens = max_web_tokens
+        self.max_graph_tokens = max_graph_tokens
         self.max_total_tokens = max_total_tokens
 
     def assemble(
@@ -62,6 +65,8 @@ class ContextPackageBuilder:
         rag_chunks: list[RetrievedChunk] | None = None,
         memory_entries: list[Any] | None = None,
         web_results: list[dict[str, Any]] | None = None,
+        graph_evidence: list[GraphEvidence] | None = None,
+        graph_context_text: str | None = None,
         active_sources: set[SourceType] | None = None,
     ) -> AgentContextPackage:
         """
@@ -187,13 +192,44 @@ class ContextPackageBuilder:
                 web_text_blocks.append(f"[{title}]({url})\n{snippet.strip()}\n")
                 web_tokens_used += w_tokens
 
-        # 4. Assemble Grounded Prompt Sections
+        # 4. Process Knowledge Graph Evidence
+        graph_text_blocks: list[str] = []
+        graph_tokens_used = 0
+        graph_ev_list: list[GraphEvidence] = graph_evidence or []
+
+        if graph_context_text:
+            resolved.add(SourceType.GRAPH)
+            g_tokens = len(_TOKENIZER.encode(graph_context_text))
+            if g_tokens <= self.max_graph_tokens:
+                graph_text_blocks.append(graph_context_text.strip())
+            else:
+                graph_text_blocks.append(graph_context_text[:1000].strip())
+        elif graph_ev_list:
+            resolved.add(SourceType.GRAPH)
+            for gev in graph_ev_list:
+                status_tag = "INFERRED" if gev.is_inferred else "VERIFIED"
+                line = f"- [{status_tag}] {gev.source_entity} —[{gev.relationship_type.upper()}]→ {gev.target_entity} (confidence: {gev.confidence:.2f})"
+                if gev.evidence_text:
+                    line += f" | {gev.evidence_text}"
+                item_tok = len(_TOKENIZER.encode(line))
+                if graph_tokens_used + item_tok > self.max_graph_tokens:
+                    break
+                graph_text_blocks.append(line)
+                graph_tokens_used += item_tok
+
+        # 5. Assemble Grounded Prompt Sections
         sections: list[str] = []
 
         if rag_text_blocks:
             sections.append(
                 "=== [RAG] Verified Project Knowledge (High Confidence) ===\n"
                 + "\n".join(rag_text_blocks)
+            )
+
+        if graph_text_blocks:
+            sections.append(
+                "=== [GRAPH] Cross-Source Knowledge Graph (Verified & Inferred Relationships) ===\n"
+                + "\n".join(graph_text_blocks)
             )
 
         if mem_text_blocks:
@@ -215,6 +251,7 @@ class ContextPackageBuilder:
             items=items,
             rag_sources=rag_sources,
             web_sources=web_sources,
+            graph_evidence=graph_ev_list,
             formatted_text=formatted_text,
             token_count=total_tokens,
             resolved_sources=resolved,

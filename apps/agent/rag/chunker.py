@@ -704,7 +704,7 @@ class StructuralChunker:
         doc: ParsedDocument,
         index: int,
         content: str,
-        extra_metadata: dict | None = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> Chunk:
         # Merge only relevant metadata
         base_meta = {

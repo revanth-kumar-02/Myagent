@@ -41,19 +41,20 @@ class Verifier:
         """
         Evaluate result quality and return a VerifierVerdict.
         """
-        # 1. Check max retries
-        if attempt >= _MAX_RETRIES:
-            logger.warning("verifier_max_retries_exceeded_escalating", attempt=attempt)
-            return VerifierVerdict.ESCALATE
-
-        # 2. Check execution failure flag or error
+        # 1. Check execution failure flag or error
         if not result.success or result.error:
+            if attempt >= _MAX_RETRIES:
+                logger.warning("verifier_max_retries_exceeded_escalating", attempt=attempt)
+                return VerifierVerdict.ESCALATE
             logger.debug("verifier_step_unsuccessful", error=result.error, attempt=attempt)
             return VerifierVerdict.RETRY
 
-        # 3. Check for empty content
+        # 2. Check for empty content
         content = result.content.strip()
         if not content:
+            if attempt >= _MAX_RETRIES:
+                logger.warning("verifier_max_retries_exceeded_escalating", attempt=attempt)
+                return VerifierVerdict.ESCALATE
             logger.debug("verifier_empty_content_retry", attempt=attempt)
             return VerifierVerdict.RETRY
 
@@ -76,6 +77,15 @@ class Verifier:
                 # If RAG returned explicit empty indication
                 if "no relevant project knowledge" in content.lower():
                     pass  # Pass through so planner can proceed or fall back
+
+            case ActionType.MEMORY_QUERY:
+                pass
+
+            case ActionType.WEB_RESEARCH:
+                pass
+
+            case _:
+                pass
 
         logger.debug("verifier_passed", step=result.step.label)
         return VerifierVerdict.PASS

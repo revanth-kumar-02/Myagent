@@ -5,7 +5,7 @@ models.types — Model system type definitions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import AsyncIterator, Literal
+from typing import Any, AsyncIterator, Literal
 
 # Capability tags — the ONLY way agent components reference models
 ModelCapability = Literal["chat", "reason", "code", "vision", "audio", "embedding"]
@@ -43,11 +43,11 @@ class ModelHandle:
         self.config = config
         self._provider = provider
 
-    async def generate(self, messages: list[dict], **kwargs: object) -> GenerationResult:
+    async def generate(self, messages: list[dict[str, Any]], **kwargs: object) -> GenerationResult:
         """Non-streaming generation. Returns full text when complete."""
         raise NotImplementedError  # TODO: implement in feature phase
 
-    async def stream(self, messages: list[dict], **kwargs: object) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, Any]], **kwargs: object) -> AsyncIterator[str]:
         """Streaming generation. Yields token deltas."""
         raise NotImplementedError  # TODO: implement in feature phase
 

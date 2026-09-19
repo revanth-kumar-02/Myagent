@@ -66,6 +66,7 @@ class SourceType(str, enum.Enum):
     RAG     = "rag"
     MEMORY  = "memory"
     WEB     = "web"
+    GRAPH   = "graph"
     USER    = "user"
     SYSTEM  = "system"
 
@@ -103,6 +104,17 @@ class WebSource:
 
 
 @dataclass
+class GraphEvidence:
+    source_entity: str
+    relationship_type: str
+    target_entity: str
+    confidence: float = 1.0
+    provenance_source: str = ""
+    is_inferred: bool = False
+    evidence_text: str = ""
+
+
+@dataclass
 class ContextItem:
     """Individual item in the assembled context package."""
     content: str
@@ -122,13 +134,15 @@ class ContextItem:
 
 @dataclass
 class AgentContextPackage:
-    """Unified bounded context package across RAG, Memory, and Web."""
+    """Unified bounded context package across RAG, Memory, Web, and Graph."""
     items: list[ContextItem] = field(default_factory=list)
     rag_sources: list[Source] = field(default_factory=list)
     web_sources: list[WebSource] = field(default_factory=list)
+    graph_evidence: list[GraphEvidence] = field(default_factory=list)
     formatted_text: str = ""
     token_count: int = 0
     resolved_sources: set[SourceType] = field(default_factory=set)
+
 
 
 @dataclass

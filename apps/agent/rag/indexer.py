@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 import uuid
 from pathlib import Path
-from typing import Awaitable, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 import structlog
 from sqlalchemy import delete, func, select
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-WSSend = Callable[[dict], Awaitable[None]]
+WSSend = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class Indexer:
@@ -124,6 +124,9 @@ class Indexer:
 
         # 1. Parse document
         parsed_doc = await self._parser.parse(abs_path)
+        if parsed_doc is None:
+            logger.debug("no_parsed_content", file=event.file_path)
+            return
 
         # 2. Structural chunking
         chunks = self._chunker.chunk(parsed_doc)

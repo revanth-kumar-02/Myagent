@@ -12,6 +12,14 @@ import sys
 import structlog
 
 from config import settings
+from observability.sanitizer import sanitize_payload
+
+
+def _sanitizing_processor(
+    logger: Any, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
+    """Processor to mask secrets and tokens across all logged keys."""
+    return sanitize_payload(event_dict)
 
 
 def configure_logging() -> None:
@@ -23,6 +31,7 @@ def configure_logging() -> None:
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.ExceptionRenderer(),
+        _sanitizing_processor,
     ]
 
     if settings.log_format == "json":

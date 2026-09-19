@@ -4,10 +4,8 @@ Kora Agent — Application Entry Point
 Starts the FastAPI + uvicorn server. Handles startup and shutdown lifecycle.
 """
 
-from __future__ import annotations
-
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import uvicorn
 from fastapi import FastAPI
@@ -21,7 +19,7 @@ from observability import configure_logging
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown lifecycle."""
     configure_logging()
     await db_startup()

@@ -47,6 +47,11 @@ _WEB_PATTERNS = [
     re.compile(r"https?://[^\s]+", re.IGNORECASE),
 ]
 
+# Patterns indicating graph relationship / architecture / dependency queries (V11)
+_GRAPH_PATTERNS = [
+    re.compile(r"\b(?:depends on|dependency|dependencies|architecture|relationship|relationships|connected to|related entities|who uses|what uses|implements|subgraph|call graph|class hierarchy|data flow)\b", re.IGNORECASE),
+]
+
 # Patterns indicating simple conversational or math queries that need zero retrieval
 _CONVERSATIONAL_PATTERNS = [
     re.compile(r"^(?:hi|hello|hey|greetings|howdy|good morning|good afternoon|good evening|bye|goodbye|see you|thanks|thank you|thanks a lot|thx|cheers|cool|ok|okay|nice)\b.*$", re.IGNORECASE),
@@ -92,7 +97,13 @@ class ContextResolver:
         if (project_id is not None or has_active_project) and any(p.search(msg_clean) for p in _PROJECT_PATTERNS):
             sources.add(SourceType.RAG)
 
-        # 5. Default fallback: if a project is active and no other source was matched,
+        # 5. Check Knowledge Graph patterns
+        if (project_id is not None or has_active_project) and any(p.search(msg_clean) for p in _GRAPH_PATTERNS):
+            sources.add(SourceType.GRAPH)
+            # Graph queries on codebase also benefit from RAG chunks
+            sources.add(SourceType.RAG)
+
+        # 6. Default fallback: if a project is active and no other source was matched,
         # and message is a substantive question (e.g. "how do we authenticate?"), default to RAG
         if not sources and (project_id is not None or has_active_project):
             if len(msg_clean.split()) >= 3 and not msg_clean.endswith("?"):
@@ -106,3 +117,4 @@ class ContextResolver:
             sources=[s.value for s in sources],
         )
         return sources
+

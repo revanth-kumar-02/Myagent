@@ -11,7 +11,7 @@ One AgentSession instance per connected WebSocket client.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Callable, Awaitable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 import structlog
 
@@ -21,7 +21,7 @@ from core.memory import Memory
 from core.model_router import ModelRouter
 from core.planner import Planner
 from core.tool_router import ToolRouter
-from core.types import ChatRequest, ChatResponse, VerifierVerdict
+from core.types import ChatRequest, ChatResponse, Source, VerifierVerdict, WebSource
 from core.verifier import Verifier
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-WSSend = Callable[[dict], Awaitable[None]]
+WSSend = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class AgentSession:
@@ -94,8 +94,8 @@ class AgentSession:
         # Plan
         plan = await self._planner.plan(request, context)
 
-        sources = []
-        web_sources = []
+        sources: list[Source] = []
+        web_sources: list[WebSource] = []
         full_text = ""
 
         # Execute plan steps

@@ -93,6 +93,13 @@ def build_default_registry() -> ToolRegistry:
         FileRenameTool,
         FileWriteTool,
     )
+    from tools.scheduler import (
+        CancelTaskTool,
+        ListTasksTool,
+        PauseTaskTool,
+        ResumeTaskTool,
+        ScheduleTaskTool,
+    )
     from tools.system import (
         AppLauncherTool,
         ClipboardTool,
@@ -108,11 +115,16 @@ def build_default_registry() -> ToolRegistry:
 
     registry = ToolRegistry()
 
-    # System
+    # System & Automation
     registry.register(AppLauncherTool())
     registry.register(ClipboardTool())
     registry.register(NotificationTool())
     registry.register(SystemInfoTool())
+    registry.register(ScheduleTaskTool())
+    registry.register(CancelTaskTool())
+    registry.register(ListTasksTool())
+    registry.register(PauseTaskTool())
+    registry.register(ResumeTaskTool())
 
     # Files
     registry.register(FileReadTool())

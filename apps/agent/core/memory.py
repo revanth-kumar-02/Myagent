@@ -123,7 +123,9 @@ class Memory:
         try:
             raw = await self._redis.get(key)
             if raw:
-                return json.loads(raw)
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return parsed  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning("get_session_history_failed", error=str(e))
         return []
