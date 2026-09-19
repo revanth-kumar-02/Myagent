@@ -383,5 +383,82 @@ class SubAgentTaskRecord(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class PersonalGoalRecord(Base):
+    __tablename__ = "personal_goals"
+    __table_args__ = (
+        Index("idx_personal_goals_state", "state"),
+        Index("idx_personal_goals_project", "project_id"),
+        Index("idx_personal_goals_target", "target_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    state: Mapped[str] = mapped_column(Text, default="active", nullable=False)
+    priority: Mapped[str] = mapped_column(Text, default="normal", nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    target_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    progress: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    associated_task_ids: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    associated_decision_ids: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PersonalMilestoneRecord(Base):
+    __tablename__ = "personal_milestones"
+    __table_args__ = (
+        Index("idx_personal_milestones_goal", "goal_id"),
+        Index("idx_personal_milestones_completed", "completed"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    goal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("personal_goals.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PersonalDecisionRecord(Base):
+    __tablename__ = "personal_decisions"
+    __table_args__ = (
+        Index("idx_personal_decisions_project", "project_id"),
+        Index("idx_personal_decisions_goal", "goal_id"),
+        Index("idx_personal_decisions_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    decision_text: Mapped[str] = mapped_column(Text, nullable=False)
+    context: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    alternatives_considered: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    reasoning: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    goal_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("personal_goals.id", ondelete="SET NULL"), nullable=True
+    )
+    outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+
 
 
