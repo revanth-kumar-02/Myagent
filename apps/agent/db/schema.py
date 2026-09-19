@@ -335,4 +335,53 @@ class ProactiveNotificationRecord(Base):
     )
 
 
+class AgentCoordinationRunRecord(Base):
+    __tablename__ = "agent_coordination_runs"
+    __table_args__ = (
+        Index("idx_coord_runs_project", "project_id"),
+        Index("idx_coord_runs_status", "status"),
+        Index("idx_coord_runs_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+    goal: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    graph_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    synthesis_result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SubAgentTaskRecord(Base):
+    __tablename__ = "subagent_task_records"
+    __table_args__ = (
+        Index("idx_subagent_tasks_run", "run_id"),
+        Index("idx_subagent_tasks_type", "agent_type"),
+        Index("idx_subagent_tasks_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("agent_coordination_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    agent_type: Mapped[str] = mapped_column(Text, nullable=False)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    dependencies: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    input_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    output_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    sources: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+
 

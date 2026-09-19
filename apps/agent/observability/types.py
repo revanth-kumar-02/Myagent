@@ -43,21 +43,29 @@ class EventType(str, enum.Enum):
     REPLANNING             = "replanning"
     TASK_COMPLETED         = "task_completed"
     TASK_FAILED            = "task_failed"
+    COORDINATOR_PLAN_STARTED = "coordinator_plan_started"
+    SUBAGENT_DISPATCHED    = "subagent_dispatched"
+    SUBAGENT_COMPLETED     = "subagent_completed"
+    SUBAGENT_FAILED        = "subagent_failed"
+    SYNTHESIS_STARTED      = "synthesis_started"
+    SYNTHESIS_COMPLETED    = "synthesis_completed"
 
 
 class ComponentType(str, enum.Enum):
     """Major architectural subsystems."""
-    AGENT_CORE   = "agent_core"
-    RAG          = "rag"
-    MEMORY       = "memory"
-    WEB_RESEARCH = "web_research"
-    MODELS       = "models"
-    TOOLS        = "tools"
-    DATABASE     = "database"
-    AUTOMATION   = "automation"
-    WEBSOCKET    = "websocket"
-    MULTIMODAL   = "multimodal"
-    PROACTIVE    = "proactive"
+    AGENT_CORE    = "agent_core"
+    RAG           = "rag"
+    MEMORY        = "memory"
+    WEB_RESEARCH  = "web_research"
+    MODELS        = "models"
+    TOOLS         = "tools"
+    DATABASE      = "database"
+    AUTOMATION    = "automation"
+    WEBSOCKET     = "websocket"
+    MULTIMODAL    = "multimodal"
+    PROACTIVE     = "proactive"
+    ORCHESTRATION = "orchestration"
+
 
 
 class ErrorSeverity(str, enum.Enum):
