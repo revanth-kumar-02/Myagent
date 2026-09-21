@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io' show Platform;
@@ -25,12 +26,32 @@ abstract class PlatformAbstraction {
 
   /// Factory constructor: returns the correct platform implementation
   factory PlatformAbstraction() {
+    if (kIsWeb) return WebPlatform();
     if (Platform.isWindows) return WindowsPlatform();
     if (Platform.isMacOS)   return MacOSPlatform();
     if (Platform.isLinux)   return LinuxPlatform();
-    throw UnsupportedError('Platform not supported: ${Platform.operatingSystem}');
+    throw UnsupportedError('Platform not supported');
   }
 }
+
+/// Web implementation fallback
+class WebPlatform implements PlatformAbstraction {
+  @override
+  Future<String> get appDataDir async => '/';
+
+  @override
+  Future<String> get documentsDir async => '/';
+
+  @override
+  Future<List<String>> pickFiles({bool allowMultiple = false}) async => [];
+
+  @override
+  Future<String?> pickDirectory() async => null;
+
+  @override
+  Future<void> showNotification({required String title, required String body}) async {}
+}
+
 
 /// Linux implementation
 class LinuxPlatform implements PlatformAbstraction {
