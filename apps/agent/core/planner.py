@@ -94,23 +94,30 @@ class Planner:
 
         # 2. Context Retrieval Steps (RAG, Memory, Web)
         context_dep_indices: list[int] = []
+        raw_msg = request.message.strip()
+
+        # Clean query if slash prefix is used
+        query_text = raw_msg
+        if re.match(r"^/(?:search|web|research|rag|memory)\s+", raw_msg, re.IGNORECASE):
+            parts = raw_msg.split(maxsplit=1)
+            if len(parts) > 1:
+                query_text = parts[1].strip()
 
         if context_need in (ContextNeed.RAG, ContextNeed.RAG_AND_MEMORY, ContextNeed.RAG_AND_WEB, ContextNeed.ALL):
-            if request.project_id is not None:
-                steps.append(
-                    PlanStep(
-                        index=step_idx,
-                        label="Retrieve project knowledge",
-                        action_type=ActionType.RAG_QUERY,
-                        goal="Fetch relevant code and document chunks from RAG",
-                        required_context=[SourceType.RAG],
-                        expected_result="Non-empty relevant chunks matching query",
-                        verification_method="rag_score_check",
-                        params={"query": request.message, "project_id": str(request.project_id)},
-                    )
+            steps.append(
+                PlanStep(
+                    index=step_idx,
+                    label="Retrieve project knowledge",
+                    action_type=ActionType.RAG_QUERY,
+                    goal="Fetch relevant code and document chunks from RAG",
+                    required_context=[SourceType.RAG],
+                    expected_result="Non-empty relevant chunks matching query",
+                    verification_method="rag_score_check",
+                    params={"query": query_text, "project_id": str(request.project_id) if request.project_id else None},
                 )
-                context_dep_indices.append(step_idx)
-                step_idx += 1
+            )
+            context_dep_indices.append(step_idx)
+            step_idx += 1
 
         if context_need in (ContextNeed.MEMORY, ContextNeed.RAG_AND_MEMORY, ContextNeed.MEMORY_AND_WEB, ContextNeed.ALL):
             steps.append(
@@ -122,7 +129,7 @@ class Planner:
                     required_context=[SourceType.MEMORY],
                     expected_result="Matching active memory records",
                     verification_method="memory_check",
-                    params={"query": request.message, "project_id": str(request.project_id) if request.project_id else None},
+                    params={"query": query_text, "project_id": str(request.project_id) if request.project_id else None},
                 )
             )
             context_dep_indices.append(step_idx)
@@ -138,7 +145,7 @@ class Planner:
                     required_context=[SourceType.WEB],
                     expected_result="Normalized web search results and snippets",
                     verification_method="web_results_check",
-                    params={"query": request.message},
+                    params={"query": query_text},
                 )
             )
             context_dep_indices.append(step_idx)
@@ -154,7 +161,7 @@ class Planner:
                 dependencies=context_dep_indices,
                 expected_result="Cohesive, factually grounded final response",
                 verification_method="grounding_check",
-                params={"prompt": request.message},
+                params={"prompt": query_text},
             )
         )
 
@@ -259,6 +266,22 @@ class Planner:
 
     def _plan_tool_action(self, index: int, message: str) -> PlanStep:
         """Heuristically configure a PlanStep for detected tool actions."""
+        msg_clean = message.strip()
+        if msg_clean.startswith("/"):
+            parts = msg_clean[1:].split(maxsplit=1)
+            tool_name = parts[0]
+            args_str = parts[1] if len(parts) > 1 else ""
+            return PlanStep(
+                index=index,
+                label=f"Execute tool: {tool_name}",
+                action_type=ActionType.TOOL_CALL,
+                required_tool=tool_name,
+                goal=f"Execute {tool_name} with parameters: {args_str}",
+                expected_result="Successful tool execution output",
+                verification_method="tool_output_check",
+                params={"action": args_str, "command": args_str, "query": args_str, "tool": tool_name},
+            )
+
         if "pytest" in message.lower() or "test" in message.lower():
             return PlanStep(
                 index=index,

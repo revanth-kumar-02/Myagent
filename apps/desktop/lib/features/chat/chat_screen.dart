@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../models/chat_message.dart';
+import '../../models/tool_command.dart';
 import '../../state/chat_state.dart';
+import '../../state/connection_state.dart';
 import '../../state/projects_state.dart';
 import '../../widgets/citation_card.dart';
 import '../../widgets/plan_progress_card.dart';
+import '../../widgets/slash_command_picker.dart';
 import '../../widgets/tool_badge.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -24,22 +27,112 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
 
+  List<ToolCommand> _availableTools = defaultToolCommands;
+  bool _showSlashPicker = false;
+  String _slashFilter = '';
+  int _selectedSlashIndex = 0;
+
   @override
   void initState() {
     super.initState();
+    _loadTools();
+    _inputController.addListener(_onInputChanged);
     _inputFocusNode.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent &&
-          event.logicalKey == LogicalKeyboardKey.enter &&
-          !HardwareKeyboard.instance.isShiftPressed) {
-        _handleSend();
-        return KeyEventResult.handled;
+      if (event is KeyDownEvent) {
+        if (_showSlashPicker) {
+          final filtered = _filteredCommands;
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            if (filtered.isNotEmpty) {
+              setState(() {
+                _selectedSlashIndex = (_selectedSlashIndex + 1) % filtered.length;
+              });
+            }
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            if (filtered.isNotEmpty) {
+              setState(() {
+                _selectedSlashIndex = (_selectedSlashIndex - 1 + filtered.length) % filtered.length;
+              });
+            }
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.tab) {
+            if (filtered.isNotEmpty) {
+              _selectCommand(filtered[_selectedSlashIndex.clamp(0, filtered.length - 1)]);
+              return KeyEventResult.handled;
+            }
+          } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+            setState(() {
+              _showSlashPicker = false;
+            });
+            return KeyEventResult.handled;
+          }
+        }
+
+        if (event.logicalKey == LogicalKeyboardKey.enter &&
+            !HardwareKeyboard.instance.isShiftPressed) {
+          _handleSend();
+          return KeyEventResult.handled;
+        }
       }
       return KeyEventResult.ignored;
     };
   }
 
+  Future<void> _loadTools() async {
+    try {
+      final tools = await ref.read(apiServiceProvider).getTools();
+      if (mounted) {
+        setState(() {
+          _availableTools = tools;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _onInputChanged() {
+    final text = _inputController.text;
+    if (text.startsWith('/') && !text.contains(' ')) {
+      final query = text.substring(1).toLowerCase();
+      setState(() {
+        _showSlashPicker = true;
+        _slashFilter = query;
+        _selectedSlashIndex = 0;
+      });
+    } else {
+      if (_showSlashPicker) {
+        setState(() {
+          _showSlashPicker = false;
+          _slashFilter = '';
+          _selectedSlashIndex = 0;
+        });
+      }
+    }
+  }
+
+  List<ToolCommand> get _filteredCommands {
+    if (_slashFilter.isEmpty) return _availableTools;
+    return _availableTools.where((t) =>
+      t.name.toLowerCase().contains(_slashFilter) ||
+      t.title.toLowerCase().contains(_slashFilter) ||
+      t.description.toLowerCase().contains(_slashFilter) ||
+      t.category.toLowerCase().contains(_slashFilter)
+    ).toList();
+  }
+
+  void _selectCommand(ToolCommand cmd) {
+    final newText = '/${cmd.name} ';
+    _inputController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
+    setState(() {
+      _showSlashPicker = false;
+    });
+  }
+
   @override
   void dispose() {
+    _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
@@ -204,21 +297,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderLight, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_showSlashPicker)
+                  SlashCommandPicker(
+                    commands: _filteredCommands,
+                    selectedIndex: _selectedSlashIndex,
+                    onSelect: _selectCommand,
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderLight, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                 children: [
                   // Top capability header row matching Stitch
                   Container(
@@ -383,11 +485,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ],
+  ),
+);
+}
 
   Widget _buildEmptyState() {
     return Center(

@@ -5,6 +5,7 @@ import '../models/model_info.dart';
 import '../models/project.dart';
 import '../models/research_result.dart';
 import '../models/task_item.dart';
+import '../models/tool_command.dart';
 
 /// Concrete API Service for all Kora backend REST operations
 class KoraApiService {
@@ -100,5 +101,17 @@ class KoraApiService {
     final res = await _client.get('/api/activity');
     final list = res['activity'] as List<dynamic>? ?? [];
     return list.map((e) => ActivityLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// List registered tools and slash commands
+  Future<List<ToolCommand>> getTools() async {
+    try {
+      final res = await _client.get('/api/tools');
+      final list = res['tools'] as List<dynamic>? ?? [];
+      if (list.isEmpty) return defaultToolCommands;
+      return list.map((e) => ToolCommand.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return defaultToolCommands;
+    }
   }
 }

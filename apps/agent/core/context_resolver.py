@@ -77,6 +77,14 @@ class ContextResolver:
         if not msg_clean:
             return set()
 
+        # 0. Check explicit slash commands
+        if re.match(r"^/(?:search|research|web)\b", msg_clean, re.IGNORECASE):
+            return {SourceType.WEB}
+        if re.match(r"^/(?:rag|codebase|knowledge)\b", msg_clean, re.IGNORECASE):
+            return {SourceType.RAG}
+        if re.match(r"^/(?:memory|remember|profile)\b", msg_clean, re.IGNORECASE):
+            return {SourceType.MEMORY}
+
         # 1. Check for pure conversational / trivial direct questions
         for pattern in _CONVERSATIONAL_PATTERNS:
             if pattern.match(msg_clean):

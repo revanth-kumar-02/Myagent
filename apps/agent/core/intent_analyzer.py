@@ -59,6 +59,16 @@ class IntentAnalyzer:
         if not msg_clean:
             return IntentType.GENERAL_CONVERSATION, ContextNeed.NONE
 
+        # 0. Check explicit slash commands
+        if re.match(r"^/(?:search|research|web)\b", msg_clean, re.IGNORECASE):
+            return IntentType.WEB_RESEARCH, ContextNeed.WEB
+        if re.match(r"^/(?:rag|codebase|knowledge)\b", msg_clean, re.IGNORECASE):
+            return IntentType.KNOWLEDGE_RAG, ContextNeed.RAG
+        if re.match(r"^/(?:memory|remember|profile)\b", msg_clean, re.IGNORECASE):
+            return IntentType.MEMORY, ContextNeed.MEMORY
+        if re.match(r"^/[a-zA-Z0-9_-]+", msg_clean):
+            return IntentType.TOOL_ACTION, ContextNeed.NONE
+
         # 1. Resolve context sources needed
         resolved_sources = self._resolver.resolve(
             message=msg_clean,

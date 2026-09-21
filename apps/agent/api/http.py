@@ -21,9 +21,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.deps import get_model_registry, get_research_router
+from api.deps import get_model_registry, get_research_router, get_tool_registry
 from models.registry import ModelRegistry
 from research.router import ResearchRouter
+from tools.registry import ToolRegistry
 
 router = APIRouter(prefix="/api")
 
@@ -273,6 +274,48 @@ async def perform_research(
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Research search failed: {exc}")
+
+
+# ── Tools & Commands ────────────────────────────────────────────────────────
+@router.get("/tools")
+async def list_tools(tool_registry: ToolRegistry = Depends(get_tool_registry)) -> dict[str, Any]:
+    """
+    Return all registered agent tools and slash commands dynamically from ToolRegistry.
+    """
+    tools_data = [
+        {
+            "name": "search",
+            "title": "/search",
+            "description": "Query DuckDuckGo for live external evidence & docs",
+            "category": "research",
+            "icon": "travel_explore_rounded",
+        },
+        {
+            "name": "research",
+            "title": "/research",
+            "description": "Deep multi-source web research & evidence synthesis",
+            "category": "research",
+            "icon": "bolt_rounded",
+        },
+        {
+            "name": "rag",
+            "title": "/rag",
+            "description": "Query indexed local workspace files & code chunks",
+            "category": "rag",
+            "icon": "folder_open_rounded",
+        },
+    ]
+
+    for tool in tool_registry.all():
+        tools_data.append({
+            "name": tool.tool_id or tool.name,
+            "title": f"/{tool.tool_id or tool.name}",
+            "description": tool.description,
+            "category": tool.category.value if hasattr(tool.category, "value") else str(tool.category),
+            "icon": "build_circle_rounded",
+        })
+
+    return {"tools": tools_data}
 
 
 # ── Activity & Observability ────────────────────────────────────────────────
