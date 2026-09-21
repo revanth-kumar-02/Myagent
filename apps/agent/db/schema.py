@@ -459,6 +459,26 @@ class PersonalDecisionRecord(Base):
     )
 
 
+class WorkspaceActivityRecord(Base):
+    __tablename__ = "workspace_activity_events"
+    __table_args__ = (
+        Index("idx_workspace_activity_project", "project_id"),
+        Index("idx_workspace_activity_type", "activity_type"),
+        Index("idx_workspace_activity_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    activity_type: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+
 
 
 

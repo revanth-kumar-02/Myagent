@@ -53,5 +53,16 @@ class MacOSAdapter(BasePlatformAdapter):
     async def focus_window(self, window_identifier: str) -> bool:
         return True
 
-    async def capture_screen(self, output_path: str | None = None) -> str:
+    async def get_monitors(self) -> list[dict[str, Any]]:
+        return [
+            {"index": 0, "name": "Built-in Retina Display", "width": 2560, "height": 1600, "is_primary": True},
+        ]
+
+    async def capture_screen(
+        self,
+        output_path: str | None = None,
+        monitor_index: int | None = None,
+        window_id: str | None = None,
+        region: tuple[int, int, int, int] | None = None,
+    ) -> str:
         return output_path or "/tmp/kora_macos_screenshot.png"

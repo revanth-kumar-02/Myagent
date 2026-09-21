@@ -167,11 +167,29 @@ class ScreenCaptureTool(BaseTool):
             "type": "object",
             "properties": {
                 "output_path": {"type": "string", "description": "Optional destination image path"},
+                "monitor_index": {"type": "integer", "description": "Index of monitor to capture"},
+                "window_id": {"type": "string", "description": "Window ID to capture"},
+                "region": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "[x, y, width, height] region coordinates",
+                },
             },
         }
 
     async def execute(self, params: dict[str, Any]) -> ToolResult:
         adapter = get_platform_adapter()
         dest = params.get("output_path")
-        path = await adapter.capture_screen(dest)
-        return self._make_result(output={"screenshot_path": path, "captured": True})
+        mon = params.get("monitor_index")
+        win = params.get("window_id")
+        reg = tuple(params["region"]) if params.get("region") else None
+        path = await adapter.capture_screen(output_path=dest, monitor_index=mon, window_id=win, region=reg)
+        return self._make_result(
+            output={
+                "screenshot_path": path,
+                "captured": True,
+                "monitor_index": mon,
+                "window_id": win,
+                "region": list(reg) if reg else None,
+            }
+        )

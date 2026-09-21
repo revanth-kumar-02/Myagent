@@ -49,5 +49,15 @@ class BasePlatformAdapter(abc.ABC):
         """Bring a window to focus."""
 
     @abc.abstractmethod
-    async def capture_screen(self, output_path: str | None = None) -> str:
+    async def get_monitors(self) -> list[dict[str, Any]]:
+        """List connected display monitors with resolution and index."""
+
+    @abc.abstractmethod
+    async def capture_screen(
+        self,
+        output_path: str | None = None,
+        monitor_index: int | None = None,
+        window_id: str | None = None,
+        region: tuple[int, int, int, int] | None = None,
+    ) -> str:
         """Capture screenshot and return file path or base64 indicator."""

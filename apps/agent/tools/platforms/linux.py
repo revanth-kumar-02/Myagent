@@ -120,6 +120,17 @@ class LinuxAdapter(BasePlatformAdapter):
     async def focus_window(self, window_identifier: str) -> bool:
         return True
 
-    async def capture_screen(self, output_path: str | None = None) -> str:
+    async def get_monitors(self) -> list[dict[str, Any]]:
+        return [
+            {"index": 0, "name": "Primary Display", "width": 1920, "height": 1080, "is_primary": True},
+        ]
+
+    async def capture_screen(
+        self,
+        output_path: str | None = None,
+        monitor_index: int | None = None,
+        window_id: str | None = None,
+        region: tuple[int, int, int, int] | None = None,
+    ) -> str:
         dest = output_path or "/tmp/kora_screenshot.png"
         return dest
