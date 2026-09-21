@@ -1,12 +1,13 @@
 // Kora Desktop — WebSocket message types (mirrors shared/protocol/schema.json)
 // This file is the single source of truth for message types in Dart.
 
-// ── Message Type Enum ────────────────────────────────────────────────────────
-
 enum WsMessageType {
   chatRequest,
   chatChunk,
   chatDone,
+  chatCancel,
+  chatCancelled,
+  planCreated,
   planUpdate,
   toolCallNotify,
   toolResultNotify,
@@ -24,6 +25,10 @@ enum WsMessageType {
       'CHAT_REQUEST'        => chatRequest,
       'CHAT_CHUNK'          => chatChunk,
       'CHAT_DONE'           => chatDone,
+      'CHAT_CANCEL'         => chatCancel,
+      'CANCEL_REQUEST'      => chatCancel,
+      'CHAT_CANCELLED'      => chatCancelled,
+      'PLAN_CREATED'        => planCreated,
       'PLAN_UPDATE'         => planUpdate,
       'TOOL_CALL_NOTIFY'    => toolCallNotify,
       'TOOL_RESULT_NOTIFY'  => toolResultNotify,
@@ -35,7 +40,7 @@ enum WsMessageType {
       'INDEX_ERROR'         => indexError,
       'HEARTBEAT'           => heartbeat,
       'ERROR'               => error,
-      _                     => throw ArgumentError('Unknown WS message type: $s'),
+      _                     => error,
     };
   }
 
@@ -44,6 +49,9 @@ enum WsMessageType {
       WsMessageType.chatRequest        => 'CHAT_REQUEST',
       WsMessageType.chatChunk          => 'CHAT_CHUNK',
       WsMessageType.chatDone           => 'CHAT_DONE',
+      WsMessageType.chatCancel         => 'CHAT_CANCEL',
+      WsMessageType.chatCancelled      => 'CHAT_CANCELLED',
+      WsMessageType.planCreated        => 'PLAN_CREATED',
       WsMessageType.planUpdate         => 'PLAN_UPDATE',
       WsMessageType.toolCallNotify     => 'TOOL_CALL_NOTIFY',
       WsMessageType.toolResultNotify   => 'TOOL_RESULT_NOTIFY',

@@ -1,19 +1,20 @@
 """
-core.model_router — Model Router (V7)
+core.model_router — Model Router
 
 Responsibilities:
   - Accept a capability tag: "chat", "reason", "code", "vision", "audio", "embedding"
   - Look up the appropriate model entry in the ModelRegistry (loaded from registry.yaml)
-  - Return a configured provider handle for that model
+  - Return a configured ModelHandle connected to the provider (HuggingFaceProvider)
   - Never expose or hardcode model IDs in Python source files
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from models.providers.huggingface import HuggingFaceProvider
 from models.registry import ModelNotFoundError, ModelRegistry
 from models.types import ModelCapability, ModelConfig, ModelHandle
 
@@ -27,20 +28,14 @@ class ModelUnavailableError(Exception):
     """Raised when no model is registered for the requested capability."""
 
 
-class SimpleProviderAdapter:
-    """Lightweight provider adapter for model handles."""
-
-    def __init__(self, config: ModelConfig) -> None:
-        self.config = config
-
-
 class ModelRouter:
     """
     Routes capability requests to the correct model config and provider handle.
     """
 
-    def __init__(self, registry: ModelRegistry) -> None:
+    def __init__(self, registry: ModelRegistry, default_provider: Any | None = None) -> None:
         self._registry = registry
+        self._default_provider = default_provider or HuggingFaceProvider()
 
     async def select(self, capability: ModelCapability | str) -> ModelHandle:
         """
@@ -49,7 +44,7 @@ class ModelRouter:
         """
         try:
             config = self._registry.get_by_capability(capability)  # type: ignore[arg-type]
-            provider = SimpleProviderAdapter(config)
+            provider = self._default_provider
             logger.debug("model_routed", capability=capability, model_name=config.name)
             return ModelHandle(config=config, provider=provider)
         except (ModelNotFoundError, KeyError) as e:

@@ -31,6 +31,7 @@ class GenerationResult:
     input_tokens: int
     output_tokens: int
     model_id: str
+    latency_ms: int = 0
 
 
 class ModelHandle:
@@ -39,18 +40,37 @@ class ModelHandle:
     Obtained from ModelRouter.select(capability).
     """
 
-    def __init__(self, config: ModelConfig, provider: object) -> None:
+    def __init__(self, config: ModelConfig, provider: Any) -> None:
         self.config = config
         self._provider = provider
 
-    async def generate(self, messages: list[dict[str, Any]], **kwargs: object) -> GenerationResult:
-        """Non-streaming generation. Returns full text when complete."""
-        raise NotImplementedError  # TODO: implement in feature phase
+    async def generate(self, messages: list[dict[str, Any]], **kwargs: Any) -> GenerationResult:
+        """Non-streaming generation. Returns full GenerationResult."""
+        if hasattr(self._provider, "chat_complete"):
+            return await self._provider.chat_complete(
+                model_id=self.config.model_id,
+                messages=messages,
+                **kwargs,
+            )
+        raise NotImplementedError(f"Provider {type(self._provider)} does not support chat_complete")
 
-    async def stream(self, messages: list[dict[str, Any]], **kwargs: object) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, Any]], **kwargs: Any) -> AsyncIterator[str]:
         """Streaming generation. Yields token deltas."""
-        raise NotImplementedError  # TODO: implement in feature phase
+        if hasattr(self._provider, "chat_stream"):
+            async for chunk in self._provider.chat_stream(
+                model_id=self.config.model_id,
+                messages=messages,
+                **kwargs,
+            ):
+                yield chunk
+        else:
+            raise NotImplementedError(f"Provider {type(self._provider)} does not support chat_stream")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """Embedding. Returns a list of float vectors."""
-        raise NotImplementedError  # TODO: implement in feature phase
+        if hasattr(self._provider, "embed"):
+            return await self._provider.embed(
+                model_id=self.config.model_id,
+                texts=texts,
+            )
+        raise NotImplementedError(f"Provider {type(self._provider)} does not support embed")

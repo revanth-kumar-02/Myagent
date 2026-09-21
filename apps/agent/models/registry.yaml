@@ -18,7 +18,7 @@ models:
   # ── Chat ─────────────────────────────────────────────────────────────────────
   qwen-chat:
     provider: huggingface
-    model_id: "Qwen/Qwen2.5-7B-Instruct"
+    model_id: "Qwen/Qwen3-4B-Instruct-2507"
     capabilities:
       - chat
     context_window: 32768
@@ -26,7 +26,7 @@ models:
   # ── Reasoning ─────────────────────────────────────────────────────────────────
   qwen-reason:
     provider: huggingface
-    model_id: "Qwen/QwQ-32B"
+    model_id: "Qwen/Qwen3-30B-A3B-Instruct-2507"
     capabilities:
       - reason
     context_window: 32768
@@ -34,7 +34,7 @@ models:
   # ── Coding ────────────────────────────────────────────────────────────────────
   qwen-code:
     provider: huggingface
-    model_id: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    model_id: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     capabilities:
       - code
     context_window: 32768
@@ -42,7 +42,7 @@ models:
   # ── Vision ────────────────────────────────────────────────────────────────────
   gemma-vision:
     provider: huggingface
-    model_id: "google/gemma-3-12b-it"
+    model_id: "google/gemma-4-E4B-it"
     capabilities:
       - vision
     context_window: 131072
@@ -50,7 +50,7 @@ models:
   # ── Audio ────────────────────────────────────────────────────────────────────
   gemma-audio:
     provider: huggingface
-    model_id: "google/gemma-3n-e4b-it"
+    model_id: "google/gemma-4-E4B-it"
     capabilities:
       - audio
     context_window: 32768
@@ -71,3 +71,4 @@ models:
     capabilities: []              # internal use only; not routable by capability tag
     context_window: 512
     dimension: null
+

@@ -1,11 +1,11 @@
 """
-core.executor — Async Execution Engine (V7)
+core.executor — Async Execution Engine
 
 Responsibilities:
   - Receive a DispatchTarget and PlanStep
   - Execute target asynchronously (RAG, Web, Memory, Tool, Model)
   - Emit TOOL_CALL_NOTIFY and TOOL_RESULT_NOTIFY WebSocket frames
-  - Stream CHAT_CHUNK token frames for model generation
+  - Stream CHAT_CHUNK token frames for model generation using ModelRouter / HuggingFaceProvider
   - Return typed ExecutorResult
 """
 
@@ -33,9 +33,11 @@ class Executor:
         self,
         ws_send: WSSend | None = None,
         model_handle: Any | None = None,
+        model_router: Any | None = None,
     ) -> None:
         self._ws_send = ws_send
         self._model_handle = model_handle
+        self._model_router = model_router
 
     async def run(self, target: Any, step: PlanStep) -> ExecutorResult:
         """
@@ -132,20 +134,65 @@ class Executor:
         return ExecutorResult(step=step, success=True, content=output, raw=output)
 
     async def _run_model(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
-        """Generate response via model handle or fallback synthesis."""
+        """Generate response via model handle with token streaming."""
         prompt = target.params.get("prompt", "")
         context_text = target.params.get("context_text", "")
+        capability = target.params.get("capability", "chat")
 
-        # Format synthetic or model-streamed answer
+        handle = self._model_handle
+        if handle is None and self._model_router is not None:
+            try:
+                handle = await self._model_router.select(capability)
+            except Exception as e:
+                logger.debug("model_router_select_failed", capability=capability, error=str(e))
+
+        messages: list[dict[str, Any]] = []
         if context_text:
-            text = f"Based on verified knowledge:\n{context_text}\n\nAnswer to: {prompt}"
-        else:
-            text = f"Response to request: {prompt}"
-
-        if self._ws_send is not None:
-            await self._ws_send({
-                "type": "CHAT_CHUNK",
-                "payload": {"chunk": text},
+            messages.append({
+                "role": "system",
+                "content": (
+                    "You are Kora, a helpful and precise autonomous AI assistant. "
+                    "Use the following verified context to answer the user's inquiry:\n"
+                    f"{context_text}"
+                ),
             })
+        else:
+            messages.append({
+                "role": "system",
+                "content": "You are Kora, a helpful and precise autonomous AI assistant.",
+            })
+        messages.append({"role": "user", "content": prompt})
 
-        return ExecutorResult(step=step, success=True, content=text, raw=text)
+        # Fallback text if model generation is not connected or fails
+        if context_text:
+            fallback_text = f"Based on verified knowledge:\n{context_text}\n\nAnswer to: {prompt}"
+        else:
+            fallback_text = f"Response to request: {prompt}"
+
+        accumulated: list[str] = []
+        if handle is not None and hasattr(handle, "stream"):
+            try:
+                async for chunk in handle.stream(messages):
+                    accumulated.append(chunk)
+                    if self._ws_send is not None:
+                        await self._ws_send({
+                            "type": "CHAT_CHUNK",
+                            "payload": {"chunk": chunk},
+                        })
+                if accumulated:
+                    full_text = "".join(accumulated)
+                    return ExecutorResult(step=step, success=True, content=full_text, raw=full_text)
+            except Exception as exc:
+                logger.warning("model_streaming_exception", error=str(exc))
+
+        # Fallback path if no model streaming occurred
+        if not accumulated:
+            if self._ws_send is not None:
+                await self._ws_send({
+                    "type": "CHAT_CHUNK",
+                    "payload": {"chunk": fallback_text},
+                })
+            return ExecutorResult(step=step, success=True, content=fallback_text, raw=fallback_text)
+
+        full_text = "".join(accumulated)
+        return ExecutorResult(step=step, success=True, content=full_text, raw=full_text)

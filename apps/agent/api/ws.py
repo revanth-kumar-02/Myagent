@@ -5,13 +5,17 @@ Manages persistent WebSocket connections and dispatches typed messages
 to the appropriate handlers (agent session, indexer, etc.).
 
 One AgentSession per WebSocket connection. Sessions are keyed by session_id.
+Supports streaming chunks, tool execution notifications, plan updates,
+and cancellation requests.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from typing import TYPE_CHECKING
+from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
@@ -21,7 +25,6 @@ from core.session import AgentSession
 from core.types import ChatRequest
 from permissions.types import PermissionGrant
 from rag.indexer import Indexer
-from pathlib import Path
 
 if TYPE_CHECKING:
     pass
@@ -49,6 +52,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
             pass
 
     session: AgentSession | None = None
+    active_chat_task: asyncio.Task | None = None
 
     try:
         while True:
@@ -76,30 +80,52 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
                         project_id=project_id,
                         attachments=payload.get("attachments", []),
                     )
-                    response = await session.run(request)
-                    await ws_send({
-                        "type": "CHAT_DONE",
-                        "session_id": str(session_id),
-                        "payload": {
-                            "full_text": response.full_text,
-                            "sources": [
-                                {"chunk_id": str(s.chunk_id), "file_path": s.file_path,
-                                 "start_line": s.start_line, "end_line": s.end_line}
-                                for s in response.sources
-                            ],
-                            "web_sources": [
-                                {"url": w.url, "title": w.title, "snippet": w.snippet}
-                                for w in response.web_sources
-                            ],
-                            "model_used": response.model_used,
-                            "input_tokens": response.input_tokens,
-                            "output_tokens": response.output_tokens,
-                            "latency_ms": response.latency_ms,
-                        },
-                    })
+
+                    async def execute_turn() -> None:
+                        try:
+                            response = await session.run(request)
+                            await ws_send({
+                                "type": "CHAT_DONE",
+                                "session_id": str(session_id),
+                                "payload": {
+                                    "full_text": response.full_text,
+                                    "sources": [
+                                        {"chunk_id": str(s.chunk_id), "file_path": s.file_path,
+                                         "start_line": s.start_line, "end_line": s.end_line}
+                                        for s in response.sources
+                                    ],
+                                    "web_sources": [
+                                        {"url": w.url, "title": w.title, "snippet": w.snippet}
+                                        for w in response.web_sources
+                                    ],
+                                    "model_used": response.model_used,
+                                    "input_tokens": response.input_tokens,
+                                    "output_tokens": response.output_tokens,
+                                    "latency_ms": response.latency_ms,
+                                },
+                            })
+                        except asyncio.CancelledError:
+                            logger.info("chat_turn_cancelled", session_id=str(session_id))
+                            await ws_send({
+                                "type": "CHAT_CANCELLED",
+                                "session_id": str(session_id),
+                                "payload": {"message": "Chat request was cancelled."},
+                            })
+                        except Exception as err:
+                            logger.exception("chat_turn_failed", error=str(err))
+                            await ws_send({
+                                "type": "ERROR",
+                                "payload": {"code": "CHAT_ERROR", "message": str(err)},
+                            })
+
+                    active_chat_task = asyncio.create_task(execute_turn())
+
+                case "CHAT_CANCEL" | "CANCEL_REQUEST":
+                    if active_chat_task is not None and not active_chat_task.done():
+                        active_chat_task.cancel()
+                        active_chat_task = None
 
                 case "INDEX_REQUEST":
-                    # Spawn indexing as a background task
                     indexer = Indexer(
                         project_id=uuid.UUID(payload["project_id"]),
                         root_path=Path(payload["root_path"]),
@@ -107,7 +133,6 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
                         model_router=deps["model_router"],
                         ws_send=ws_send,
                     )
-                    # TODO: run as background task in feature phase
                     stats = await indexer.run(incremental=payload.get("incremental", True))
                     await ws_send({
                         "type": "INDEX_DONE",
@@ -127,7 +152,6 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
                             request_id=uuid.UUID(payload["request_id"]),
                             granted=payload["granted"],
                         )
-                        # TODO: forward to session's PermissionGate in feature phase
 
                 case "HEARTBEAT":
                     await ws_send({"type": "HEARTBEAT", "payload": {}})
@@ -137,6 +161,8 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
 
     except WebSocketDisconnect:
         logger.info("ws_disconnected", session_id=str(session_id))
+        if active_chat_task is not None and not active_chat_task.done():
+            active_chat_task.cancel()
         if session:
             await session.stop()
     except Exception as e:

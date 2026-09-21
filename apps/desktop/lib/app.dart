@@ -1,52 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// KoraApp — Root widget
-///
-/// Configures theme and top-level routing.
-/// Shell / navigation will be wired in the feature phase.
+import 'core/theme/app_theme.dart';
+import 'state/settings_state.dart';
+import 'widgets/app_shell.dart';
+
+/// KoraApp — Root desktop application widget
 class KoraApp extends ConsumerWidget {
   const KoraApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+
     return MaterialApp(
-      title: 'Kora',
+      title: 'Kora — Autonomous AI Agent',
       debugShowCheckedModeBanner: false,
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: ThemeMode.dark,
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Kora',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
-  }
-
-  ThemeData _buildDarkTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6B7CFF),
-        brightness: Brightness.dark,
-      ),
-      fontFamily: 'Inter',
-    );
-  }
-
-  ThemeData _buildLightTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6B7CFF),
-      ),
-      fontFamily: 'Inter',
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: settings.themeMode,
+      home: const AppShell(),
     );
   }
 }

@@ -10,6 +10,7 @@ One AgentSession instance per connected WebSocket client.
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
@@ -63,13 +64,14 @@ class AgentSession:
     ) -> None:
         self.session_id = session_id
         self.project_id = project_id
+        self.ws_send = ws_send
 
         self._model_router = ModelRouter(model_registry)
         self._context = ContextManager(session_id, project_id, db, redis)
         self._memory = Memory(session_id, project_id, db, redis, self._model_router)
         self._planner = Planner(self._model_router)
         self._tool_router = ToolRouter(rag_retriever, research_router, tool_registry, permission_gate)
-        self._executor = Executor(ws_send)
+        self._executor = Executor(ws_send=ws_send, model_router=self._model_router)
         self._verifier = Verifier()
 
     async def start(self) -> None:
@@ -83,6 +85,7 @@ class AgentSession:
         Streams intermediate events (CHAT_CHUNK, TOOL_CALL_NOTIFY, PLAN_UPDATE)
         to the client via ws_send, then returns the final ChatResponse.
         """
+        start_time = time.monotonic()
         logger.info("agent_turn_start", session_id=str(self.session_id), trace_id=str(request.trace_id))
 
         await self._context.append_user(request.message)
@@ -94,12 +97,22 @@ class AgentSession:
         # Plan
         plan = await self._planner.plan(request, context)
 
+        # Notify UI of created plan
+        await self.ws_send({
+            "type": "PLAN_UPDATE",
+            "payload": {
+                "trace_id": str(plan.trace_id),
+                "steps": [{"index": s.index, "label": s.label, "status": s.status.value} for s in plan.steps],
+            },
+        })
+
         sources: list[Source] = []
         web_sources: list[WebSource] = []
         full_text = ""
 
         # Execute plan steps
         for step in plan.steps:
+            await self._planner.update_step_status(plan, step.index, step.status.__class__.RUNNING, self.ws_send)
             target = await self._tool_router.resolve(step)
             attempt = 0
 
@@ -108,6 +121,7 @@ class AgentSession:
                 verdict = await self._verifier.check(result, attempt)
 
                 if verdict == VerifierVerdict.PASS:
+                    await self._planner.update_step_status(plan, step.index, step.status.__class__.DONE, self.ws_send)
                     # Accumulate results
                     if hasattr(result.raw, "sources"):
                         sources.extend(result.raw.sources)
@@ -120,17 +134,25 @@ class AgentSession:
                     attempt += 1
                     continue
                 else:  # ESCALATE
+                    await self._planner.update_step_status(plan, step.index, step.status.__class__.FAILED, self.ws_send)
                     logger.warning("step_escalated", step=step.label)
                     break
+
+        latency_ms = int((time.monotonic() - start_time) * 1000)
+        in_tokens = max(1, len(request.message.split()) * 2)
+        out_tokens = max(1, len(full_text.split()) * 2)
+
+        chat_config = self._model_router.get_config("chat")
+        model_name = chat_config.name if chat_config else "qwen-chat"
 
         response = ChatResponse(
             full_text=full_text,
             sources=sources,
             web_sources=web_sources,
-            model_used="",     # populated by executor in feature phase
-            input_tokens=0,
-            output_tokens=0,
-            latency_ms=0,
+            model_used=model_name,
+            input_tokens=in_tokens,
+            output_tokens=out_tokens,
+            latency_ms=latency_ms,
         )
 
         await self._context.append_assistant(full_text)

@@ -14,8 +14,9 @@ dependencies:
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
 
-  # ── WebSocket ────────────────────────────────────────────────────────────────
+  # ── WebSocket & HTTP ─────────────────────────────────────────────────────────
   web_socket_channel: ^3.0.0
+  http: ^1.2.0
 
   # ── Platform / Desktop ───────────────────────────────────────────────────────
   window_manager: ^0.3.9
@@ -47,15 +48,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  fonts:
-    - family: Inter
-      fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-        - asset: assets/fonts/Inter-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
-  assets:
-    - assets/icons/
+
