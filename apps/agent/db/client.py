@@ -10,10 +10,13 @@ Provides:
 from collections.abc import AsyncGenerator
 
 import redis.asyncio as aioredis
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from config import settings
+
+logger = structlog.get_logger(__name__)
 
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 
@@ -56,18 +59,40 @@ def get_redis() -> aioredis.Redis:
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 async def startup() -> None:
-    """Called on application startup — verify connectivity."""
+    """Called on application startup — verify connectivity gracefully."""
     # Verify PostgreSQL
-    async with engine.begin() as conn:
-        await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+        logger.info("postgres_connected")
+    except Exception as e:
+        logger.warning(
+            "postgres_connection_failed",
+            error=str(e),
+            hint="For full vector persistence, start Postgres with: docker compose -f infra/docker-compose.yml up -d",
+        )
 
     # Verify Redis
-    r = get_redis()
-    await r.ping()
-    await r.aclose()
+    try:
+        r = get_redis()
+        await r.ping()
+        await r.aclose()
+        logger.info("redis_connected")
+    except Exception as e:
+        logger.warning(
+            "redis_connection_failed",
+            error=str(e),
+            hint="For distributed session cache, start Redis with: docker compose -f infra/docker-compose.yml up -d",
+        )
 
 
 async def shutdown() -> None:
     """Called on application shutdown — dispose connections."""
-    await engine.dispose()
-    await redis_pool.aclose()
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
+    try:
+        await redis_pool.aclose()
+    except Exception:
+        pass

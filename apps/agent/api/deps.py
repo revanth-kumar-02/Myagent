@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from config import settings
 from db.client import AsyncSessionFactory, get_redis
 from models.registry import ModelRegistry
@@ -31,7 +34,7 @@ def get_research_router() -> ResearchRouter:
     return ResearchRouter()
 
 
-async def get_agent_dependencies() -> dict:
+async def get_agent_dependencies() -> AsyncGenerator[dict[str, Any], None]:
     """
     Collects all per-request dependencies for AgentSession construction.
     DB session is created per-request; singletons are cached.
@@ -44,3 +47,4 @@ async def get_agent_dependencies() -> dict:
             "tool_registry": get_tool_registry(),
             "research_router": get_research_router(),
         }
+

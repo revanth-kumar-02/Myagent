@@ -47,11 +47,12 @@ class ModelHandle:
     async def generate(self, messages: list[dict[str, Any]], **kwargs: Any) -> GenerationResult:
         """Non-streaming generation. Returns full GenerationResult."""
         if hasattr(self._provider, "chat_complete"):
-            return await self._provider.chat_complete(
+            res: GenerationResult = await self._provider.chat_complete(
                 model_id=self.config.model_id,
                 messages=messages,
                 **kwargs,
             )
+            return res
         raise NotImplementedError(f"Provider {type(self._provider)} does not support chat_complete")
 
     async def stream(self, messages: list[dict[str, Any]], **kwargs: Any) -> AsyncIterator[str]:
@@ -69,8 +70,10 @@ class ModelHandle:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """Embedding. Returns a list of float vectors."""
         if hasattr(self._provider, "embed"):
-            return await self._provider.embed(
+            res: list[list[float]] = await self._provider.embed(
                 model_id=self.config.model_id,
                 texts=texts,
             )
+            return res
         raise NotImplementedError(f"Provider {type(self._provider)} does not support embed")
+

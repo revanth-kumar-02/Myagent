@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 import structlog
 
@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-WSSend = Callable[[dict], Awaitable[None]]
+WSSend = Callable[[dict[str, Any]], Awaitable[None]]
+
 
 
 class PermissionDeniedError(Exception):

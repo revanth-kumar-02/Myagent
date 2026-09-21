@@ -52,7 +52,7 @@ class Planner:
         Produce an ordered Plan with explicit goals, dependencies, and verification criteria.
         """
         # 0. Check Adaptive Learnings for prior workflow advice or constraints
-        relevant_learnings = []
+        relevant_learnings: list[Any] = []
         if self._learning_manager is not None:
             try:
                 relevant_learnings = await self._learning_manager.get_relevant_learnings(
@@ -61,6 +61,7 @@ class Planner:
                 )
             except Exception as exc:
                 logger.debug("planner_learning_retrieval_skipped", error=str(exc))
+
 
         intent, context_need = self._analyzer.analyze(
             message=request.message,

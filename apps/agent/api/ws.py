@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from pathlib import Path
 
 import structlog
@@ -35,7 +35,7 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_dependencies)) -> None:
+async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_agent_dependencies)) -> None:
     """
     Primary WebSocket endpoint.
     All client-server communication flows through this single connection.
@@ -45,14 +45,15 @@ async def websocket_endpoint(ws: WebSocket, deps: dict = Depends(get_agent_depen
     logger.info("ws_connected", session_id=str(session_id))
 
     # Bound send function for this connection
-    async def ws_send(payload: dict) -> None:
+    async def ws_send(payload: dict[str, Any]) -> None:
         try:
             await ws.send_json(payload)
         except Exception:
             pass
 
     session: AgentSession | None = None
-    active_chat_task: asyncio.Task | None = None
+    active_chat_task: asyncio.Task[None] | None = None
+
 
     try:
         while True:
