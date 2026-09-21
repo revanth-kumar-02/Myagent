@@ -13,13 +13,14 @@ class SettingsState {
   final String? errorMessage;
 
   const SettingsState({
-    this.themeMode = ThemeMode.dark,
+    this.themeMode = ThemeMode.light,
     this.backendHttpUrl = 'http://127.0.0.1:8765',
     this.backendWsUrl = 'ws://127.0.0.1:8765/ws',
     this.availableModels = const [],
     this.isLoading = false,
     this.errorMessage,
   });
+
 
   SettingsState copyWith({
     ThemeMode? themeMode,

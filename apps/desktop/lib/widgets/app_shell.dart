@@ -22,13 +22,12 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  NavigationTab _currentTab = NavigationTab.home;
+  NavigationTab _currentTab = NavigationTab.chat; // Primary default
   bool _isSidebarCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
     final conn = ref.watch(connectionProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final currentView = switch (_currentTab) {
       NavigationTab.home     => HomeScreen(onNavigate: (t) => setState(() => _currentTab = t)),
@@ -42,6 +41,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     };
 
     return Scaffold(
+      backgroundColor: AppTheme.bgLight,
       body: Row(
         children: [
           // Sidebar
@@ -57,13 +57,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               children: [
                 // Top App Header
                 Container(
-                  height: 48,
+                  height: 52,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.surfaceLight,
                     border: Border(
                       bottom: BorderSide(
-                        color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        color: AppTheme.borderLight,
                         width: 1,
                       ),
                     ),
@@ -72,18 +72,62 @@ class _AppShellState extends ConsumerState<AppShell> {
                     children: [
                       IconButton(
                         icon: Icon(
-                          _isSidebarCollapsed ? Icons.menu_open : Icons.menu,
-                          size: 18,
+                          _isSidebarCollapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
+                          size: 20,
+                          color: AppTheme.textSecondaryLight,
                         ),
                         tooltip: _isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
                         onPressed: () => setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        _getTabTitle(_currentTab),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceHighlightLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, size: 14, color: AppTheme.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getTabTitle(_currentTab),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: AppTheme.textPrimaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const Spacer(),
+                      // Model Capability Indicator Pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryLight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.tune_rounded, size: 12, color: AppTheme.primary),
+                            SizedBox(width: 6),
+                            Text(
+                              'Qwen3 + Gemma-4 Gateway',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       StatusPill(
                         status: conn.status,
                         onTap: () => ref.read(connectionProvider.notifier).checkConnection(),
@@ -104,14 +148,15 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   String _getTabTitle(NavigationTab tab) {
     return switch (tab) {
-      NavigationTab.home     => 'Dashboard & Overview',
-      NavigationTab.chat     => 'Primary Chat Interaction',
-      NavigationTab.projects => 'Workspace Projects',
-      NavigationTab.tasks    => 'Agent Task Board',
-      NavigationTab.research => 'DuckDuckGo Web Research',
-      NavigationTab.activity => 'System Observability',
-      NavigationTab.memory   => 'Agent Memory Bank',
-      NavigationTab.settings => 'Settings & Model Registry',
+      NavigationTab.home     => 'Dashboard',
+      NavigationTab.chat     => 'Chat Workspace',
+      NavigationTab.projects => 'Knowledge Base & Projects',
+      NavigationTab.tasks    => 'Autonomous Tasks',
+      NavigationTab.research => 'DuckDuckGo Research',
+      NavigationTab.activity => 'Observability & Traces',
+      NavigationTab.memory   => 'Memory & Entities',
+      NavigationTab.settings => 'Settings',
     };
   }
 }
+
