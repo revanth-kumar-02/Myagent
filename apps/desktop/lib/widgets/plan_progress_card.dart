@@ -14,64 +14,100 @@ class PlanProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (steps.isEmpty) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
-    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
+    final completedCount = steps.where((s) => s.status == PlanStepStatus.done).length;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor, width: 1),
+        color: AppTheme.surfaceHighlightLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.borderLight, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.account_tree_outlined, size: 14, color: AppTheme.primary),
+              const Icon(Icons.account_tree_rounded, size: 14, color: AppTheme.primary),
               const SizedBox(width: 6),
               Text(
-                'Execution Plan (${steps.where((s) => s.status == PlanStepStatus.done).length}/${steps.length})',
+                'Autonomous Plan ($completedCount/${steps.length} Steps)',
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimaryLight,
                 ),
               ),
+              const Spacer(),
+              if (completedCount == steps.length)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successLight,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Plan Completed',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.success,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ...steps.map((step) {
-            final (icon, iconColor) = switch (step.status) {
-              PlanStepStatus.done    => (Icons.check_circle, AppTheme.success),
-              PlanStepStatus.running => (Icons.motion_photos_on, AppTheme.warning),
-              PlanStepStatus.failed  => (Icons.error, AppTheme.error),
-              PlanStepStatus.pending => (Icons.radio_button_unchecked, Colors.grey),
-            };
+            final (icon, iconColor, bgChip, semanticLabel) = _resolveStepSemantic(step);
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2.5),
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 2.5),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: step.status == PlanStepStatus.running ? bgChip : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: Row(
                 children: [
-                  Icon(icon, size: 13, color: iconColor),
+                  Icon(icon, size: 14, color: iconColor),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       step.label,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: step.status == PlanStepStatus.done
-                            ? Colors.grey
-                            : (isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                            ? AppTheme.textMuted
+                            : AppTheme.textPrimaryLight,
+                        fontWeight: step.status == PlanStepStatus.running
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                         decoration: step.status == PlanStepStatus.done
                             ? TextDecoration.lineThrough
                             : null,
                       ),
                     ),
                   ),
+                  if (semanticLabel != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: bgChip,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        semanticLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: iconColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -80,4 +116,34 @@ class PlanProgressCard extends StatelessWidget {
       ),
     );
   }
+
+  (IconData, Color, Color, String?) _resolveStepSemantic(PlanStep step) {
+    if (step.status == PlanStepStatus.done) {
+      return (Icons.check_circle_rounded, AppTheme.statusCompleted, AppTheme.successLight, null);
+    }
+    if (step.status == PlanStepStatus.failed) {
+      return (Icons.cancel_rounded, AppTheme.error, AppTheme.errorLight, 'Failed');
+    }
+    if (step.status == PlanStepStatus.pending) {
+      return (Icons.radio_button_unchecked, AppTheme.textMuted, Colors.transparent, null);
+    }
+
+    // Step is currently running — classify semantic action
+    final labelLower = step.label.toLowerCase();
+    if (labelLower.contains('search') || labelLower.contains('web')) {
+      return (Icons.travel_explore_rounded, AppTheme.statusSearching, AppTheme.warningLight, 'Searching');
+    }
+    if (labelLower.contains('read') || labelLower.contains('doc') || labelLower.contains('rag')) {
+      return (Icons.auto_stories_rounded, AppTheme.statusReading, AppTheme.primaryLight, 'Reading');
+    }
+    if (labelLower.contains('tool') || labelLower.contains('exec') || labelLower.contains('bash')) {
+      return (Icons.construction_rounded, AppTheme.statusUsingTool, AppTheme.accentLight, 'Using Tool');
+    }
+    if (labelLower.contains('verif') || labelLower.contains('check')) {
+      return (Icons.verified_rounded, AppTheme.statusVerifying, AppTheme.secondaryLight, 'Verifying');
+    }
+
+    return (Icons.psychology_rounded, AppTheme.statusThinking, AppTheme.primaryLight, 'Thinking');
+  }
 }
+

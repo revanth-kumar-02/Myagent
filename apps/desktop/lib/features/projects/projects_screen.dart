@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../models/project.dart';
 import '../../state/projects_state.dart';
 
@@ -17,9 +16,11 @@ class ProjectsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create New Project', style: TextStyle(fontSize: 16)),
+        backgroundColor: AppTheme.surfaceLight,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Create New Project', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimaryLight)),
         content: SizedBox(
-          width: 400,
+          width: 440,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -42,7 +43,7 @@ class ProjectsScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondaryLight)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           ElevatedButton(
@@ -67,37 +68,45 @@ class ProjectsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(projectsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      color: AppTheme.bgLight,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Workspace Projects', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
                     Text(
-                      'Manage indexed codebases and document repositories for RAG.',
-                      style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                      'Knowledge Base & Projects',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: AppTheme.textPrimaryLight,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Manage indexed codebases and document repositories for RAG vector retrieval.',
+                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
               ElevatedButton.icon(
-                icon: const Icon(Icons.add, size: 16),
+                icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('New Project'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 onPressed: () => _showNewProjectDialog(context, ref),
               ),
@@ -108,9 +117,14 @@ class ProjectsScreen extends ConsumerWidget {
           // Project List
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
                 : state.projects.isEmpty
-                    ? const Center(child: Text('No projects found. Create one to begin indexing.'))
+                    ? const Center(
+                        child: Text(
+                          'No projects configured. Create one to begin indexing documents.',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: state.projects.length,
                         itemBuilder: (context, index) {
@@ -121,24 +135,31 @@ class ProjectsScreen extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppTheme.surfaceLight,
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.primary
-                                    : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                    : AppTheme.borderLight,
                                 width: isSelected ? 1.5 : 1.0,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: AppTheme.primaryLight,
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.folder_outlined, color: AppTheme.primary, size: 22),
+                                  child: const Icon(Icons.folder_rounded, color: AppTheme.primary, size: 22),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -149,17 +170,29 @@ class ProjectsScreen extends ConsumerWidget {
                                         children: [
                                           Text(
                                             project.name,
-                                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.textPrimaryLight,
+                                            ),
                                           ),
                                           if (isSelected) ...[
                                             const SizedBox(width: 8),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.primary.withValues(alpha: 0.2),
+                                                color: AppTheme.primaryLight,
                                                 borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
                                               ),
-                                              child: const Text('ACTIVE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                                              child: const Text(
+                                                'ACTIVE RAG SCOPE',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppTheme.primaryDark,
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ],
@@ -167,18 +200,34 @@ class ProjectsScreen extends ConsumerWidget {
                                       const SizedBox(height: 4),
                                       Text(
                                         project.description.isNotEmpty ? project.description : 'No description provided',
-                                        style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                        style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondaryLight),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        'Path: ${project.rootPath} • Files: ${project.fileCount} • Chunks: ${project.chunkCount}',
-                                        style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'monospace'),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.surfaceHighlightLight,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Path: ${project.rootPath}',
+                                              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondaryLight, fontFamily: 'monospace'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            '•  ${project.fileCount} Files  •  ${project.chunkCount} Chunks',
+                                            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppTheme.textMuted),
                                   tooltip: 'Delete Project',
                                   onPressed: () => ref.read(projectsProvider.notifier).deleteProject(project.id),
                                 ),
@@ -193,3 +242,4 @@ class ProjectsScreen extends ConsumerWidget {
     );
   }
 }
+

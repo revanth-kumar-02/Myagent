@@ -12,32 +12,39 @@ class ActivityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activityProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      color: AppTheme.bgLight,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Activity & Observability', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
                     Text(
-                      'Real-time execution telemetry, model latencies, and tool dispatches.',
-                      style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                      'Observability & Trace Telemetry',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: AppTheme.textPrimaryLight,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Real-time execution telemetry, model latencies, tool dispatches, and audit events.',
+                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              IconButton.outlined(
-                icon: const Icon(Icons.refresh, size: 18),
-                tooltip: 'Refresh',
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Refresh'),
                 onPressed: () => ref.read(activityProvider.notifier).loadActivity(),
               ),
             ],
@@ -46,9 +53,14 @@ class ActivityScreen extends ConsumerWidget {
 
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
                 : state.logs.isEmpty
-                    ? const Center(child: Text('No activity logs found.'))
+                    ? const Center(
+                        child: Text(
+                          'No activity traces recorded yet. Traces populate upon executing agent turns.',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: state.logs.length,
                         itemBuilder: (context, index) {
@@ -58,43 +70,67 @@ class ActivityScreen extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-                              ),
+                              color: AppTheme.surfaceLight,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.borderLight, width: 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
+                                    color: AppTheme.primaryLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
                                   ),
                                   child: Text(
                                     log.eventType,
                                     style: const TextStyle(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primaryDark,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
-                                  child: Text(log.details, style: const TextStyle(fontSize: 12)),
+                                  child: Text(
+                                    log.details,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.textPrimaryLight,
+                                    ),
+                                  ),
                                 ),
                                 if (log.latencyMs > 0) ...[
-                                  Text(
-                                    '${log.latencyMs}ms',
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surfaceHighlightLight,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '${log.latencyMs}ms',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textSecondaryLight,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                 ],
                                 Text(
                                   DateFormatter.formatIso(log.timestamp),
-                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                                 ),
                               ],
                             ),
@@ -107,3 +143,4 @@ class ActivityScreen extends ConsumerWidget {
     );
   }
 }
+

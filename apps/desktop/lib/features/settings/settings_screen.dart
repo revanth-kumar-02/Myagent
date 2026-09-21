@@ -43,38 +43,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Settings & Configuration', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Settings & Configuration',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+          ),
           const SizedBox(height: 4),
           Text(
-            'Configure server connections, UI theme, and review Model Registry capabilities.',
+            'Manage agent network gateway, interface themes, and inspect active model capabilities.',
             style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
           ),
           const SizedBox(height: 24),
 
-          // Appearance
-          const Text('Appearance', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          // Appearance Section
+          _buildSectionHeader('Appearance & Theme'),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
+              color: isDark ? AppTheme.surfaceDark : AppTheme.cardLight,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
-                Icon(
-                  settings.themeMode == ThemeMode.dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-                  size: 20,
-                  color: AppTheme.primary,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.sageGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    settings.themeMode == ThemeMode.dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                    size: 20,
+                    color: AppTheme.sageGreen,
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Theme Mode', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     Text(
-                      settings.themeMode == ThemeMode.dark ? 'Dark Slate' : 'Light Clean',
+                      settings.themeMode == ThemeMode.dark ? 'Dark Slate' : 'Warm Ivory / Cream (Default)',
                       style: TextStyle(fontSize: 11, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
                     ),
                   ],
@@ -82,7 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Spacer(),
                 Switch(
                   value: settings.themeMode == ThemeMode.dark,
-                  activeColor: AppTheme.primary,
+                  activeColor: AppTheme.sageGreen,
                   onChanged: (_) => ref.read(settingsProvider.notifier).toggleTheme(),
                 ),
               ],
@@ -91,31 +110,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 24),
 
           // Backend Connection
-          const Text('Backend Connection', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          _buildSectionHeader('Agent Gateway Connection'),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
+              color: isDark ? AppTheme.surfaceDark : AppTheme.cardLight,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: _httpUrlCtrl,
-                  decoration: const InputDecoration(labelText: 'REST API Endpoint URL'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _wsUrlCtrl,
-                  decoration: const InputDecoration(labelText: 'WebSocket Endpoint URL'),
+                  decoration: InputDecoration(
+                    labelText: 'REST API Endpoint URL',
+                    hintText: 'http://127.0.0.1:8765',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
                 const SizedBox(height: 14),
+                TextField(
+                  controller: _wsUrlCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'WebSocket Realtime Gateway URL',
+                    hintText: 'ws://127.0.0.1:8765/ws',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.sageGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                       child: const Text('Save & Test Connection'),
                       onPressed: () {
                         ref.read(settingsProvider.notifier).updateBackendUrls(
@@ -126,12 +168,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ref.read(settingsProvider.notifier).loadModelInfo();
                       },
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      conn.status == BackendStatus.online ? '✓ Server reachable' : '✗ Server offline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: conn.status == BackendStatus.online ? AppTheme.success : AppTheme.error,
+                    const SizedBox(width: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: (conn.status == BackendStatus.online ? AppTheme.statusCompleted : AppTheme.terracotta)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            conn.status == BackendStatus.online ? Icons.check_circle_outline : Icons.error_outline,
+                            size: 13,
+                            color: conn.status == BackendStatus.online ? AppTheme.statusCompleted : AppTheme.terracotta,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            conn.status == BackendStatus.online ? 'Server reachable & verified' : 'Server offline / unreachable',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: conn.status == BackendStatus.online ? AppTheme.statusCompleted : AppTheme.terracotta,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -141,10 +203,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Registered Model Capabilities (No Secrets)
+          // Registered Model Capabilities
           Row(
             children: [
-              const Text('Model Registry Capabilities', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              _buildSectionHeader('Model Registry Capabilities'),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 16),
@@ -155,35 +217,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
+              color: isDark ? AppTheme.surfaceDark : AppTheme.cardLight,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
             ),
             child: settings.availableModels.isEmpty
-                ? const Text('No model metadata available from backend.', style: TextStyle(fontSize: 12, color: Colors.grey))
+                ? Text(
+                    'No model metadata available from backend.',
+                    style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                  )
                 : Column(
-                    children: settings.availableModels.map((m) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    children: settings.availableModels.map((m) => Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.cardDark : AppTheme.warmIvory,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        ),
+                      ),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
+                              color: AppTheme.sageGreen.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               m.name,
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.sageGreen),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'Capabilities: [${m.capabilities.join(", ")}] • Context: ${m.contextWindow} tokens • Provider: ${m.provider}',
-                              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                                color: isDark ? AppTheme.textPrimaryDark : AppTheme.charcoalText,
+                              ),
                             ),
                           ),
                         ],
@@ -193,6 +279,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: -0.2),
     );
   }
 }

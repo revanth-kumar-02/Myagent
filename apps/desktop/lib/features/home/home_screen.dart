@@ -22,196 +22,237 @@ class HomeScreen extends ConsumerWidget {
     final projectsState = ref.watch(projectsProvider);
     final tasksState = ref.watch(tasksProvider);
     final activityState = ref.watch(activityProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome to Kora',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Autonomous AI Agent with RAG, Memory, & Tool Execution',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+    return Container(
+      color: AppTheme.bgLight,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Header
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Good day, Workspace User',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: AppTheme.textPrimaryLight,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Autonomous agent ready with RAG document retrieval, persistent memory, and live web research.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline, size: 15),
-                label: const Text('Start Chat'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_rounded, size: 15),
+                  label: const Text('Open Chat'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: () => onNavigate(NavigationTab.chat),
                 ),
-                onPressed: () => onNavigate(NavigationTab.chat),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-          // Overview Stats Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  title: 'System Status',
-                  value: connState.status == BackendStatus.online ? 'Online' : 'Offline',
-                  subtitle: '${connState.modelsAvailable} Models Available',
-                  icon: Icons.hub_outlined,
-                  color: AppTheme.success,
-                  isDark: isDark,
+            // Overview Stats Grid
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'System Status',
+                    value: connState.status == BackendStatus.online ? 'Connected' : 'Offline',
+                    subtitle: '${connState.modelsAvailable} Capability Models',
+                    icon: Icons.check_circle_rounded,
+                    color: AppTheme.success,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  title: 'Workspaces',
-                  value: '${projectsState.projects.length}',
-                  subtitle: 'Projects Configured',
-                  icon: Icons.folder_outlined,
-                  color: AppTheme.accent,
-                  isDark: isDark,
-                  onTap: () => onNavigate(NavigationTab.projects),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'Knowledge Base',
+                    value: '${projectsState.projects.length}',
+                    subtitle: 'Projects Indexed',
+                    icon: Icons.folder_rounded,
+                    color: AppTheme.secondary,
+                    onTap: () => onNavigate(NavigationTab.projects),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  title: 'Agent Tasks',
-                  value: '${tasksState.tasks.length}',
-                  subtitle: '${tasksState.tasks.where((t) => t.status == "running").length} Running',
-                  icon: Icons.task_alt_outlined,
-                  color: AppTheme.primary,
-                  isDark: isDark,
-                  onTap: () => onNavigate(NavigationTab.tasks),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'Agent Tasks',
+                    value: '${tasksState.tasks.length}',
+                    subtitle: '${tasksState.tasks.where((t) => t.status == "running").length} In Progress',
+                    icon: Icons.task_alt_rounded,
+                    color: AppTheme.primary,
+                    onTap: () => onNavigate(NavigationTab.tasks),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 28),
 
-          // Quick Actions
-          const Text(
-            'Quick Actions',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          _buildActionTile(
-            icon: Icons.travel_explore_outlined,
-            title: 'Live DuckDuckGo Research',
-            description: 'Query external knowledge with search and auto-summarization.',
-            onTap: () => onNavigate(NavigationTab.research),
-            isDark: isDark,
-          ),
-          const SizedBox(height: 8),
-          _buildActionTile(
-            icon: Icons.psychology_outlined,
-            title: 'Explore Agent Memory',
-            description: 'Inspect learned facts, user preferences, and project context.',
-            onTap: () => onNavigate(NavigationTab.memory),
-            isDark: isDark,
-          ),
-          const SizedBox(height: 8),
-          _buildActionTile(
-            icon: Icons.terminal_outlined,
-            title: 'Model Capability Registry',
-            description: 'Review Qwen and Gemma model routing configurations.',
-            onTap: () => onNavigate(NavigationTab.settings),
-            isDark: isDark,
-          ),
-
-          const SizedBox(height: 24),
-
-          // Recent Activity Feed
-          Row(
-            children: [
-              const Text(
-                'Recent Agent Activity',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              TextButton(
-                child: const Text('View All', style: TextStyle(fontSize: 12)),
-                onPressed: () => onNavigate(NavigationTab.activity),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            // Quick Capabilities & Actions
+            const Text(
+              'Agent Capabilities',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimaryLight,
+                letterSpacing: -0.2,
               ),
             ),
-            child: activityState.logs.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Center(
-                      child: Text(
-                        'No recent activity logs.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionTile(
+                    icon: Icons.travel_explore_rounded,
+                    title: 'DuckDuckGo Research',
+                    description: 'Extract external evidence and generate summarized reports.',
+                    onTap: () => onNavigate(NavigationTab.research),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildActionTile(
+                    icon: Icons.psychology_rounded,
+                    title: 'Personal Memory',
+                    description: 'Explore learned facts, preferences, and knowledge entities.',
+                    onTap: () => onNavigate(NavigationTab.memory),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildActionTile(
+                    icon: Icons.tune_rounded,
+                    title: 'Model Gateway',
+                    description: 'Qwen3 & Gemma-4 capability routing and telemetry.',
+                    onTap: () => onNavigate(NavigationTab.settings),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 28),
+
+            // Recent Activity Feed
+            Row(
+              children: [
+                const Text(
+                  'Recent Agent Activity',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimaryLight,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.primary),
+                  label: const Text(
+                    'View All Traces',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                  ),
+                  onPressed: () => onNavigate(NavigationTab.activity),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.borderLight, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: activityState.logs.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: Text(
+                          'No recent activity logs. Send a prompt to see agent reasoning traces.',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                        ),
                       ),
-                    ),
-                  )
-                : Column(
-                    children: activityState.logs.take(4).map((log) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              log.eventType,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary,
+                    )
+                  : Column(
+                      children: activityState.logs.take(4).map((log) => Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceHighlightLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryLight,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                log.eventType,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primaryDark,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              log.details,
-                              style: const TextStyle(fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                log.details,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textPrimaryLight,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          if (log.latencyMs > 0)
-                            Text(
-                              '${log.latencyMs}ms',
-                              style: const TextStyle(fontSize: 10, color: Colors.grey),
-                            ),
-                        ],
-                      ),
-                    )).toList(),
-                  ),
-          ),
-        ],
+                            if (log.latencyMs > 0) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '${log.latencyMs}ms',
+                                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )).toList(),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -222,53 +263,74 @@ class HomeScreen extends ConsumerWidget {
     required String subtitle,
     required IconData icon,
     required Color color,
-    required bool isDark,
     VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const Spacer(),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        hoverColor: AppTheme.surfaceHighlightLight,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderLight, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(icon, size: 16, color: color),
+                  ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimaryLight,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -279,54 +341,63 @@ class HomeScreen extends ConsumerWidget {
     required String title,
     required String description,
     required VoidCallback onTap,
-    required bool isDark,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        hoverColor: AppTheme.surfaceHighlightLight,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderLight, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 18, color: AppTheme.primary),
               ),
-              child: Icon(icon, size: 16, color: AppTheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimaryLight,
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: AppTheme.textSecondaryLight,
+                  height: 1.35,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

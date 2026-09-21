@@ -13,13 +13,17 @@ class ToolBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = isExecuting ? AppTheme.accentLight : AppTheme.primaryLight;
+    final fgColor = isExecuting ? AppTheme.accent : AppTheme.primary;
+    final borderColor = isExecuting ? AppTheme.accent.withValues(alpha: 0.3) : AppTheme.primary.withValues(alpha: 0.25);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.12),
+        color: bgColor,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: AppTheme.primary.withValues(alpha: 0.35),
+          color: borderColor,
           width: 1,
         ),
       ),
@@ -27,25 +31,26 @@ class ToolBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isExecuting) ...[
-            const SizedBox(
+            SizedBox(
               width: 10,
               height: 10,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                color: AppTheme.primary,
+                color: fgColor,
               ),
             ),
             const SizedBox(width: 6),
           ] else ...[
-            const Icon(Icons.build_circle_outlined, size: 12, color: AppTheme.primary),
+            Icon(Icons.construction_rounded, size: 12, color: fgColor),
             const SizedBox(width: 5),
           ],
           Text(
             toolName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppTheme.primary,
+              fontFamily: 'monospace',
+              color: fgColor,
             ),
           ),
         ],
@@ -53,3 +58,4 @@ class ToolBadge extends StatelessWidget {
     );
   }
 }
+

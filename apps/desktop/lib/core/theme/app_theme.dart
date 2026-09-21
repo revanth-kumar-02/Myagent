@@ -63,6 +63,15 @@ class AppTheme {
   static const Color statusVerifying = Color(0xFF6E7C67); // Deep Olive Check
   static const Color statusCompleted = Color(0xFF3D6E54); // Sage Confirmed
 
+  // Semantic Aliases for Stitch Tokens
+  static const Color sageGreen = primary;
+  static const Color softOlive = secondary;
+  static const Color terracotta = accent;
+  static const Color warmIvory = bgLight;
+  static const Color cardLight = surfaceLight;
+  static const Color cardDark = surfaceDark;
+  static const Color charcoalText = textPrimaryLight;
+
   // Dark Theme Palette fallback
   static const Color bgDark = Color(0xFF1E211F);
   static const Color surfaceDark = Color(0xFF262A27);

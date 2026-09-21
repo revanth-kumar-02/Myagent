@@ -33,26 +33,23 @@ void main() {
     expect(find.descendant(of: sidebar, matching: find.text('Memory')), findsOneWidget);
     expect(find.descendant(of: sidebar, matching: find.text('Settings')), findsOneWidget);
 
-    // Verify home header
-    expect(find.text('Welcome to Kora'), findsOneWidget);
-
-    // Navigate to Chat
-    await tester.tap(find.descendant(of: sidebar, matching: find.text('Chat')));
-    await tester.pumpAndSettle();
-
-    // Verify Chat Screen rendered
+    // Default primary screen is Chat
     expect(find.text('Kora Chat'), findsOneWidget);
-    expect(find.text('How can Kora help you today?'), findsOneWidget);
+    expect(find.text('How can Kora assist you today?'), findsOneWidget);
+
+    // Navigate to Home
+    await tester.tap(find.descendant(of: sidebar, matching: find.text('Home')));
+    await tester.pumpAndSettle();
+    expect(find.text('Good day, Workspace User'), findsOneWidget);
 
     // Navigate to Projects
     await tester.tap(find.descendant(of: sidebar, matching: find.text('Projects')));
     await tester.pumpAndSettle();
-    expect(find.text('Workspace Projects'), findsWidgets);
+    expect(find.text('Knowledge Base & Projects'), findsWidgets);
 
     // Navigate to Research
     await tester.tap(find.descendant(of: sidebar, matching: find.text('Research')));
     await tester.pumpAndSettle();
-    expect(find.text('Live Web Research'), findsWidgets);
-
+    expect(find.text('DuckDuckGo Deep Research'), findsWidgets);
   });
 }

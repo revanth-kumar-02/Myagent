@@ -13,22 +13,26 @@ import 'package:kora_desktop/widgets/tool_badge.dart';
 void main() {
   group('Chat Widgets & Screen Tests', () {
     testWidgets('ChatScreen shows input and triggers send', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            theme: AppTheme.dark(),
+            theme: AppTheme.light(),
             home: const Scaffold(body: ChatScreen()),
           ),
         ),
       );
 
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.byIcon(Icons.send_rounded), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'Test message');
       expect(find.text('Test message'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.tap(find.text('Send'));
       await tester.pump();
     });
 
@@ -41,14 +45,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: AppTheme.dark(),
+          theme: AppTheme.light(),
           home: const Scaffold(
             body: PlanProgressCard(steps: steps),
           ),
         ),
       );
 
-      expect(find.text('Execution Plan (1/3)'), findsOneWidget);
+      expect(find.text('Autonomous Plan (1/3 Steps)'), findsOneWidget);
       expect(find.text('Retrieve RAG chunks'), findsOneWidget);
       expect(find.text('Search DuckDuckGo'), findsOneWidget);
       expect(find.text('Synthesize answer'), findsOneWidget);
@@ -64,14 +68,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: AppTheme.dark(),
+          theme: AppTheme.light(),
           home: const Scaffold(
             body: CitationCard(sources: ragSources, webSources: webSources),
           ),
         ),
       );
 
-      expect(find.text('Sources & Citations (2)'), findsOneWidget);
+      expect(find.text('Sources & Evidence (2)'), findsOneWidget);
       expect(find.textContaining('apps/agent/core/model_router.py'), findsOneWidget);
       expect(find.text('DuckDuckGo Engine'), findsOneWidget);
       expect(find.text('https://duckduckgo.com'), findsOneWidget);
@@ -80,7 +84,7 @@ void main() {
     testWidgets('ToolBadge renders tool name', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          theme: AppTheme.dark(),
+          theme: AppTheme.light(),
           home: const Scaffold(
             body: ToolBadge(toolName: 'duckduckgo_search', isExecuting: true),
           ),
