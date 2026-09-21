@@ -28,7 +28,7 @@ def test_registry_loads_v24_models() -> None:
 
     # Verify model IDs from registry
     assert models["qwen-chat"].model_id == "Qwen/Qwen3-4B-Instruct-2507"
-    assert models["qwen-reason"].model_id == "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    assert models["qwen-reason"].model_id == "Qwen/Qwen3.6-35B-A3B"
     assert models["qwen-code"].model_id == "Qwen/Qwen3-Coder-30B-A3B-Instruct"
     assert models["gemma-vision"].model_id == "google/gemma-4-E4B-it"
     assert models["gemma-audio"].model_id == "google/gemma-4-E4B-it"
@@ -47,7 +47,7 @@ async def test_capability_routing() -> None:
 
     reason_handle = await router.select("reason")
     assert reason_handle.config.name == "qwen-reason"
-    assert reason_handle.config.model_id == "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    assert reason_handle.config.model_id == "Qwen/Qwen3.6-35B-A3B"
 
     code_handle = await router.select("code")
     assert code_handle.config.name == "qwen-code"

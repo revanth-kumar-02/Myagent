@@ -166,6 +166,24 @@ class AppTheme {
           textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
         ),
       ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return secondary.withValues(alpha: 0.65);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return secondary.withValues(alpha: 0.50);
+          }
+          return secondary.withValues(alpha: 0.25);
+        }),
+        trackColor: const WidgetStatePropertyAll(Colors.transparent),
+        trackBorderColor: const WidgetStatePropertyAll(Colors.transparent),
+        thickness: const WidgetStatePropertyAll(5.0),
+        radius: const Radius.circular(8),
+        crossAxisMargin: 2.0,
+        mainAxisMargin: 4.0,
+        interactive: true,
+      ),
       fontFamily: 'Inter',
     );
   }

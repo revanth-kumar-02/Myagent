@@ -80,11 +80,32 @@ class KoraSocketService {
   }
 
   void _onMessage(dynamic data) {
+    if (data is! String) {
+      _messageController.add(WsMessage(
+        type: WsMessageType.error,
+        sessionId: '',
+        payload: {
+          'code': 'INVALID_FRAME_TYPE',
+          'message': 'Received non-string frame: ${data.runtimeType}',
+        },
+      ));
+      return;
+    }
+
     try {
-      final msg = WsMessage.fromRawString(data as String);
+      final msg = WsMessage.fromRawString(data);
       _messageController.add(msg);
-    } catch (_) {
-      // Malformed message — ignore
+    } catch (e) {
+      final truncated = data.length > 250 ? '${data.substring(0, 250)}...' : data;
+      _messageController.add(WsMessage(
+        type: WsMessageType.error,
+        sessionId: '',
+        payload: {
+          'code': 'MALFORMED_FRAME',
+          'message': 'Failed to parse frame: $e',
+          'raw_snippet': truncated,
+        },
+      ));
     }
   }
 

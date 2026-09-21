@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-[#FBF9F5]" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kora • Workspace AI</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: "#FFFFFF",
+            "surface-variant": "#F4F1EA",
+            "surface-container": "#EAE6DE",
+            background: "#FBF9F5",
+            outline: "#E5E0D8",
+            primary: "#4A6B5B",
+            "primary-hover": "#3D5A4C",
+            "on-primary": "#FFFFFF",
+            secondary: "#7E8B75",
+            "secondary-subtle": "#EDF1EB",
+            terracotta: "#C86D51",
+            "terracotta-light": "#F9ECE8",
+            "on-surface": "#222523",
+            "on-surface-variant": "#5C635E",
+            subtle: "#8A928B"
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
+          },
+          fontFamily: {
+            headline: ["Plus Jakarta Sans", "sans-serif"],
+            display: ["Plus Jakarta Sans", "sans-serif"],
+            body: ["Inter", "sans-serif"],
+            label: ["Inter", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(0.98); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2.5s infinite ease-in-out;
+    }
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .animate-cursor {
+      animation: cursor-blink 1s infinite;
+    }
+  </style>
+</head>
+<body class="h-full bg-background font-body text-on-surface antialiased flex overflow-hidden">
+<!-- ========================================================================= -->
+<!-- 1. LEFT SIDEBAR NAVIGATION (Shared Component: SideNavBar)                 -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 h-screen w-64 flex flex-col justify-between p-4 z-40 bg-surface border-r border-outline select-none">
+<!-- Top Brand & Actions -->
+<div class="space-y-4">
+<!-- Brand Logo Header -->
+<div class="flex items-center justify-between px-2 pt-1">
+<div class="flex items-center gap-3">
+<div class="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-headline font-extrabold text-lg shadow-sm">
+<span class="material-symbols-outlined text-primary" data-icon="psychology">psychology</span>
+</div>
+<div class="leading-none">
+<div class="font-headline text-lg font-bold tracking-tight text-primary flex items-center gap-1.5">
+              Kora
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span>
+</div>
+<div class="font-body text-xs text-subtle font-medium mt-0.5">Workspace AI</div>
+</div>
+</div>
+<button class="p-1.5 text-subtle hover:text-on-surface rounded-lg hover:bg-surface-variant transition-colors" title="Collapse Sidebar">
+<span class="material-symbols-outlined text-base" data-icon="left_panel_close">left_panel_close</span>
+</button>
+</div>
+<!-- New Chat Button CTA -->
+<button class="w-full bg-primary hover:bg-primary-hover text-on-primary font-headline font-semibold text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all duration-150 active:scale-95 group">
+<span class="material-symbols-outlined text-lg transition-transform group-hover:rotate-90 duration-200" data-icon="add">add</span>
+<span>New Chat</span>
+</button>
+<!-- Navigation Tab List -->
+<nav class="space-y-1 pt-1 font-body text-sm font-medium tracking-normal">
+<!-- Home -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#home">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span>Home</span>
+</a>
+<!-- Chat (ACTIVE) -->
+<a class="bg-surface-container text-primary font-semibold rounded-lg px-3 py-2 flex items-center justify-between transition-colors duration-150" href="#chat">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined fill-icon text-primary" data-icon="chat" data-weight="fill">chat</span>
+<span>Chat</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</a>
+<!-- Projects -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#projects">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+<span>Projects</span>
+</a>
+<!-- Tasks -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center justify-between transition-colors duration-150" href="#tasks">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="check_box">check_box</span>
+<span>Tasks</span>
+</div>
+<span class="px-1.5 py-0.5 text-[11px] font-semibold bg-surface-variant text-on-surface-variant rounded-md border border-outline/60">3</span>
+</a>
+<!-- Research -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#research">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span>Research</span>
+</a>
+<!-- Activity -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#activity">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Activity</span>
+</a>
+<!-- Memory -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#memory">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Memory</span>
+</a>
+<!-- Settings -->
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 flex items-center gap-3 transition-colors duration-150" href="#settings">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Footer Cluster -->
+<div class="space-y-3 pt-3 border-t border-outline">
+<div class="space-y-1">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-1.5 flex items-center gap-3 text-xs font-medium transition-colors" href="#help">
+<span class="material-symbols-outlined text-base" data-icon="help">help</span>
+<span>Help &amp; Support</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg px-3 py-1.5 flex items-center gap-3 text-xs font-medium transition-colors" href="#logout">
+<span class="material-symbols-outlined text-base" data-icon="logout">logout</span>
+<span>Log Out</span>
+</a>
+</div>
+<!-- User Profile Badge & Team Workspace Switcher -->
+<div class="p-2.5 rounded-xl bg-surface-variant/60 border border-outline/70 flex items-center justify-between hover:bg-surface-variant transition-colors cursor-pointer group">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-lg bg-[#E2DACF] border border-outline flex items-center justify-center text-primary font-semibold text-xs overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Professional studio portrait headshot of Elena Rostova, female tech executive with subtle natural lighting against a calm neutral studio backdrop, high realism" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDA8cTVuXCjCY4JwOl2cXddJ8qnPOKZBVfngD-ZjmM2EFsXBQRxKjpqXYX8tI319BX_NHgf-RLxt6mRun5nK5U_h0CT_cf6Z7n53NIDUtBUpIWRjRLwYO5vQ57NoVzG8FZXo6Ltd1l_Ikx9n_iznYnsO2t3sG4rX5Qut8RL3u1cPbg_YXGwhOL-18kj8YEwqSrP32jH0EudEx1_uJhLT6EwAtWFlWWmtBBzq0vfOdllsFi2A8mnIecmpE6CpuEb5LD9rS8NQYvEqtA"/>
+</div>
+<div class="truncate">
+<div class="text-xs font-semibold text-on-surface truncate">Elena Rostova</div>
+<div class="text-[10px] text-subtle truncate">Principal Product Lead</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-subtle group-hover:text-on-surface transition-colors text-base" data-icon="unfold_more">unfold_more</span>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- MAIN WORKSPACE VIEWPORT (Canvas & Execution Canvas)                       -->
+<!-- ========================================================================= -->
+<div class="ml-64 flex-1 flex flex-col h-screen overflow-hidden bg-background">
+<!-- 2. TOP HEADER BAR (Shared Component: TopNavBar) -->
+<header class="sticky top-0 right-0 left-64 h-16 px-6 flex items-center justify-between z-30 w-full bg-background border-b border-outline">
+<!-- Context Selector & Session Breadcrumb -->
+<div class="flex items-center gap-3 min-w-0">
+<!-- Knowledge Source Selector Dropdown -->
+<button class="flex items-center gap-2 px-3 py-1.5 bg-surface border border-outline rounded-lg text-xs font-medium text-on-surface hover:bg-surface-variant shadow-sm transition-all duration-150">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="database">database</span>
+<span>All Workspace Knowledge</span>
+<span class="material-symbols-outlined text-subtle text-xs" data-icon="arrow_drop_down">arrow_drop_down</span>
+</button>
+<span class="text-outline text-sm">/</span>
+<!-- Active Breadcrumb -->
+<div class="flex items-center gap-2 min-w-0">
+<span class="text-xs font-semibold text-on-surface truncate max-w-sm">Market Analysis &amp; Competitor Benchmarking Q3</span>
+<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/15 text-secondary border border-secondary/20">Agentic</span>
+</div>
+</div>
+<!-- Right Header Actions: Gateway Status, Model Selector & Utilities -->
+<div class="flex items-center gap-3">
+<!-- Live Gateway Status Pill -->
+<div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-surface border border-outline rounded-full text-xs font-medium text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span>Connected</span>
+<span class="text-subtle text-[11px]">24ms</span>
+</div>
+<!-- Model Switcher -->
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-outline rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-variant cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="auto_awesome">auto_awesome</span>
+<span>Kora Sonnet 3.7 Agentic</span>
+<span class="material-symbols-outlined text-subtle text-xs" data-icon="expand_more">expand_more</span>
+</div>
+<div class="h-4 w-[1px] bg-outline mx-0.5"></div>
+<!-- Notification Bell -->
+<button class="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors" title="Notifications">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-terracotta rounded-full ring-2 ring-background"></span>
+</button>
+<!-- Tune / Parameters Drawer Trigger -->
+<button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors" title="Model Tuning">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+<!-- Active User Avatar -->
+<div class="w-8 h-8 rounded-lg overflow-hidden border border-outline">
+<img class="w-full h-full object-cover" data-alt="Close-up headshot of Elena Rostova in modern corporate executive attire with warm ambient light, natural candid expression, soft warm background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlVK3yXmB4TptmoU6kxYj61kNdWWls0uk0MNyQtNK0VCXicQGGnKLr3J7blkNcUm0yIWSKYwdP1XLdTlh9-eDHM1TsAAw_S7ybWYj3T1hdknGC1bTwOUIgW-AFIrxD4DSTyY0CWdqAZ8EoH8tJXEqDYsnbe1_4hQWjiiT67igcMMuevsQMIVCJmpOiAy5JtMDabs_DM30LIXgpgxzbgGQaS0oZiBrQ-Nshqn7krJ4r64GXoRpXFNm2FZUnY4Uf_Hwqcoyhg8D9Wec"/>
+</div>
+</div>
+</header>
+<!-- 3. SCROLLABLE CONVERSATION & AGENT EXECUTION STREAM -->
+<main class="flex-1 overflow-y-auto px-6 py-8">
+<div class="max-w-4xl mx-auto space-y-8 pb-36">
+<!-- Timestamp Divider -->
+<div class="flex items-center justify-center">
+<span class="px-3 py-1 bg-surface-variant/80 border border-outline text-[11px] font-semibold text-subtle rounded-full tracking-wider uppercase">
+            TODAY, 10:24 AM
+          </span>
+</div>
+<!-- USER MESSAGE BLOCK -->
+<div class="flex items-start gap-4">
+<div class="w-9 h-9 rounded-xl overflow-hidden border border-outline flex-shrink-0 mt-0.5">
+<img class="w-full h-full object-cover" data-alt="Portrait photo of Elena Rostova with soft studio rim lighting, neutral light background, executive product leader headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDxSomEmP_a_IWv6yZq5qXB67--xMrEEiBLTMa1I8bCCOqRVMrC3kvu5qPuHnOUWjmwySdpusQ8wOEMsrti3oSb92XAavyMtTjnAhUJ97S8Km2WmSkYBbNb8kAZWvp7u7PJMTMwnaaFfzRudW2QQsqa6tIB31JnmYDGxPfI2LoQOq0NfP2wyDy-y9yuTlF7LEETq31xHQvkFrQJmrYjNisONhUkfFTRrAVxZc1MwkqhJjU8m1ngAkRbjO72i4hostxfOPVikDox38"/>
+</div>
+<div class="space-y-2 max-w-2xl">
+<div class="flex items-center gap-2">
+<span class="font-headline text-xs font-bold text-on-surface">Elena Rostova</span>
+<span class="text-[11px] text-subtle">10:24 AM</span>
+</div>
+<div class="bg-surface p-4 rounded-2xl rounded-tl-sm border border-outline shadow-sm text-sm text-on-surface leading-relaxed font-body">
+              Synthesize our Q3 SaaS acquisition pipeline data and compare competitor retention metrics from our internal Notion docs and external market reports.
+            </div>
+<!-- Scope Capsule Pill -->
+<div class="flex items-center gap-2 text-xs text-subtle">
+<span class="material-symbols-outlined text-sm text-secondary" data-icon="filter_center_focus">filter_center_focus</span>
+<span>Scope: Notion Workspaces, Annual Reports, Live Search</span>
+</div>
+</div>
+</div>
+<!-- AGENT RESPONSE CONTAINER -->
+<div class="flex items-start gap-4">
+<!-- Kora Avatar with subtle ambient badge -->
+<div class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center font-headline font-bold text-sm shadow-sm flex-shrink-0 mt-1 ring-4 ring-primary/10">
+<span class="material-symbols-outlined text-lg" data-icon="psychology">psychology</span>
+</div>
+<div class="space-y-5 flex-1 min-w-0">
+<!-- Agent Header & Run Meta -->
+<div class="flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2">
+<span class="font-headline text-sm font-bold text-on-surface">Kora</span>
+<!-- Live Execution Status Badge -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-terracotta-light text-terracotta border border-terracotta/20 animate-pulse-subtle">
+<span class="w-1.5 h-1.5 rounded-full bg-terracotta"></span>
+                  Agent Execution In Progress
+                </span>
+</div>
+<div class="flex items-center gap-2 text-xs text-subtle">
+<span>Run ID:</span>
+<code class="px-2 py-0.5 rounded bg-surface-variant font-mono text-[11px] text-on-surface-variant border border-outline">#kr-84920</code>
+<button class="p-1 hover:text-on-surface rounded hover:bg-surface-variant" title="Copy Run ID">
+<span class="material-symbols-outlined text-xs" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+</div>
+<!-- 6-STEP AUTONOMOUS PLAN STEPPER -->
+<div class="p-4 bg-surface rounded-2xl border border-outline shadow-sm space-y-3">
+<div class="flex items-center justify-between text-xs text-subtle font-medium border-b border-outline/60 pb-2.5">
+<span class="flex items-center gap-1.5 font-semibold text-on-surface">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="route">route</span>
+                  Autonomous Execution Plan
+                </span>
+<span>Step 4 of 6 Active</span>
+</div>
+<!-- Stepper Pills Flow -->
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
+<!-- Step 1: Thinking (Completed) -->
+<div class="p-2 rounded-xl bg-surface-variant/70 border border-outline/80 flex flex-col justify-between h-16">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono text-subtle">01</span>
+<span class="material-symbols-outlined text-primary text-base" data-icon="check_circle" data-weight="fill">check_circle</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-on-surface leading-none">Thinking</div>
+<div class="text-[10px] text-subtle mt-0.5">0.3s elapsed</div>
+</div>
+</div>
+<!-- Step 2: Search RAG (Completed) -->
+<div class="p-2 rounded-xl bg-surface-variant/70 border border-outline/80 flex flex-col justify-between h-16">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono text-subtle">02</span>
+<span class="material-symbols-outlined text-primary text-base" data-icon="check_circle" data-weight="fill">check_circle</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-on-surface leading-none">Search RAG</div>
+<div class="text-[10px] text-subtle mt-0.5">11 chunks • 1.1s</div>
+</div>
+</div>
+<!-- Step 3: Read Docs (Completed) -->
+<div class="p-2 rounded-xl bg-surface-variant/70 border border-outline/80 flex flex-col justify-between h-16">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono text-subtle">03</span>
+<span class="material-symbols-outlined text-primary text-base" data-icon="check_circle" data-weight="fill">check_circle</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-on-surface leading-none">Read Docs</div>
+<div class="text-[10px] text-subtle mt-0.5">2 files parsed</div>
+</div>
+</div>
+<!-- Step 4: Tool Search (Active Running) -->
+<div class="p-2 rounded-xl bg-terracotta-light/60 border border-terracotta/40 flex flex-col justify-between h-16 ring-2 ring-terracotta/15">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono font-bold text-terracotta">04</span>
+<div class="w-3.5 h-3.5 border-2 border-terracotta border-t-transparent rounded-full animate-spin"></div>
+</div>
+<div>
+<div class="text-xs font-bold text-terracotta leading-none">Tool Search</div>
+<div class="text-[10px] text-terracotta font-medium mt-0.5 truncate">duckduckgo</div>
+</div>
+</div>
+<!-- Step 5: Verifying (Queued) -->
+<div class="p-2 rounded-xl bg-surface-variant/30 border border-outline/50 flex flex-col justify-between h-16 opacity-75">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono text-subtle">05</span>
+<span class="material-symbols-outlined text-subtle text-base" data-icon="radio_button_unchecked">radio_button_unchecked</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-subtle leading-none">Verifying</div>
+<div class="text-[10px] text-subtle mt-0.5">Cross-check</div>
+</div>
+</div>
+<!-- Step 6: Synthesis (Final) -->
+<div class="p-2 rounded-xl bg-surface-variant/30 border border-outline/50 flex flex-col justify-between h-16 opacity-75">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-mono text-subtle">06</span>
+<span class="material-symbols-outlined text-subtle text-base" data-icon="flag">flag</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-subtle leading-none">Synthesis</div>
+<div class="text-[10px] text-subtle mt-0.5">Executive output</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ACTIVE TOOL CALL TERMINAL CARD -->
+<div class="rounded-2xl border border-terracotta/30 bg-[#222523] text-stone-100 overflow-hidden shadow-sm">
+<div class="px-4 py-2.5 bg-[#1B1D1C] border-b border-stone-800 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-terracotta text-sm" data-icon="terminal">terminal</span>
+<span class="font-mono text-xs font-medium text-stone-300">Active Tool Call: <span class="text-terracotta">duckduckgo_search</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-terracotta/20 text-terracotta font-semibold border border-terracotta/30 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-terracotta animate-ping"></span>
+                    streaming query response
+                  </span>
+</div>
+</div>
+<div class="p-4 font-mono text-xs leading-relaxed space-y-1.5 text-stone-300">
+<p class="text-secondary-subtle">
+<span class="text-terracotta">&gt;</span> Executing live web extraction:
+                </p>
+<div class="text-stone-400 bg-stone-900/60 p-2.5 rounded-lg border border-stone-800 text-[11px] overflow-x-auto">
+<span class="text-terracotta">duckduckgo_search</span>(query=<span class="text-stone-200">"B2B SaaS retention benchmarks 2024 churn rate enterprise vs mid-market"</span>, max_results=5)
+                </div>
+<div class="pt-1 text-[11px] text-stone-400 flex items-center gap-1.5">
+<span class="text-secondary">&gt;</span> [200 OK] Fetched Gartner SaaS Churn Index 2024 (28.4 KB)<span class="inline-block w-1.5 h-3.5 bg-terracotta ml-1 animate-cursor"></span>
+</div>
+</div>
+</div>
+<!-- BENTO GRID: CITATIONS & REFERENCES -->
+<div class="space-y-2.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-xs font-semibold text-on-surface">
+<span class="material-symbols-outlined text-primary text-base" data-icon="library_books">library_books</span>
+<span>Grounding Context &amp; Sourced Artifacts</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-variant text-[10px] font-medium text-on-surface-variant border border-outline">3 items</span>
+</div>
+<button class="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+<span>Expand all context chunks (3)</span>
+<span class="material-symbols-outlined text-xs" data-icon="unfold_more">unfold_more</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<!-- Citation Card 1 -->
+<div class="p-3.5 bg-surface rounded-xl border border-outline hover:border-primary/40 hover:shadow-sm transition-all duration-150 cursor-pointer group">
+<div class="flex items-start justify-between">
+<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary/15 text-secondary border border-secondary/20">
+                      Notion Workspace
+                    </span>
+<span class="material-symbols-outlined text-subtle text-xs group-hover:text-primary transition-colors" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="mt-2.5">
+<h4 class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">Pipeline_Q3_Final.md</h4>
+<p class="text-[11px] text-subtle mt-1">4 relevant chunks retrieved</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline/60 flex items-center justify-between text-[10px] text-on-surface-variant">
+<span>Match Confidence</span>
+<span class="font-semibold text-primary">98% match</span>
+</div>
+</div>
+<!-- Citation Card 2 -->
+<div class="p-3.5 bg-surface rounded-xl border border-outline hover:border-primary/40 hover:shadow-sm transition-all duration-150 cursor-pointer group">
+<div class="flex items-start justify-between">
+<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                      Financial Drive
+                    </span>
+<span class="material-symbols-outlined text-subtle text-xs group-hover:text-primary transition-colors" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="mt-2.5">
+<h4 class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">Annual_Retention_Cohorts.csv</h4>
+<p class="text-[11px] text-subtle mt-1">7 tabular vector records</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline/60 flex items-center justify-between text-[10px] text-on-surface-variant">
+<span>Match Confidence</span>
+<span class="font-semibold text-primary">94% match</span>
+</div>
+</div>
+<!-- Citation Card 3 -->
+<div class="p-3.5 bg-surface rounded-xl border border-outline hover:border-primary/40 hover:shadow-sm transition-all duration-150 cursor-pointer group">
+<div class="flex items-start justify-between">
+<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-terracotta-light text-terracotta border border-terracotta/20">
+                      Live Web Report
+                    </span>
+<span class="material-symbols-outlined text-subtle text-xs group-hover:text-primary transition-colors" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="mt-2.5">
+<h4 class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">Gartner SaaS Churn Index 2024</h4>
+<p class="text-[11px] text-subtle mt-1">Extracted via DuckDuckGo</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline/60 flex items-center justify-between text-[10px] text-on-surface-variant">
+<span>Extraction</span>
+<span class="font-semibold text-terracotta">91% confidence</span>
+</div>
+</div>
+</div>
+</div>
+<!-- COLLAPSIBLE REASONING & CORRELATION CHAIN ACCORDION -->
+<div class="border border-outline bg-surface rounded-xl overflow-hidden shadow-sm">
+<button class="w-full px-4 py-3 flex items-center justify-between bg-surface-variant/40 hover:bg-surface-variant/70 transition-colors text-left">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-secondary text-base" data-icon="lightbulb">lightbulb</span>
+<span class="text-xs font-bold text-on-surface">Reasoning &amp; Correlation Chain</span>
+<span class="px-2 py-0.5 rounded-full bg-surface text-[10px] font-mono text-subtle border border-outline">1,420 tokens considered</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[11px] text-subtle">Step-by-step logic</span>
+<span class="material-symbols-outlined text-subtle text-sm" data-icon="expand_more">expand_more</span>
+</div>
+</button>
+<div class="p-4 bg-surface text-xs text-on-surface-variant space-y-2 border-t border-outline/60 leading-relaxed font-body">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-0.5" data-icon="subdirectory_arrow_right">subdirectory_arrow_right</span>
+<p><strong class="text-on-surface">Step 1 Correlation:</strong> Matched Q3 internal closed-won ACV cohorts ($124k avg) against Gartner benchmark categories for enterprise tier ($100k-$250k ACV).</p>
+</div>
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-0.5" data-icon="subdirectory_arrow_right">subdirectory_arrow_right</span>
+<p><strong class="text-on-surface">Step 2 Normalized Adjustments:</strong> Eliminated non-recurring professional services revenue to yield true annual recurring retention metrics.</p>
+</div>
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-terracotta text-sm mt-0.5" data-icon="sync">sync</span>
+<p><strong class="text-on-surface">Step 3 Synthesis Delta:</strong> Internal NRR exceeds market 75th percentile by +4.2% primarily driven by mid-year seats expansion.</p>
+</div>
+</div>
+</div>
+<!-- EXECUTIVE SYNTHESIS SECTION -->
+<div class="p-6 bg-surface rounded-2xl border border-outline shadow-sm space-y-6">
+<div class="border-b border-outline pb-4">
+<h3 class="font-headline text-lg font-bold text-on-surface tracking-tight">
+                  Executive Synthesis: 2024 Enterprise B2B SaaS Churn &amp; Pipeline Benchmarks
+                </h3>
+<p class="text-xs text-subtle mt-1">Cross-referenced between 2 internal datasets and 2024 market peers.</p>
+</div>
+<!-- Executive Distillation Callout Box -->
+<div class="p-4 rounded-xl bg-surface-variant/60 border-l-4 border-l-primary border border-outline/80">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-bold text-primary flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="verified">verified</span>
+                    Key Takeaway &amp; Consensus
+                  </span>
+<span class="px-2 py-0.5 text-[10px] font-semibold bg-secondary/20 text-on-surface rounded-md">High Consensus</span>
+</div>
+<p class="text-xs text-on-surface leading-relaxed">
+                  Our Q3 retention profiles place the company in the <strong>top quartile (78th percentile)</strong> of enterprise B2B SaaS organizations with $20M–$50M ARR. Gross logo churn remains stabilized at 5.8% (outperforming the peer median of 7.2%), while Net Revenue Retention (NRR) reached 118.4%.
+                </p>
+</div>
+<!-- KPI BENTO METRIC CARDS -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<div class="p-4 rounded-xl bg-surface-variant/40 border border-outline">
+<div class="text-[11px] text-subtle font-medium">Median NRR (Top Quartile)</div>
+<div class="mt-1 flex items-baseline gap-2">
+<span class="font-headline text-2xl font-bold text-on-surface">114.2%</span>
+<span class="text-xs font-semibold text-primary flex items-center">
+<span class="material-symbols-outlined text-xs" data-icon="trending_up">trending_up</span>
+                      +2.4%
+                    </span>
+</div>
+<div class="text-[10px] text-subtle mt-1">vs. 2023 industry baseline</div>
+</div>
+<div class="p-4 rounded-xl bg-surface-variant/40 border border-outline">
+<div class="text-[11px] text-subtle font-medium">Gross Logo Churn</div>
+<div class="mt-1 flex items-baseline gap-2">
+<span class="font-headline text-2xl font-bold text-on-surface">6.4%</span>
+<span class="text-xs font-semibold text-secondary flex items-center">
+<span class="material-symbols-outlined text-xs" data-icon="remove">remove</span>
+                      -0.8%
+                    </span>
+</div>
+<div class="text-[10px] text-subtle mt-1">ACV &gt; $50k peer group</div>
+</div>
+<div class="p-4 rounded-xl bg-surface-variant/40 border border-outline">
+<div class="text-[11px] text-subtle font-medium">CAC Payback Period</div>
+<div class="mt-1 flex items-baseline gap-2">
+<span class="font-headline text-2xl font-bold text-on-surface">14.2 mos</span>
+<span class="text-xs font-semibold text-primary flex items-center">
+<span class="material-symbols-outlined text-xs" data-icon="arrow_downward">arrow_downward</span>
+                      Optimal
+                    </span>
+</div>
+<div class="text-[10px] text-subtle mt-1">Weighted enterprise average</div>
+</div>
+</div>
+<!-- COMPARATIVE ANALYSIS TABLE -->
+<div class="overflow-hidden rounded-xl border border-outline">
+<div class="px-4 py-2.5 bg-surface-variant/70 border-b border-outline flex items-center justify-between">
+<span class="text-xs font-bold text-on-surface">Internal vs. Peer Cohort Comparison (Q3 2024)</span>
+<span class="text-[11px] text-subtle font-mono">Sample: 142 B2B Companies</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<tr class="border-b border-outline bg-surface-variant/30 text-subtle font-semibold">
+<th class="py-2.5 px-4">Metric</th>
+<th class="py-2.5 px-3">Our Q3 Performance</th>
+<th class="py-2.5 px-3">Peer 75th %tile</th>
+<th class="py-2.5 px-3">Delta / Variance</th>
+<th class="py-2.5 px-4">Agent Insight</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline/60 text-on-surface">
+<tr class="hover:bg-surface-variant/20 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Net Revenue Retention (NRR)</td>
+<td class="py-3 px-3 font-mono font-bold text-primary">118.4%</td>
+<td class="py-3 px-3 font-mono text-on-surface-variant">114.2%</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary">
+                            +4.2%
+                          </span>
+</td>
+<td class="py-3 px-4 text-on-surface-variant text-[11px]">Outperforming via multi-seat expansion in fin-tech accounts</td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Gross Logo Churn</td>
+<td class="py-3 px-3 font-mono font-bold text-primary">5.8%</td>
+<td class="py-3 px-3 font-mono text-on-surface-variant">6.4%</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary">
+                            -0.6%
+                          </span>
+</td>
+<td class="py-3 px-4 text-on-surface-variant text-[11px]">Favorable retention driven by enterprise SLA commitments</td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Sales Cycle Velocity</td>
+<td class="py-3 px-3 font-mono font-bold text-on-surface">48 days</td>
+<td class="py-3 px-3 font-mono text-on-surface-variant">62 days</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary/15 text-secondary">
+                            -14 days
+                          </span>
+</td>
+<td class="py-3 px-4 text-on-surface-variant text-[11px]">SOC2 automated verification accelerated security reviews</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- ACTIONABLE STRATEGIC NEXT STEPS -->
+<div class="space-y-3 pt-2">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="flag">flag</span>
+                    Recommended Next Actions
+                  </span>
+<span class="text-[11px] text-subtle">Auto-generated tasks</span>
+</div>
+<div class="flex flex-wrap gap-2.5">
+<button class="flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface-variant border border-outline rounded-xl text-xs font-semibold text-on-surface transition-colors shadow-sm group">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="task_alt">task_alt</span>
+<span>Push to Linear (Issue: Q3 Retention Deep Dive)</span>
+<span class="material-symbols-outlined text-subtle group-hover:translate-x-0.5 transition-transform text-xs" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface-variant border border-outline rounded-xl text-xs font-semibold text-on-surface transition-colors shadow-sm group">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="article">article</span>
+<span>Export to Notion Executive Briefing</span>
+<span class="material-symbols-outlined text-subtle group-hover:translate-x-0.5 transition-transform text-xs" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface-variant border border-outline rounded-xl text-xs font-semibold text-on-surface transition-colors shadow-sm group">
+<span class="material-symbols-outlined text-terracotta text-sm" data-icon="send">send</span>
+<span>Share Summary to #leadership-sync</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- ========================================================================= -->
+<!-- 4. FLOATING COMPOSER DOCK BAR                                            -->
+<!-- ========================================================================= -->
+<footer class="fixed bottom-6 right-6 left-[17.5rem] max-w-4xl mx-auto z-40">
+<div class="bg-surface/95 backdrop-blur-md rounded-2xl border border-outline shadow-xl shadow-stone-200/50 p-3.5 space-y-2.5">
+<!-- Top Capability Pill Row & Context Usage -->
+<div class="flex flex-wrap items-center justify-between gap-2 px-1 text-xs">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-variant/80 border border-outline/70 text-[11px] font-medium text-on-surface">
+<span class="material-symbols-outlined text-primary text-xs" data-icon="bolt">bolt</span>
+              Deep Research enabled
+            </span>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-variant/80 border border-outline/70 text-[11px] font-medium text-on-surface">
+<span class="material-symbols-outlined text-secondary text-xs" data-icon="folder_open">folder_open</span>
+              Workspace RAG active
+            </span>
+<span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-variant/80 border border-outline/70 text-[11px] font-medium text-on-surface">
+<span class="material-symbols-outlined text-terracotta text-xs" data-icon="build_circle">build_circle</span>
+              Auto-execute tools
+            </span>
+</div>
+<!-- Token & Context Utilization Indicator -->
+<div class="flex items-center gap-1.5 text-[11px] text-subtle font-mono">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>4 Context Chunks loaded</span>
+<span>•</span>
+<span class="text-on-surface font-semibold">2,180</span>/128k ctx
+          </div>
+</div>
+<!-- Input Bar with Prompt Placeholder -->
+<div class="relative flex items-center">
+<textarea class="w-full bg-transparent border-0 focus:ring-0 p-2 text-sm text-on-surface placeholder:text-subtle resize-none font-body" placeholder="Ask Kora anything or type '/' for agent actions, tool calls, and dataset correlation..." rows="2"></textarea>
+</div>
+<!-- Bottom Action Controls Bar -->
+<div class="flex items-center justify-between pt-1 border-t border-outline/60 px-1">
+<!-- Left Controls -->
+<div class="flex items-center gap-1 text-on-surface-variant">
+<button class="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-surface-variant rounded-lg text-xs font-medium transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="add_circle">add_circle</span>
+<span>Add source</span>
+</button>
+<button class="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-surface-variant rounded-lg text-xs font-medium transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="grid_view">grid_view</span>
+<span>Templates</span>
+</button>
+<button class="p-1.5 hover:bg-surface-variant rounded-lg text-xs transition-colors" title="Voice note input">
+<span class="material-symbols-outlined text-sm" data-icon="mic">mic</span>
+</button>
+</div>
+<!-- Right Controls: Reasoning Pill + Stop Execution Button -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-variant border border-outline text-xs font-medium text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="psychology">psychology</span>
+<span>High Reasoning</span>
+</button>
+<!-- Terracotta Stop / Cancel Pill Action Button -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-terracotta hover:bg-[#B35F45] text-white text-xs font-semibold shadow-sm transition-all duration-150 active:scale-95">
+<span class="material-symbols-outlined text-sm fill-icon" data-icon="square" data-weight="fill">square</span>
+<span>Stop Execution</span>
+</button>
+</div>
+</div>
+</div>
+</footer>
+</div>
+</body></html>

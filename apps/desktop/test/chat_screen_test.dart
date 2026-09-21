@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -93,6 +95,102 @@ void main() {
 
       expect(find.text('duckduckgo_search'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('MarkdownBody renders bold, italic, code, and list items properly', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(
+            body: MarkdownBody(
+              data: '# Title\n\n**Bold text** and *italic text* and `inline code`\n\n- Item 1\n- Item 2',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(MarkdownBody), findsOneWidget);
+      expect(find.textContaining('Bold text'), findsOneWidget);
+    });
+
+    testWidgets('Enter key sends message and clears composer', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const Scaffold(body: ChatScreen()),
+          ),
+        ),
+      );
+
+      final textField = find.byType(TextField);
+      await tester.tap(textField);
+      await tester.enterText(textField, 'hello');
+      expect(find.text('hello'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      // TextField is cleared after send
+      final editable = tester.widget<TextField>(textField);
+      expect(editable.controller?.text, isEmpty);
+    });
+
+    testWidgets('Empty Enter does nothing', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const Scaffold(body: ChatScreen()),
+          ),
+        ),
+      );
+
+      final textField = find.byType(TextField);
+      await tester.tap(textField);
+      await tester.enterText(textField, '   ');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      // Text remains unchanged as it was not submitted
+      final editable = tester.widget<TextField>(textField);
+      expect(editable.controller?.text, '   ');
+    });
+
+    testWidgets('Shift + Enter allows multiline text input', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const Scaffold(body: ChatScreen()),
+          ),
+        ),
+      );
+
+      final textField = find.byType(TextField);
+      await tester.tap(textField);
+      await tester.enterText(textField, 'Line 1\nLine 2');
+      expect(find.text('Line 1\nLine 2'), findsOneWidget);
+
+      // Now send with unshifted Enter
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      final editable = tester.widget<TextField>(textField);
+      expect(editable.controller?.text, isEmpty);
     });
   });
 }

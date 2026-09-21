@@ -19,6 +19,10 @@ from research.router import ResearchRouter
 from tools.registry import build_default_registry, ToolRegistry
 
 
+from permissions.gate import PermissionGate
+from rag.retriever import RAGRetriever
+
+
 @lru_cache(maxsize=1)
 def get_model_registry() -> ModelRegistry:
     return ModelRegistry.load(settings.model_registry_path)
@@ -40,11 +44,14 @@ async def get_agent_dependencies() -> AsyncGenerator[dict[str, Any], None]:
     DB session is created per-request; singletons are cached.
     """
     async with AsyncSessionFactory() as db:
+        model_reg = get_model_registry()
         yield {
             "db": db,
             "redis": get_redis(),
-            "model_registry": get_model_registry(),
+            "model_registry": model_reg,
             "tool_registry": get_tool_registry(),
             "research_router": get_research_router(),
+            "rag_retriever": RAGRetriever(db=db, model_router=None),
+            "permission_gate": PermissionGate(),
         }
 

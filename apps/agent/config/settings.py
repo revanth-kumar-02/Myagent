@@ -49,7 +49,7 @@ class Settings(BaseSettings):
         default="",
         description="HuggingFace API token (required for Inference API)",
     )
-    huggingface_base_url: str = "https://api-inference.huggingface.co"
+    huggingface_base_url: str = "https://router.huggingface.co/v1"
 
     # ── Model Registry ────────────────────────────────────────────────────────
     model_registry_path: Path = Path(__file__).parent.parent / "models" / "registry.yaml"

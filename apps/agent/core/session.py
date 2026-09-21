@@ -10,6 +10,7 @@ One AgentSession instance per connected WebSocket client.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
@@ -22,7 +23,7 @@ from core.memory import Memory
 from core.model_router import ModelRouter
 from core.planner import Planner
 from core.tool_router import ToolRouter
-from core.types import ChatRequest, ChatResponse, Source, VerifierVerdict, WebSource
+from core.types import ActionType, ChatRequest, ChatResponse, Source, VerifierVerdict, WebSource
 from core.verifier import Verifier
 
 if TYPE_CHECKING:
@@ -70,9 +71,16 @@ class AgentSession:
         self._context = ContextManager(session_id, project_id, db, redis)
         self._memory = Memory(session_id, project_id, db, redis, self._model_router)
         self._planner = Planner(self._model_router)
+        self._permission_gate = permission_gate
+        if getattr(self._permission_gate, "_ws_send", None) is None:
+            self._permission_gate._ws_send = ws_send
         self._tool_router = ToolRouter(rag_retriever, research_router, tool_registry, permission_gate)
         self._executor = Executor(ws_send=ws_send, model_router=self._model_router)
         self._verifier = Verifier()
+
+    def handle_permission_response(self, grant: "PermissionGrant") -> None:
+        """Handle incoming PERMISSION_RESPONSE frame."""
+        self._permission_gate.receive_grant(grant)
 
     async def start(self) -> None:
         """Load session state on connection."""
@@ -89,7 +97,13 @@ class AgentSession:
         logger.info("agent_turn_start", session_id=str(self.session_id), trace_id=str(request.trace_id))
 
         await self._context.append_user(request.message)
-        memory_context = "\n".join(e.content for e in await self._memory.retrieve(request.message))
+        
+        memory_context = ""
+        try:
+            memories = await asyncio.wait_for(self._memory.retrieve(request.message), timeout=1.5)
+            memory_context = "\n".join(e.content for e in memories)
+        except Exception as e:
+            logger.debug("memory_retrieval_skipped_or_timed_out", error=str(e))
 
         # Load fresh context window
         context = self._context.build(memory_context=memory_context)
@@ -97,14 +111,21 @@ class AgentSession:
         # Plan
         plan = await self._planner.plan(request, context)
 
-        # Notify UI of created plan
-        await self.ws_send({
-            "type": "PLAN_UPDATE",
-            "payload": {
-                "trace_id": str(plan.trace_id),
-                "steps": [{"index": s.index, "label": s.label, "status": s.status.value} for s in plan.steps],
-            },
-        })
+        # Autonomous plans are only displayed for multi-step tasks, tools, research, or retrieval
+        is_autonomous_plan = (
+            len(plan.steps) > 1
+            or any(s.action_type in (ActionType.TOOL_CALL, ActionType.WEB_RESEARCH, ActionType.RAG_QUERY, ActionType.MEMORY_QUERY) for s in plan.steps)
+        )
+
+        if is_autonomous_plan:
+            # Notify UI of created plan
+            await self.ws_send({
+                "type": "PLAN_UPDATE",
+                "payload": {
+                    "trace_id": str(plan.trace_id),
+                    "steps": [{"index": s.index, "label": s.label, "status": s.status.value} for s in plan.steps],
+                },
+            })
 
         sources: list[Source] = []
         web_sources: list[WebSource] = []
@@ -112,7 +133,8 @@ class AgentSession:
 
         # Execute plan steps
         for step in plan.steps:
-            await self._planner.update_step_status(plan, step.index, step.status.__class__.RUNNING, self.ws_send)
+            if is_autonomous_plan:
+                await self._planner.update_step_status(plan, step.index, step.status.__class__.RUNNING, self.ws_send)
             target = await self._tool_router.resolve(step)
             attempt = 0
 
@@ -121,7 +143,8 @@ class AgentSession:
                 verdict = await self._verifier.check(result, attempt)
 
                 if verdict == VerifierVerdict.PASS:
-                    await self._planner.update_step_status(plan, step.index, step.status.__class__.DONE, self.ws_send)
+                    if is_autonomous_plan:
+                        await self._planner.update_step_status(plan, step.index, step.status.__class__.DONE, self.ws_send)
                     # Accumulate results
                     if hasattr(result.raw, "sources"):
                         sources.extend(result.raw.sources)
@@ -134,9 +157,15 @@ class AgentSession:
                     attempt += 1
                     continue
                 else:  # ESCALATE
-                    await self._planner.update_step_status(plan, step.index, step.status.__class__.FAILED, self.ws_send)
-                    logger.warning("step_escalated", step=step.label)
+                    if is_autonomous_plan:
+                        await self._planner.update_step_status(plan, step.index, step.status.__class__.FAILED, self.ws_send)
+                    logger.warning("step_escalated", step=step.label, error=result.error)
+                    if result.error:
+                        raise RuntimeError(f"Step '{step.label}' failed: {result.error}")
                     break
+
+        if not full_text:
+            raise RuntimeError("Inference finished without generating any response text.")
 
         latency_ms = int((time.monotonic() - start_time) * 1000)
         in_tokens = max(1, len(request.message.split()) * 2)
@@ -156,9 +185,12 @@ class AgentSession:
         )
 
         await self._context.append_assistant(full_text)
-        await self._memory.persist(request.message, full_text)
-        await self._context.save()
+        try:
+            await asyncio.wait_for(self._memory.persist(request.message, full_text), timeout=1.5)
+        except Exception as e:
+            logger.debug("memory_persist_skipped_or_timed_out", error=str(e))
 
+        await self._context.save()
         return response
 
     async def stop(self) -> None:

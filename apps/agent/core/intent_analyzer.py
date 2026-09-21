@@ -27,8 +27,8 @@ logger = structlog.get_logger(__name__)
 
 # Patterns indicating direct tool / terminal / file manipulation actions
 _TOOL_PATTERNS = [
-    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|create file|write file|edit file|delete file|modify file|mkdir)\b", re.IGNORECASE),
-    re.compile(r"\b(?:apply migration|run build|npm run|cargo test|flutter run)\b", re.IGNORECASE),
+    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|create\s+(?:a\s+|an\s+|new\s+)?file|write\s+(?:a\s+|to\s+)?file|edit\s+(?:a\s+)?file|delete\s+(?:a\s+)?file|modify\s+(?:a\s+)?file|mkdir|open\s+(?:vs\s*code|browser|terminal|app|application))\b", re.IGNORECASE),
+    re.compile(r"\b(?:apply migration|run build|npm run|cargo test|flutter run|execute script)\b", re.IGNORECASE),
 ]
 
 # Patterns indicating multi-step sequential tasks

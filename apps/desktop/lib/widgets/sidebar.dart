@@ -107,6 +107,39 @@ class Sidebar extends StatelessWidget {
           const Divider(height: 1, color: AppTheme.borderLight),
           const SizedBox(height: 12),
 
+          // + New Chat CTA from Stitch
+          if (!isCollapsed)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('New Chat'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(40),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                onPressed: () => onTabSelected(NavigationTab.chat),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: IconButton(
+                icon: const Icon(Icons.add_rounded, color: AppTheme.primary),
+                tooltip: 'New Chat',
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.primaryLight,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () => onTabSelected(NavigationTab.chat),
+              ),
+            ),
+          const SizedBox(height: 8),
+
           // Nav Items
           _buildNavItem(NavigationTab.home, Icons.dashboard_rounded, 'Home'),
           _buildNavItem(NavigationTab.chat, Icons.chat_bubble_rounded, 'Chat'),

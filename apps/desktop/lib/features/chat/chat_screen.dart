@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -23,6 +25,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final FocusNode _inputFocusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    _inputFocusNode.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.enter &&
+          !HardwareKeyboard.instance.isShiftPressed) {
+        _handleSend();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
+
+  @override
   void dispose() {
     _inputController.dispose();
     _scrollController.dispose();
@@ -45,6 +61,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _handleSend() {
     final text = _inputController.text;
     if (text.trim().isEmpty) return;
+    if (ref.read(chatProvider).isStreaming) return;
 
     ref.read(chatProvider.notifier).sendMessage(text);
     _inputController.clear();
@@ -157,14 +174,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: chatState.messages.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
+                : Scrollbar(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    itemCount: chatState.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = chatState.messages[index];
-                      return _buildMessageItem(message);
-                    },
+                    thumbVisibility: false,
+                    interactive: true,
+                    thickness: 5.0,
+                    radius: const Radius.circular(8),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      itemCount: chatState.messages.length,
+                      itemBuilder: (context, index) {
+                        final message = chatState.messages[index];
+                        return _buildMessageItem(message);
+                      },
+                    ),
                   ),
           ),
 
@@ -196,6 +220,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Top capability header row matching Stitch
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.surfaceHighlightLight,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                      border: Border(bottom: BorderSide(color: AppTheme.borderLight)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bolt_rounded, size: 11, color: AppTheme.primary),
+                              SizedBox(width: 4),
+                              Text('Deep Research', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primaryDark)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.secondaryLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.folder_open_rounded, size: 11, color: AppTheme.secondary),
+                              SizedBox(width: 4),
+                              Text('Workspace RAG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.secondaryDark)),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'Context: 2,180 / 128k',
+                          style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted, fontFamily: 'monospace'),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   // Text input field
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -204,13 +278,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       focusNode: _inputFocusNode,
                       maxLines: 5,
                       minLines: 1,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
                       style: const TextStyle(
                         fontSize: 13.5,
                         color: AppTheme.textPrimaryLight,
                         height: 1.4,
                       ),
                       decoration: const InputDecoration(
-                        hintText: 'Ask Kora anything, query project knowledge, or trigger tools...',
+                        hintText: "Ask Kora anything or trigger tools with '/'...",
                         hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                         filled: false,
                         border: InputBorder.none,
@@ -218,7 +294,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         focusedBorder: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(vertical: 8),
                       ),
-                      onSubmitted: (_) => _handleSend(),
                     ),
                   ),
 
@@ -253,7 +328,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           },
                         ),
                         const SizedBox(width: 8),
-                        // Capability Tag
+                        // High Reasoning Mode Chip
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -263,10 +338,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.bolt_rounded, size: 12, color: AppTheme.primary),
+                              Icon(Icons.psychology_alt_rounded, size: 12, color: AppTheme.primary),
                               SizedBox(width: 4),
                               Text(
-                                'Capability Routing',
+                                'High Reasoning',
                                 style: TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
@@ -489,8 +564,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ),
 
-                  // Message Content with Streaming/Thinking indicator
-                  if (message.content.isEmpty && message.status == MessageStatus.streaming)
+                  // Message Content with Streaming/Thinking indicator or Error
+                  if (message.status == MessageStatus.error)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorLight,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, size: 18, color: AppTheme.error),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SelectableText(
+                              message.errorMessage?.isNotEmpty == true ? message.errorMessage! : (message.content.isNotEmpty ? message.content : 'An unexpected error occurred during inference.'),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.error,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (message.content.isEmpty && message.status == MessageStatus.streaming)
                     const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -514,13 +614,94 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                       ],
                     )
-                  else
+                  else if (isUser)
                     SelectableText(
                       message.content,
                       style: const TextStyle(
                         fontSize: 13.5,
                         height: 1.5,
                         color: AppTheme.textPrimaryLight,
+                      ),
+                    )
+                  else
+                    MarkdownBody(
+                      data: message.content,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(
+                          fontSize: 13.5,
+                          height: 1.5,
+                          color: AppTheme.textPrimaryLight,
+                        ),
+                        strong: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimaryLight,
+                        ),
+                        em: const TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: AppTheme.textPrimaryLight,
+                        ),
+                        h1: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimaryLight,
+                          height: 1.4,
+                        ),
+                        h2: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimaryLight,
+                          height: 1.4,
+                        ),
+                        h3: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimaryLight,
+                          height: 1.4,
+                        ),
+                        h4: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimaryLight,
+                          height: 1.4,
+                        ),
+                        code: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12.5,
+                          color: AppTheme.primaryDark,
+                          backgroundColor: AppTheme.surfaceHighlightLight,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: AppTheme.surfaceHighlightLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.borderLight),
+                        ),
+                        codeblockPadding: const EdgeInsets.all(12),
+                        blockquote: const TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: AppTheme.textSecondaryLight,
+                        ),
+                        blockquoteDecoration: BoxDecoration(
+                          border: const Border(
+                            left: BorderSide(color: AppTheme.primary, width: 3),
+                          ),
+                          color: AppTheme.surfaceHighlightLight.withValues(alpha: 0.5),
+                        ),
+                        blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        listBullet: const TextStyle(
+                          fontSize: 13.5,
+                          color: AppTheme.textSecondaryLight,
+                        ),
+                        tableBorder: TableBorder.all(color: AppTheme.borderLight, width: 1),
+                        tableHead: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimaryLight,
+                        ),
+                        tableBody: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textPrimaryLight,
+                        ),
                       ),
                     ),
 
@@ -531,12 +712,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       webSources: message.webSources,
                     ),
 
-                  // Metadata footer
+                  // Metadata & Action Toolbar matching Stitch
                   if (!isUser && message.status == MessageStatus.done)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           if (message.modelUsed != null) ...[
                             Container(
@@ -559,13 +739,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           if (message.latencyMs != null) ...[
                             Text(
                               '${message.latencyMs}ms',
-                              style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                              style: const TextStyle(fontSize: 10, color: AppTheme.textMuted, fontFamily: 'monospace'),
                             ),
                             const SizedBox(width: 8),
                           ],
                           Text(
                             DateFormatter.formatShortTime(message.timestamp),
                             style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded, size: 14, color: AppTheme.textMuted),
+                            tooltip: 'Copy Response',
+                            splashRadius: 16,
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Copied response to clipboard'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

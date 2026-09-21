@@ -183,16 +183,13 @@ class Executor:
                     full_text = "".join(accumulated)
                     return ExecutorResult(step=step, success=True, content=full_text, raw=full_text)
             except Exception as exc:
-                logger.warning("model_streaming_exception", error=str(exc))
+                logger.error("model_streaming_failed", error=str(exc))
+                raise
 
-        # Fallback path if no model streaming occurred
-        if not accumulated:
-            if self._ws_send is not None:
-                await self._ws_send({
-                    "type": "CHAT_CHUNK",
-                    "payload": {"chunk": fallback_text},
-                })
-            return ExecutorResult(step=step, success=True, content=fallback_text, raw=fallback_text)
-
-        full_text = "".join(accumulated)
-        return ExecutorResult(step=step, success=True, content=full_text, raw=full_text)
+        # Fallback path if running in standalone offline/mock test harness without handle
+        if self._ws_send is not None:
+            await self._ws_send({
+                "type": "CHAT_CHUNK",
+                "payload": {"chunk": fallback_text},
+            })
+        return ExecutorResult(step=step, success=True, content=fallback_text, raw=fallback_text)

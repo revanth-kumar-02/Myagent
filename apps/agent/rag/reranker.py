@@ -26,18 +26,6 @@ _RERANKER_INSTANCE: Any = None
 
 def _get_reranker_model() -> Any:
     global _RERANKER_INSTANCE
-    if _RERANKER_INSTANCE is None:
-        try:
-            from sentence_transformers import CrossEncoder
-
-            model_name = getattr(
-                settings, "rag_reranker_model", "cross-encoder/ms-marco-MiniLM-L-6-v2"
-            )
-            logger.info("loading_reranker_model", model_name=model_name)
-            _RERANKER_INSTANCE = CrossEncoder(model_name)
-        except Exception as e:
-            logger.error("failed_to_load_reranker_model", error=str(e))
-            raise RuntimeError(f"Failed to load reranker model: {e}") from e
     return _RERANKER_INSTANCE
 
 
@@ -108,8 +96,17 @@ class CrossEncoderReranker(BaseReranker):
 
     def _sync_predict(self, pairs: list[tuple[str, str]]) -> list[float]:
         model = _get_reranker_model()
-        scores = model.predict(pairs, show_progress_bar=False)
-        return [float(s) for s in scores]
+        if model is not None:
+            scores = model.predict(pairs, show_progress_bar=False)
+            return [float(s) for s in scores]
+        # Cloud/zero-download fallback: simple term overlap score
+        scores = []
+        for query, content in pairs:
+            q_terms = set(query.lower().split())
+            c_terms = set(content.lower().split())
+            overlap = len(q_terms & c_terms) / (len(q_terms) or 1)
+            scores.append(float(overlap))
+        return scores
 
 
 class NoOpReranker(BaseReranker):

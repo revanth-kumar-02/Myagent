@@ -84,7 +84,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
 
                     async def execute_turn() -> None:
                         try:
-                            response = await session.run(request)
+                            response = await asyncio.wait_for(session.run(request), timeout=45.0)
                             await ws_send({
                                 "type": "CHAT_DONE",
                                 "session_id": str(session_id),
@@ -104,6 +104,12 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                                     "output_tokens": response.output_tokens,
                                     "latency_ms": response.latency_ms,
                                 },
+                            })
+                        except asyncio.TimeoutError:
+                            logger.error("chat_turn_timeout", session_id=str(session_id))
+                            await ws_send({
+                                "type": "ERROR",
+                                "payload": {"code": "TIMEOUT", "message": "Inference request timed out after 45s."},
                             })
                         except asyncio.CancelledError:
                             logger.info("chat_turn_cancelled", session_id=str(session_id))
@@ -153,6 +159,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                             request_id=uuid.UUID(payload["request_id"]),
                             granted=payload["granted"],
                         )
+                        session.handle_permission_response(grant)
 
                 case "HEARTBEAT":
                     await ws_send({"type": "HEARTBEAT", "payload": {}})

@@ -23,18 +23,34 @@ class WsMessage {
         ts = ts ?? DateTime.now().millisecondsSinceEpoch;
 
   factory WsMessage.fromJson(Map<String, dynamic> json) {
+    final typeStr = json['type'] as String? ?? 'ERROR';
+    final payloadRaw = json['payload'];
+    final Map<String, dynamic> payload = payloadRaw is Map<String, dynamic>
+        ? payloadRaw
+        : (payloadRaw is Map ? Map<String, dynamic>.from(payloadRaw) : {});
+
+    final int timestamp = (json['ts'] is num)
+        ? (json['ts'] as num).toInt()
+        : DateTime.now().millisecondsSinceEpoch;
+
     return WsMessage(
-      id: json['id'] as String,
-      type: WsMessageType.fromString(json['type'] as String),
-      sessionId: json['session_id'] as String,
-      projectId: json['project_id'] as String?,
-      payload: json['payload'] as Map<String, dynamic>? ?? {},
-      ts: json['ts'] as int,
+      id: json['id']?.toString() ?? const Uuid().v4(),
+      type: WsMessageType.fromString(typeStr),
+      sessionId: json['session_id']?.toString() ?? '',
+      projectId: json['project_id']?.toString(),
+      payload: payload,
+      ts: timestamp,
     );
   }
 
   factory WsMessage.fromRawString(String raw) {
-    return WsMessage.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) {
+      return WsMessage.fromJson(decoded);
+    } else if (decoded is Map) {
+      return WsMessage.fromJson(Map<String, dynamic>.from(decoded));
+    }
+    throw FormatException('WebSocket message is not a JSON object: $raw');
   }
 
   Map<String, dynamic> toJson() => {

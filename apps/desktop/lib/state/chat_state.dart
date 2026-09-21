@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -140,6 +141,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
     ));
   }
 
+  @visibleForTesting
+  void testHandleMessage(WsMessage msg) => _handleIncomingMessage(msg);
+
   void _handleIncomingMessage(WsMessage msg) {
     switch (msg.type) {
       case WsMessageType.chatChunk:
@@ -159,9 +163,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
       case WsMessageType.planCreated:
       case WsMessageType.planUpdate:
-        final stepsRaw = msg.payload['steps'] as List<dynamic>? ?? [];
-        final steps = stepsRaw.map((s) => PlanStep.fromJson(s as Map<String, dynamic>)).toList();
-        if (steps.isNotEmpty) {
+        final stepsRaw = msg.payload['steps'] as List<dynamic>?;
+        if (stepsRaw != null && stepsRaw.isNotEmpty) {
+          final steps = stepsRaw.map((s) => PlanStep.fromJson(s as Map<String, dynamic>)).toList();
           state = state.copyWith(activePlanSteps: steps);
           if (state.messages.isNotEmpty) {
             final last = state.messages.last;
@@ -169,6 +173,33 @@ class ChatNotifier extends StateNotifier<ChatState> {
               final list = List<ChatMessage>.from(state.messages);
               list[list.length - 1] = last.copyWith(planSteps: steps);
               state = state.copyWith(messages: list);
+            }
+          }
+        } else if (msg.payload.containsKey('step_index') && msg.payload.containsKey('status')) {
+          final stepIdx = msg.payload['step_index'] as int?;
+          final statusStr = msg.payload['status'] as String?;
+          final label = msg.payload['label'] as String? ?? '';
+          if (stepIdx != null && statusStr != null) {
+            final updatedSteps = List<PlanStep>.from(state.activePlanSteps);
+            while (updatedSteps.length <= stepIdx) {
+              updatedSteps.add(PlanStep(
+                index: updatedSteps.length,
+                label: label.isNotEmpty ? label : 'Step ${updatedSteps.length + 1}',
+                status: PlanStepStatus.pending,
+              ));
+            }
+            updatedSteps[stepIdx] = updatedSteps[stepIdx].copyWith(
+              label: label.isNotEmpty ? label : updatedSteps[stepIdx].label,
+              status: PlanStepStatus.fromString(statusStr),
+            );
+            state = state.copyWith(activePlanSteps: updatedSteps);
+            if (state.messages.isNotEmpty) {
+              final last = state.messages.last;
+              if (last.role == MessageRole.assistant) {
+                final list = List<ChatMessage>.from(state.messages);
+                list[list.length - 1] = last.copyWith(planSteps: updatedSteps);
+                state = state.copyWith(messages: list);
+              }
             }
           }
         }
@@ -235,6 +266,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
               activeTool: null,
             );
           }
+        } else {
+          state = state.copyWith(isStreaming: false, activeTool: null);
         }
         break;
 
@@ -249,6 +282,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
             );
             state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
           }
+        } else {
+          state = state.copyWith(isStreaming: false, activeTool: null);
         }
         break;
 
@@ -266,6 +301,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
             );
             state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
           }
+        } else {
+          state = state.copyWith(isStreaming: false, activeTool: null);
         }
         break;
 
