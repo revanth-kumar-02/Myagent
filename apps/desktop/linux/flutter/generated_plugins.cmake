@@ -3,9 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  local_notifier
   screen_retriever
-  tray_manager
   window_manager
 )
 
