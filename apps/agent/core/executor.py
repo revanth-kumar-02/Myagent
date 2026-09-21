@@ -116,12 +116,26 @@ class Executor:
             })
 
         output = ""
+        res: Any = None
         if target.callable_ is not None:
-            if inspect.iscoroutinefunction(target.callable_):
-                res = await target.callable_(**target.params)
+            sig = inspect.signature(target.callable_)
+            if len(sig.parameters) == 1 or "params" in sig.parameters:
+                if inspect.iscoroutinefunction(target.callable_):
+                    res = await target.callable_(target.params)
+                else:
+                    res = target.callable_(target.params)
             else:
-                res = target.callable_(**target.params)
-            output = str(res)
+                if inspect.iscoroutinefunction(target.callable_):
+                    res = await target.callable_(**target.params)
+                else:
+                    res = target.callable_(**target.params)
+
+            if hasattr(res, "error") and res.error:
+                return ExecutorResult(step=step, success=False, content="", error=str(res.error), raw=res)
+            if hasattr(res, "output"):
+                output = str(res.output) if res.output is not None else str(res)
+            else:
+                output = str(res)
         else:
             output = f"Executed {tool_name} with params {target.params}"
 
@@ -131,7 +145,7 @@ class Executor:
                 "payload": {"tool": tool_name, "output": output[:200]},
             })
 
-        return ExecutorResult(step=step, success=True, content=output, raw=output)
+        return ExecutorResult(step=step, success=True, content=output, raw=res if res is not None else output)
 
     async def _run_model(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
         """Generate response via model handle with token streaming."""

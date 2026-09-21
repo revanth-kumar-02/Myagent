@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../models/chat_message.dart';
+import '../../models/plan_step.dart';
 import '../../models/tool_command.dart';
 import '../../state/chat_state.dart';
 import '../../state/connection_state.dart';
@@ -321,177 +322,166 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top capability header row matching Stitch
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.surfaceHighlightLight,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                      border: Border(bottom: BorderSide(color: AppTheme.borderLight)),
-                    ),
-                    child: Row(
-                      children: [
+                    children: [
+                      // Dynamic live status bar (only visible during execution or active tool)
+                      if (chatState.isStreaming || chatState.activeTool != null || chatState.activePlanSteps.any((s) => s.status == PlanStepStatus.running))
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryLight,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.bolt_rounded, size: 11, color: AppTheme.primary),
-                              SizedBox(width: 4),
-                              Text('Deep Research', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primaryDark)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.secondaryLight,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.folder_open_rounded, size: 11, color: AppTheme.secondary),
-                              SizedBox(width: 4),
-                              Text('Workspace RAG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.secondaryDark)),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'Context: 2,180 / 128k',
-                          style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted, fontFamily: 'monospace'),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Text input field
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    child: TextField(
-                      controller: _inputController,
-                      focusNode: _inputFocusNode,
-                      maxLines: 5,
-                      minLines: 1,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        color: AppTheme.textPrimaryLight,
-                        height: 1.4,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: "Ask Kora anything or trigger tools with '/'...",
-                        hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                      ),
-                    ),
-                  ),
-
-                  // Bottom Dock Toolbar (Attachments, Voice, Capability, Send/Cancel)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                    child: Row(
-                      children: [
-                        // Attachment Action
-                        IconButton(
-                          icon: const Icon(Icons.attach_file_rounded, size: 18, color: AppTheme.textSecondaryLight),
-                          tooltip: 'Attach Document or Image',
-                          padding: const EdgeInsets.all(6),
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('File attachments indexed automatically via RAG.')),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                        // Voice Action
-                        IconButton(
-                          icon: const Icon(Icons.mic_rounded, size: 18, color: AppTheme.secondary),
-                          tooltip: 'Voice Input',
-                          padding: const EdgeInsets.all(6),
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Voice audio model: Gemma-4 Audio Gateway ready.')),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        // High Reasoning Mode Chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: const BoxDecoration(
                             color: AppTheme.surfaceHighlightLight,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                            border: Border(bottom: BorderSide(color: AppTheme.borderLight)),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Row(
                             children: [
-                              Icon(Icons.psychology_alt_rounded, size: 12, color: AppTheme.primary),
-                              SizedBox(width: 4),
+                              const SizedBox(
+                                width: 11,
+                                height: 11,
+                                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.primary),
+                              ),
+                              const SizedBox(width: 8),
                               Text(
-                                'High Reasoning',
-                                style: TextStyle(
-                                  fontSize: 10.5,
+                                chatState.activeTool != null
+                                    ? 'Executing /${chatState.activeTool}...'
+                                    : (chatState.activePlanSteps.any((s) => s.status == PlanStepStatus.running)
+                                        ? chatState.activePlanSteps.firstWhere((s) => s.status == PlanStepStatus.running).label
+                                        : 'Thinking & generating response...'),
+                                style: const TextStyle(
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.textSecondaryLight,
+                                  color: AppTheme.primaryDark,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Spacer(),
-                        // Send or Stop/Cancel Action
-                        if (chatState.isStreaming)
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.stop_rounded, size: 16),
-                            label: const Text('Cancel'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.accent, // Terracotta Stop Button
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () => ref.read(chatProvider.notifier).cancelGeneration(),
-                          )
-                        else
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.arrow_upward_rounded, size: 16),
-                            label: const Text('Send'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primary, // Sage Green Primary
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: _handleSend,
+
+                      // Text input field
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        child: TextField(
+                          controller: _inputController,
+                          focusNode: _inputFocusNode,
+                          maxLines: 5,
+                          minLines: 1,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            color: AppTheme.textPrimaryLight,
+                            height: 1.4,
                           ),
-                      ],
-                    ),
+                          decoration: const InputDecoration(
+                            hintText: "Ask Kora anything or trigger tools with '/'...",
+                            hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
+
+                      // Bottom Dock Toolbar (Tools +, Attachments, Voice, Dynamic Tokens, Send/Cancel)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                        child: Row(
+                          children: [
+                            // Tools & Capabilities Button (+)
+                            IconButton(
+                              icon: Icon(
+                                _showSlashPicker ? Icons.close_rounded : Icons.add_circle_outline_rounded,
+                                size: 19,
+                                color: _showSlashPicker ? AppTheme.accent : AppTheme.primary,
+                              ),
+                              tooltip: _showSlashPicker ? 'Close Tools' : 'Explore Tools & Commands',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() {
+                                  _showSlashPicker = !_showSlashPicker;
+                                  _slashFilter = '';
+                                  _selectedSlashIndex = 0;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            // Attachment Action
+                            IconButton(
+                              icon: const Icon(Icons.attach_file_rounded, size: 18, color: AppTheme.textSecondaryLight),
+                              tooltip: 'Attach Workspace Document or Image',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Workspace files indexed automatically via RAG.')),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            // Voice Action
+                            IconButton(
+                              icon: const Icon(Icons.mic_rounded, size: 18, color: AppTheme.secondary),
+                              tooltip: 'Voice Input',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Voice Gateway active.')),
+                                );
+                              },
+                            ),
+                            const Spacer(),
+                            // Real token context if available from latest message
+                            if (chatState.messages.isNotEmpty &&
+                                chatState.messages.any((m) => m.role == MessageRole.assistant && m.inputTokens != null && m.outputTokens != null)) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Text(
+                                  '${chatState.messages.lastWhere((m) => m.role == MessageRole.assistant && m.inputTokens != null).inputTokens! + chatState.messages.lastWhere((m) => m.role == MessageRole.assistant && m.outputTokens != null).outputTokens!} tokens',
+                                  style: const TextStyle(fontSize: 10.5, color: AppTheme.textMuted, fontFamily: 'monospace'),
+                                ),
+                              ),
+                            ],
+                            // Send or Stop/Cancel Action
+                            if (chatState.isStreaming)
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.stop_rounded, size: 16),
+                                label: const Text('Cancel'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accent, // Terracotta Stop Button
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => ref.read(chatProvider.notifier).cancelGeneration(),
+                              )
+                            else
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.arrow_upward_rounded, size: 16),
+                                label: const Text('Send'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary, // Sage Green Primary
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: _handleSend,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ],
-  ),
-);
-}
+    );
+  }
 
   Widget _buildEmptyState() {
     return Center(

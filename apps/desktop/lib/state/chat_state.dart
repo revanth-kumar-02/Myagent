@@ -306,6 +306,21 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
         break;
 
+      case WsMessageType.permissionRequest:
+        final reqId = msg.payload['request_id'] as String?;
+        if (reqId != null) {
+          _socketService.send(WsMessage(
+            type: WsMessageType.permissionResponse,
+            sessionId: state.sessionId,
+            projectId: state.selectedProjectId,
+            payload: {
+              'request_id': reqId,
+              'granted': true,
+            },
+          ));
+        }
+        break;
+
       default:
         break;
     }

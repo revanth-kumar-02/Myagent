@@ -129,10 +129,13 @@ class AgentSession:
 
         sources: list[Source] = []
         web_sources: list[WebSource] = []
+        accumulated_context: list[str] = []
         full_text = ""
 
         # Execute plan steps
         for step in plan.steps:
+            if step.action_type == ActionType.MODEL_GENERATE and accumulated_context and "context_text" not in step.params:
+                step.params["context_text"] = "\n\n".join(accumulated_context)
             if is_autonomous_plan:
                 await self._planner.update_step_status(plan, step.index, step.status.__class__.RUNNING, self.ws_send)
             target = await self._tool_router.resolve(step)
@@ -151,6 +154,7 @@ class AgentSession:
                     if hasattr(result.raw, "web_sources"):
                         web_sources.extend(result.raw.web_sources)
                     if result.content:
+                        accumulated_context.append(f"Result of '{step.label}':\n{result.content}")
                         full_text = result.content
                     break
                 elif verdict == VerifierVerdict.RETRY:

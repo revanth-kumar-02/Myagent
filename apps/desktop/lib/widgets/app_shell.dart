@@ -11,6 +11,7 @@ import '../features/research/research_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/tasks/tasks_screen.dart';
 import '../state/connection_state.dart';
+import '../state/models_state.dart';
 import 'sidebar.dart';
 import 'status_pill.dart';
 
@@ -28,6 +29,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final conn = ref.watch(connectionProvider);
+    final modelsState = ref.watch(modelsProvider);
 
     final currentView = switch (_currentTab) {
       NavigationTab.home     => HomeScreen(onNavigate: (t) => setState(() => _currentTab = t)),
@@ -103,30 +105,31 @@ class _AppShellState extends ConsumerState<AppShell> {
                         ),
                       ),
                       const Spacer(),
-                      // Model Capability Indicator Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryLight,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.tune_rounded, size: 12, color: AppTheme.primary),
-                            SizedBox(width: 6),
-                            Text(
-                              'Qwen3 + Gemma-4 Gateway',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryDark,
+                      // Dynamic Model Capability Indicator Pill
+                      if (modelsState.activeChatModel != null || modelsState.models.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.tune_rounded, size: 12, color: AppTheme.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                modelsState.activeChatModel ?? (modelsState.models.isNotEmpty ? modelsState.models.first.name : 'Model Gateway'),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryDark,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                       const SizedBox(width: 12),
                       StatusPill(
                         status: conn.status,

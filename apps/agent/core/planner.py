@@ -271,6 +271,40 @@ class Planner:
             parts = msg_clean[1:].split(maxsplit=1)
             tool_name = parts[0]
             args_str = parts[1] if len(parts) > 1 else ""
+
+            params: dict[str, Any] = {
+                "action": args_str or "execute",
+                "command": args_str,
+                "query": args_str,
+                "tool": tool_name,
+                "app_name": args_str,
+                "url": args_str,
+                "path": args_str,
+                "destination_path": args_str,
+                "goal": args_str,
+                "task_id": args_str,
+                "selector": args_str,
+                "title": args_str or "Notification",
+                "message": args_str or "Kora Notification",
+                "text": args_str,
+            }
+            if tool_name == "clipboard" and not args_str:
+                params["action"] = "read"
+            elif tool_name == "browser_control" and not args_str:
+                params["action"] = "open"
+            elif tool_name == "app_launcher" and args_str:
+                app_parts = args_str.split()
+                params["app_name"] = app_parts[0]
+                params["args"] = app_parts[1:]
+            elif tool_name == "download_manager":
+                subparts = args_str.split(maxsplit=1)
+                if len(subparts) == 2:
+                    params["url"] = subparts[0]
+                    params["destination_path"] = subparts[1]
+                elif len(subparts) == 1 and subparts[0]:
+                    params["url"] = subparts[0]
+                    params["destination_path"] = "downloaded_file"
+
             return PlanStep(
                 index=index,
                 label=f"Execute tool: {tool_name}",
@@ -279,7 +313,7 @@ class Planner:
                 goal=f"Execute {tool_name} with parameters: {args_str}",
                 expected_result="Successful tool execution output",
                 verification_method="tool_output_check",
-                params={"action": args_str, "command": args_str, "query": args_str, "tool": tool_name},
+                params=params,
             )
 
         if "pytest" in message.lower() or "test" in message.lower():

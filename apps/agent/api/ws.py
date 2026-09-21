@@ -62,7 +62,12 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
             msg_type = msg.get("type")
             payload = msg.get("payload", {})
             project_id_str = msg.get("project_id")
-            project_id = uuid.UUID(project_id_str) if project_id_str else None
+            project_id: uuid.UUID | None = None
+            if project_id_str:
+                try:
+                    project_id = uuid.UUID(str(project_id_str))
+                except (ValueError, TypeError, AttributeError):
+                    project_id = None
 
             match msg_type:
                 case "CHAT_REQUEST":
