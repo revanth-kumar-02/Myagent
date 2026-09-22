@@ -52,6 +52,38 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${config.httpBaseUrl}$path');
+
+    try {
+      final res = await _client.patch(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(config.requestTimeout);
+      return _handleResponse(res);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('PATCH $path failed: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${config.httpBaseUrl}$path');
+
+    try {
+      final res = await _client.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(config.requestTimeout);
+      return _handleResponse(res);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('PUT $path failed: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> delete(String path) async {
     final uri = Uri.parse('${config.httpBaseUrl}$path');
 

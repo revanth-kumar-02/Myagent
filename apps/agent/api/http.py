@@ -41,24 +41,7 @@ _projects_store: dict[str, dict[str, Any]] = {
     }
 }
 
-_memory_store: list[dict[str, Any]] = [
-    {
-        "id": "mem-1",
-        "content": "Prefers Python for backend services and Flutter/Dart for desktop user interfaces.",
-        "type": "preference",
-        "confidence": 0.95,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "project_id": "default-project",
-    },
-    {
-        "id": "mem-2",
-        "content": "Active research topic: Autonomous agent multi-modal reasoning with Qwen3 and Gemma-4.",
-        "type": "fact",
-        "confidence": 0.90,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "project_id": "default-project",
-    }
-]
+_memory_store: list[dict[str, Any]] = []
 
 _tasks_store: list[dict[str, Any]] = [
     {
@@ -116,9 +99,19 @@ class ProjectCreateRequest(BaseModel):
 
 class MemoryCreateRequest(BaseModel):
     content: str
-    type: str = "fact"
+    type: str = "user_preference"
     confidence: float = 1.0
+    importance: float = 0.5
     project_id: str | None = None
+    source: str = "user_explicit"
+
+
+class MemoryUpdateRequest(BaseModel):
+    content: str | None = None
+    type: str | None = None
+    confidence: float | None = None
+    importance: float | None = None
+    status: str | None = None
 
 
 class ResearchRequest(BaseModel):
@@ -215,36 +208,129 @@ async def list_tasks() -> dict[str, Any]:
 # ── Memory ──────────────────────────────────────────────────────────────────
 
 @router.get("/memory")
-async def list_memories(project_id: str | None = None) -> dict[str, Any]:
-    """List stored memories, optionally filtered by project."""
+async def list_memories(
+    project_id: str | None = None,
+    type: str | None = None,
+    status: str | None = None,
+) -> dict[str, Any]:
+    """List stored memories, optionally filtered by project, type, or status."""
+    res = list(_memory_store)
     if project_id:
-        filtered = [m for m in _memory_store if m.get("project_id") == project_id]
-        return {"memories": filtered}
-    return {"memories": _memory_store}
+        res = [m for m in res if m.get("project_id") == project_id or m.get("project_id") is None]
+    if type:
+        res = [m for m in res if m.get("type") == type]
+    if status:
+        res = [m for m in res if m.get("status") == status]
+    return {"memories": res}
 
 
 @router.post("/memory")
 async def create_memory(req: MemoryCreateRequest) -> dict[str, Any]:
     """Store a new memory item."""
     mem_id = f"mem-{uuid.uuid4().hex[:8]}"
-    item = {
+    now = datetime.now(timezone.utc).isoformat()
+    meta: dict[str, Any] = {}
+    item: dict[str, Any] = {
         "id": mem_id,
         "content": req.content,
         "type": req.type,
         "confidence": req.confidence,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "importance": req.importance,
+        "source": req.source,
+        "status": "active",
+        "created_at": now,
+        "updated_at": now,
         "project_id": req.project_id or "default-project",
+        "metadata": meta,
     }
     _memory_store.insert(0, item)
     return item
 
 
+@router.patch("/memory/{memory_id}")
+@router.put("/memory/{memory_id}")
+async def update_memory(memory_id: str, req: MemoryUpdateRequest) -> dict[str, Any]:
+    """Correct or update an existing memory item."""
+    now = datetime.now(timezone.utc).isoformat()
+    for m in _memory_store:
+        if m["id"] == memory_id:
+            if req.content is not None:
+                m["content"] = req.content
+            if req.type is not None:
+                m["type"] = req.type
+            if req.confidence is not None:
+                m["confidence"] = req.confidence
+            if req.importance is not None:
+                m["importance"] = req.importance
+            if req.status is not None:
+                m["status"] = req.status
+            m["updated_at"] = now
+            return m
+    raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+
+
+@router.post("/memory/{memory_id}/toggle")
+async def toggle_memory(memory_id: str) -> dict[str, Any]:
+    """Toggle memory between active and archived."""
+    now = datetime.now(timezone.utc).isoformat()
+    for m in _memory_store:
+        if m["id"] == memory_id:
+            m["status"] = "archived" if m.get("status") == "active" else "active"
+            m["updated_at"] = now
+            return m
+    raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+
+
 @router.delete("/memory/{memory_id}")
 async def delete_memory(memory_id: str) -> dict[str, Any]:
-    """Delete a memory entry."""
+    """Delete/forget a memory entry permanently."""
     global _memory_store
     _memory_store = [m for m in _memory_store if m["id"] != memory_id]
     return {"deleted": True, "memory_id": memory_id}
+
+
+@router.get("/memory/graph")
+@router.get("/graph")
+async def get_knowledge_graph(project_id: str | None = None) -> dict[str, Any]:
+    """Return entities and relationships connected to memories and knowledge."""
+    # Synthesize entities and relationships from active memories
+    entities: list[dict[str, Any]] = [
+        {"id": "ent-user", "name": "User", "type": "person", "label": "User"},
+        {"id": "ent-kora", "name": "Kora", "type": "agent", "label": "Kora Agent"},
+    ]
+    relationships: list[dict[str, Any]] = []
+
+    for m in _memory_store:
+        if m.get("status") == "archived":
+            continue
+        mem_id = m["id"]
+        mem_type = m.get("type", "fact")
+        content = m.get("content", "")
+        # Extract keywords as entities
+        words = [w.strip(",.!?\"'") for w in content.split() if len(w) > 4 and w.lower() not in {"prefer", "always", "decided", "using", "project", "building"}]
+        for w in words[:2]:
+            ent_id = f"ent-{w.lower()}"
+            if not any(e["id"] == ent_id for e in entities):
+                entities.append({
+                    "id": ent_id,
+                    "name": w,
+                    "type": "concept" if mem_type == "decision" else "technology",
+                    "label": w,
+                })
+            relationships.append({
+                "source": "User",
+                "target": w,
+                "type": "prefers" if "pref" in mem_type else ("decided" if "dec" in mem_type else "associated_with"),
+                "confidence": m.get("confidence", 0.9),
+                "memory_id": mem_id,
+            })
+
+    return {
+        "entities": entities,
+        "relationships": relationships,
+        "entity_count": len(entities),
+        "relationship_count": len(relationships),
+    }
 
 
 # ── Research ────────────────────────────────────────────────────────────────

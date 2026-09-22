@@ -81,9 +81,39 @@ class KoraApiService {
     return MemoryItem.fromJson(res);
   }
 
-  /// Delete memory
+  /// Update / correct memory
+  Future<MemoryItem> updateMemory(
+    String memoryId, {
+    String? content,
+    String? type,
+    double? confidence,
+    double? importance,
+    String? status,
+  }) async {
+    final res = await _client.patch('/api/memory/$memoryId', {
+      if (content != null) 'content': content,
+      if (type != null) 'type': type,
+      if (confidence != null) 'confidence': confidence,
+      if (importance != null) 'importance': importance,
+      if (status != null) 'status': status,
+    });
+    return MemoryItem.fromJson(res);
+  }
+
+  /// Toggle memory active / archived status
+  Future<MemoryItem> toggleMemoryStatus(String memoryId) async {
+    final res = await _client.post('/api/memory/$memoryId/toggle', {});
+    return MemoryItem.fromJson(res);
+  }
+
+  /// Delete / forget memory
   Future<void> deleteMemory(String memoryId) async {
     await _client.delete('/api/memory/$memoryId');
+  }
+
+  /// Fetch Knowledge Graph entities and relationships
+  Future<Map<String, dynamic>> getKnowledgeGraph({String? projectId}) async {
+    return await _client.get('/api/memory/graph', projectId != null ? {'project_id': projectId} : null);
   }
 
   /// Execute DuckDuckGo Web Research
