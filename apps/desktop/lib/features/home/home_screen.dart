@@ -22,9 +22,10 @@ class HomeScreen extends ConsumerWidget {
     final projectsState = ref.watch(projectsProvider);
     final tasksState = ref.watch(tasksProvider);
     final activityState = ref.watch(activityProvider);
+    final c = AppTheme.colors(context);
 
     return Container(
-      color: AppTheme.bgLight,
+      color: c.bg,
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         child: Column(
@@ -37,21 +38,21 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Good day, Workspace User',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
-                          color: AppTheme.textPrimaryLight,
+                          color: c.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Autonomous agent ready with RAG document retrieval, persistent memory, and live web research.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondaryLight,
+                          color: c.textSecondary,
                         ),
                       ),
                     ],
@@ -61,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: const Icon(Icons.chat_bubble_rounded, size: 15),
                   label: const Text('Open Chat'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: c.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -81,7 +82,8 @@ class HomeScreen extends ConsumerWidget {
                     value: connState.status == BackendStatus.online ? 'Connected' : 'Offline',
                     subtitle: '${connState.modelsAvailable} Capability Models',
                     icon: Icons.check_circle_rounded,
-                    color: AppTheme.success,
+                    color: c.success,
+                    c: c,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -91,7 +93,8 @@ class HomeScreen extends ConsumerWidget {
                     value: '${projectsState.projects.length}',
                     subtitle: 'Projects Indexed',
                     icon: Icons.folder_rounded,
-                    color: AppTheme.secondary,
+                    color: c.secondary,
+                    c: c,
                     onTap: () => onNavigate(NavigationTab.projects),
                   ),
                 ),
@@ -102,7 +105,8 @@ class HomeScreen extends ConsumerWidget {
                     value: '${tasksState.tasks.length}',
                     subtitle: '${tasksState.tasks.where((t) => t.status == "running").length} In Progress',
                     icon: Icons.task_alt_rounded,
-                    color: AppTheme.primary,
+                    color: c.primary,
+                    c: c,
                     onTap: () => onNavigate(NavigationTab.tasks),
                   ),
                 ),
@@ -111,12 +115,12 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 28),
 
             // Quick Capabilities & Actions
-            const Text(
+            Text(
               'Agent Capabilities',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimaryLight,
+                color: c.textPrimary,
                 letterSpacing: -0.2,
               ),
             ),
@@ -128,6 +132,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.travel_explore_rounded,
                     title: 'DuckDuckGo Research',
                     description: 'Extract external evidence and generate summarized reports.',
+                    c: c,
                     onTap: () => onNavigate(NavigationTab.research),
                   ),
                 ),
@@ -137,6 +142,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.psychology_rounded,
                     title: 'Personal Memory',
                     description: 'Explore learned facts, preferences, and knowledge entities.',
+                    c: c,
                     onTap: () => onNavigate(NavigationTab.memory),
                   ),
                 ),
@@ -146,6 +152,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.tune_rounded,
                     title: 'Model Gateway',
                     description: 'Qwen3 & Gemma-4 capability routing and telemetry.',
+                    c: c,
                     onTap: () => onNavigate(NavigationTab.settings),
                   ),
                 ),
@@ -157,21 +164,21 @@ class HomeScreen extends ConsumerWidget {
             // Recent Activity Feed
             Row(
               children: [
-                const Text(
+                Text(
                   'Recent Agent Activity',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimaryLight,
+                    color: c.textPrimary,
                     letterSpacing: -0.2,
                   ),
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.primary),
-                  label: const Text(
+                  icon: Icon(Icons.arrow_forward_rounded, size: 14, color: c.primary),
+                  label: Text(
                     'View All Traces',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.primary),
                   ),
                   onPressed: () => onNavigate(NavigationTab.activity),
                 ),
@@ -181,9 +188,9 @@ class HomeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
+                color: c.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderLight, width: 1),
+                border: Border.all(color: c.border, width: 1),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),
@@ -193,12 +200,12 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
               child: activityState.logs.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Center(
                         child: Text(
                           'No recent activity logs. Send a prompt to see agent reasoning traces.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       ),
                     )
@@ -207,7 +214,7 @@ class HomeScreen extends ConsumerWidget {
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceHighlightLight,
+                          color: c.surfaceHighlight,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -215,15 +222,15 @@ class HomeScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
+                                color: c.primaryLight,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 log.eventType,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryDark,
+                                  color: c.primaryDark,
                                 ),
                               ),
                             ),
@@ -231,10 +238,10 @@ class HomeScreen extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 log.details,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimaryLight,
+                                  color: c.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -243,7 +250,7 @@ class HomeScreen extends ConsumerWidget {
                               const SizedBox(width: 8),
                               Text(
                                 '${log.latencyMs}ms',
-                                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                style: TextStyle(fontSize: 11, color: c.textMuted),
                               ),
                             ],
                           ],
@@ -263,6 +270,7 @@ class HomeScreen extends ConsumerWidget {
     required String subtitle,
     required IconData icon,
     required Color color,
+    required KoraColors c,
     VoidCallback? onTap,
   }) {
     return Material(
@@ -270,13 +278,13 @@ class HomeScreen extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        hoverColor: AppTheme.surfaceHighlightLight,
+        hoverColor: c.surfaceHighlight,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceLight,
+            color: c.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.borderLight, width: 1),
+            border: Border.all(color: c.border, width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.02),
@@ -301,10 +309,10 @@ class HomeScreen extends ConsumerWidget {
                   const Spacer(),
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textSecondaryLight,
+                      color: c.textSecondary,
                     ),
                   ),
                 ],
@@ -312,19 +320,19 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimaryLight,
+                  color: c.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
                 subtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppTheme.textMuted,
+                  color: c.textMuted,
                   fontWeight: FontWeight.w500,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -340,6 +348,7 @@ class HomeScreen extends ConsumerWidget {
     required IconData icon,
     required String title,
     required String description,
+    required KoraColors c,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -347,13 +356,13 @@ class HomeScreen extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        hoverColor: AppTheme.surfaceHighlightLight,
+        hoverColor: c.surfaceHighlight,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceLight,
+            color: c.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.borderLight, width: 1),
+            border: Border.all(color: c.border, width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.02),
@@ -368,26 +377,26 @@ class HomeScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryLight,
+                  color: c.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 18, color: AppTheme.primary),
+                child: Icon(icon, size: 18, color: c.primary),
               ),
               const SizedBox(height: 12),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimaryLight,
+                  color: c.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 description,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11.5,
-                  color: AppTheme.textSecondaryLight,
+                  color: c.textSecondary,
                   height: 1.35,
                 ),
                 maxLines: 2,
@@ -400,4 +409,3 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
-

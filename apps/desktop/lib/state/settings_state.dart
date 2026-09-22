@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/model_info.dart';
 import '../services/kora_api_service.dart';
 import 'connection_state.dart';
@@ -21,7 +22,6 @@ class SettingsState {
     this.errorMessage,
   });
 
-
   SettingsState copyWith({
     ThemeMode? themeMode,
     String? backendHttpUrl,
@@ -42,10 +42,48 @@ class SettingsState {
 }
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
+  static const _themePrefKey = 'kora_theme_mode';
   final KoraApiService _apiService;
 
   SettingsNotifier(this._apiService) : super(const SettingsState()) {
+    _loadPersistedSettings();
     loadModelInfo();
+  }
+
+  Future<void> _loadPersistedSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final modeStr = prefs.getString(_themePrefKey);
+      if (modeStr != null) {
+        final mode = switch (modeStr) {
+          'dark' => ThemeMode.dark,
+          'light' => ThemeMode.light,
+          'system' => ThemeMode.system,
+          _ => ThemeMode.light,
+        };
+        state = state.copyWith(themeMode: mode);
+      }
+    } catch (_) {
+      // Keep default light theme if preferences cannot be accessed
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    state = state.copyWith(themeMode: mode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final modeStr = switch (mode) {
+        ThemeMode.dark => 'dark',
+        ThemeMode.light => 'light',
+        ThemeMode.system => 'system',
+      };
+      await prefs.setString(_themePrefKey, modeStr);
+    } catch (_) {}
+  }
+
+  void toggleTheme() {
+    final next = state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    setThemeMode(next);
   }
 
   Future<void> loadModelInfo() async {
@@ -56,11 +94,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
-  }
-
-  void toggleTheme() {
-    final next = state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-    state = state.copyWith(themeMode: next);
   }
 
   void updateBackendUrls({required String httpUrl, required String wsUrl}) {

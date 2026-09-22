@@ -16,14 +16,16 @@ class SlashCommandPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppTheme.colors(context);
+
     if (commands.isEmpty) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
+          color: c.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppTheme.borderLight),
+          border: Border.all(color: c.border),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -32,11 +34,11 @@ class SlashCommandPicker extends StatelessWidget {
             ),
           ],
         ),
-        child: const Text(
+        child: Text(
           'No matching tools or commands found',
           style: TextStyle(
             fontSize: 12.5,
-            color: AppTheme.textMuted,
+            color: c.textMuted,
             fontStyle: FontStyle.italic,
           ),
         ),
@@ -47,9 +49,9 @@ class SlashCommandPicker extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       constraints: const BoxConstraints(maxHeight: 250),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderLight, width: 1),
+        border: Border.all(color: c.border, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -67,29 +69,29 @@ class SlashCommandPicker extends StatelessWidget {
             // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: const BoxDecoration(
-                color: AppTheme.surfaceHighlightLight,
-                border: Border(bottom: BorderSide(color: AppTheme.borderLight)),
+              decoration: BoxDecoration(
+                color: c.surfaceHighlight,
+                border: Border(bottom: BorderSide(color: c.border)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.bolt_rounded, size: 13, color: AppTheme.primary),
-                  SizedBox(width: 6),
+                  Icon(Icons.bolt_rounded, size: 13, color: c.primary),
+                  const SizedBox(width: 6),
                   Text(
                     'Available Tools & Capabilities',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryDark,
+                      color: c.primaryDark,
                       letterSpacing: 0.2,
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   Text(
                     '↑↓ navigate • Enter select • Esc close',
                     style: TextStyle(
                       fontSize: 10,
-                      color: AppTheme.textMuted,
+                      color: c.textMuted,
                     ),
                   ),
                 ],
@@ -110,10 +112,10 @@ class SlashCommandPicker extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.primaryLight : Colors.transparent,
+                        color: isSelected ? c.primaryLight : Colors.transparent,
                         border: Border(
                           left: BorderSide(
-                            color: isSelected ? AppTheme.primary : Colors.transparent,
+                            color: isSelected ? c.primary : Colors.transparent,
                             width: 3,
                           ),
                         ),
@@ -124,14 +126,14 @@ class SlashCommandPicker extends StatelessWidget {
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.primary.withValues(alpha: 0.15)
-                                  : AppTheme.surfaceHighlightLight,
+                                  ? c.primary.withValues(alpha: 0.15)
+                                  : c.surfaceHighlight,
                               borderRadius: BorderRadius.circular(7),
                             ),
                             child: Icon(
                               cmd.icon,
                               size: 15,
-                              color: isSelected ? AppTheme.primary : AppTheme.secondary,
+                              color: isSelected ? c.primary : c.secondary,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -146,7 +148,7 @@ class SlashCommandPicker extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: isSelected ? AppTheme.primaryDark : AppTheme.textPrimaryLight,
+                                        color: isSelected ? c.primaryDark : c.textPrimary,
                                         fontFamily: 'monospace',
                                       ),
                                     ),
@@ -154,15 +156,15 @@ class SlashCommandPicker extends StatelessWidget {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.surfaceTertiary,
+                                        color: c.surfaceTertiary,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         cmd.category.toUpperCase(),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.textSecondaryLight,
+                                          color: c.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -171,9 +173,9 @@ class SlashCommandPicker extends StatelessWidget {
                                 const SizedBox(height: 2),
                                 Text(
                                   cmd.description,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11.5,
-                                    color: AppTheme.textSecondaryLight,
+                                    color: c.textSecondary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

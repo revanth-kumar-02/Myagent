@@ -16,13 +16,15 @@ class CitationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (sources.isEmpty && webSources.isEmpty) return const SizedBox.shrink();
 
+    final c = AppTheme.colors(context);
+
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderLight, width: 1),
+        border: Border.all(color: c.border, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -36,23 +38,23 @@ class CitationCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.verified_rounded, size: 15, color: AppTheme.primary),
+              Icon(Icons.verified_rounded, size: 15, color: c.primary),
               const SizedBox(width: 8),
               Text(
                 'Sources & Evidence (${sources.length + webSources.length})',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimaryLight,
+                  color: c.textPrimary,
                 ),
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Context Citations',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.textMuted,
+                  color: c.textMuted,
                 ),
               ),
             ],
@@ -69,9 +71,9 @@ class CitationCard extends StatelessWidget {
                     constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceHighlightLight.withValues(alpha: 0.5),
+                      color: c.surfaceHighlight.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.borderLight),
+                      border: Border.all(color: c.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,19 +84,19 @@ class CitationCard extends StatelessWidget {
                               width: 24,
                               height: 24,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
+                                color: c.primaryLight,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(Icons.description_rounded, size: 13, color: AppTheme.primary),
+                              child: Icon(Icons.description_rounded, size: 13, color: c.primary),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 src.filePath,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimaryLight,
+                                  color: c.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -107,20 +109,20 @@ class CitationCard extends StatelessWidget {
                           children: [
                             Text(
                               src.startLine != null ? 'L${src.startLine}-L${src.endLine}' : 'Workspace',
-                              style: const TextStyle(fontSize: 10, color: AppTheme.textMuted, fontFamily: 'monospace'),
+                              style: TextStyle(fontSize: 10, color: c.textMuted, fontFamily: 'monospace'),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
+                                color: c.primaryLight,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'RAG Match',
                                 style: TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.primaryDark,
+                                  color: c.primaryDark,
                                 ),
                               ),
                             ),
@@ -133,9 +135,9 @@ class CitationCard extends StatelessWidget {
                     constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceHighlightLight.withValues(alpha: 0.5),
+                      color: c.surfaceHighlight.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.borderLight),
+                      border: Border.all(color: c.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,19 +148,19 @@ class CitationCard extends StatelessWidget {
                               width: 24,
                               height: 24,
                               decoration: BoxDecoration(
-                                color: AppTheme.accentLight,
+                                color: c.accentLight,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(Icons.public_rounded, size: 13, color: AppTheme.accent),
+                              child: Icon(Icons.public_rounded, size: 13, color: c.accent),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 web.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimaryLight,
+                                  color: c.textPrimary,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -173,7 +175,7 @@ class CitationCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 web.url,
-                                style: const TextStyle(fontSize: 10, color: AppTheme.primary, decoration: TextDecoration.underline),
+                                style: TextStyle(fontSize: 10, color: c.primary, decoration: TextDecoration.underline),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -181,15 +183,15 @@ class CitationCard extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: AppTheme.accentLight,
+                                color: c.accentLight,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Web',
                                 style: TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.accent,
+                                  color: c.accent,
                                 ),
                               ),
                             ),
@@ -207,4 +209,3 @@ class CitationCard extends StatelessWidget {
     );
   }
 }
-

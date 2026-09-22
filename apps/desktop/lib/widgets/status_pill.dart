@@ -14,10 +14,12 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppTheme.colors(context);
+
     final (color, label, icon) = switch (status) {
-      BackendStatus.online     => (AppTheme.success, 'Connected', Icons.check_circle_rounded),
-      BackendStatus.connecting => (AppTheme.warning, 'Connecting...', Icons.sync_rounded),
-      BackendStatus.offline    => (AppTheme.error, 'Offline', Icons.cloud_off_rounded),
+      BackendStatus.online     => (c.success, 'Connected', Icons.check_circle_rounded),
+      BackendStatus.connecting => (c.warning, 'Connecting...', Icons.sync_rounded),
+      BackendStatus.offline    => (c.error, 'Offline', Icons.cloud_off_rounded),
     };
 
     return InkWell(

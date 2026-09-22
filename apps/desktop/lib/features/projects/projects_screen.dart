@@ -9,6 +9,7 @@ class ProjectsScreen extends ConsumerWidget {
   const ProjectsScreen({super.key});
 
   void _showNewProjectDialog(BuildContext context, WidgetRef ref) {
+    final c = AppTheme.colors(context);
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final pathCtrl = TextEditingController();
@@ -16,9 +17,9 @@ class ProjectsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceLight,
+        backgroundColor: c.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Create New Project', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimaryLight)),
+        title: Text('Create New Project', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.textPrimary)),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -26,28 +27,40 @@ class ProjectsScreen extends ConsumerWidget {
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Project Name'),
+                style: TextStyle(color: c.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Project Name',
+                  labelStyle: TextStyle(color: c.textSecondary),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                style: TextStyle(color: c.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  labelStyle: TextStyle(color: c.textSecondary),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: pathCtrl,
-                decoration: const InputDecoration(labelText: 'Root Workspace Path (Optional)'),
+                style: TextStyle(color: c.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Root Workspace Path (Optional)',
+                  labelStyle: TextStyle(color: c.textSecondary),
+                ),
               ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondaryLight)),
+            child: Text('Cancel', style: TextStyle(color: c.textSecondary)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: Colors.white),
             child: const Text('Create'),
             onPressed: () {
               if (nameCtrl.text.trim().isNotEmpty) {
@@ -68,9 +81,10 @@ class ProjectsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(projectsProvider);
+    final c = AppTheme.colors(context);
 
     return Container(
-      color: AppTheme.bgLight,
+      color: c.bg,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +92,7 @@ class ProjectsScreen extends ConsumerWidget {
           // Header
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -88,13 +102,13 @@ class ProjectsScreen extends ConsumerWidget {
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
-                        color: AppTheme.textPrimaryLight,
+                        color: c.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Manage indexed codebases and document repositories for RAG vector retrieval.',
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
+                      style: TextStyle(fontSize: 13, color: c.textSecondary),
                     ),
                   ],
                 ),
@@ -103,7 +117,7 @@ class ProjectsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('New Project'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
+                  backgroundColor: c.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -117,12 +131,12 @@ class ProjectsScreen extends ConsumerWidget {
           // Project List
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                ? Center(child: CircularProgressIndicator(color: c.primary))
                 : state.projects.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No projects configured. Create one to begin indexing documents.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       )
                     : ListView.builder(
@@ -135,12 +149,12 @@ class ProjectsScreen extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: c.surface,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppTheme.primary
-                                    : AppTheme.borderLight,
+                                    ? c.primary
+                                    : c.border,
                                 width: isSelected ? 1.5 : 1.0,
                               ),
                               boxShadow: [
@@ -156,10 +170,10 @@ class ProjectsScreen extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryLight,
+                                    color: c.primaryLight,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.folder_rounded, color: AppTheme.primary, size: 22),
+                                  child: Icon(Icons.folder_rounded, color: c.primary, size: 22),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -170,10 +184,10 @@ class ProjectsScreen extends ConsumerWidget {
                                         children: [
                                           Text(
                                             project.name,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14.5,
                                               fontWeight: FontWeight.w700,
-                                              color: AppTheme.textPrimaryLight,
+                                              color: c.textPrimary,
                                             ),
                                           ),
                                           if (isSelected) ...[
@@ -181,16 +195,16 @@ class ProjectsScreen extends ConsumerWidget {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.primaryLight,
+                                                color: c.primaryLight,
                                                 borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                                                border: Border.all(color: c.primary.withValues(alpha: 0.3)),
                                               ),
-                                              child: const Text(
+                                              child: Text(
                                                 'ACTIVE RAG SCOPE',
                                                 style: TextStyle(
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w700,
-                                                  color: AppTheme.primaryDark,
+                                                  color: c.primaryDark,
                                                 ),
                                               ),
                                             ),
@@ -200,7 +214,7 @@ class ProjectsScreen extends ConsumerWidget {
                                       const SizedBox(height: 4),
                                       Text(
                                         project.description.isNotEmpty ? project.description : 'No description provided',
-                                        style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondaryLight),
+                                        style: TextStyle(fontSize: 12.5, color: c.textSecondary),
                                       ),
                                       const SizedBox(height: 6),
                                       Row(
@@ -208,18 +222,18 @@ class ProjectsScreen extends ConsumerWidget {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: AppTheme.surfaceHighlightLight,
+                                              color: c.surfaceHighlight,
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
                                               'Path: ${project.rootPath}',
-                                              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondaryLight, fontFamily: 'monospace'),
+                                              style: TextStyle(fontSize: 11, color: c.textSecondary, fontFamily: 'monospace'),
                                             ),
                                           ),
                                           const SizedBox(width: 10),
                                           Text(
                                             '•  ${project.fileCount} Files  •  ${project.chunkCount} Chunks',
-                                            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
+                                            style: TextStyle(fontSize: 11, color: c.textMuted, fontWeight: FontWeight.w500),
                                           ),
                                         ],
                                       ),
@@ -227,7 +241,7 @@ class ProjectsScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppTheme.textMuted),
+                                  icon: Icon(Icons.delete_outline_rounded, size: 19, color: c.textMuted),
                                   tooltip: 'Delete Project',
                                   onPressed: () => ref.read(projectsProvider.notifier).deleteProject(project.id),
                                 ),
@@ -242,4 +256,3 @@ class ProjectsScreen extends ConsumerWidget {
     );
   }
 }
-

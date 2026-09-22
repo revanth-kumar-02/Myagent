@@ -13,9 +13,10 @@ class ToolBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isExecuting ? AppTheme.accentLight : AppTheme.primaryLight;
-    final fgColor = isExecuting ? AppTheme.accent : AppTheme.primary;
-    final borderColor = isExecuting ? AppTheme.accent.withValues(alpha: 0.3) : AppTheme.primary.withValues(alpha: 0.25);
+    final c = AppTheme.colors(context);
+    final bgColor = isExecuting ? c.accentLight : c.primaryLight;
+    final fgColor = isExecuting ? c.accent : c.primary;
+    final borderColor = isExecuting ? c.accent.withValues(alpha: 0.3) : c.primary.withValues(alpha: 0.25);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
@@ -58,4 +59,3 @@ class ToolBadge extends StatelessWidget {
     );
   }
 }
-

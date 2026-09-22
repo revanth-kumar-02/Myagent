@@ -26,14 +26,13 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const bg = AppTheme.bgLight;
-    const borderColor = AppTheme.borderLight;
+    final c = AppTheme.colors(context);
 
     return Container(
       width: isCollapsed ? 68 : 224,
-      decoration: const BoxDecoration(
-        color: bg,
-        border: Border(right: BorderSide(color: borderColor, width: 1)),
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(right: BorderSide(color: c.border, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,11 +48,11 @@ class Sidebar extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: AppTheme.primary,
+                    color: c.primary,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.2),
+                        color: c.primary.withValues(alpha: 0.25),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -73,7 +72,7 @@ class Sidebar extends StatelessWidget {
                 ),
                 if (!isCollapsed) ...[
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,7 +83,7 @@ class Sidebar extends StatelessWidget {
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.5,
-                            color: AppTheme.textPrimaryLight,
+                            color: c.textPrimary,
                           ),
                         ),
                         Text(
@@ -92,7 +91,7 @@ class Sidebar extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: AppTheme.textMuted,
+                            color: c.textMuted,
                             letterSpacing: 0.2,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -104,10 +103,10 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppTheme.borderLight),
+          Divider(height: 1, color: c.border),
           const SizedBox(height: 12),
 
-          // + New Chat CTA from Stitch
+          // + New Chat CTA
           if (!isCollapsed)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -115,7 +114,7 @@ class Sidebar extends StatelessWidget {
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('New Chat'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
+                  backgroundColor: c.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(40),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -129,10 +128,10 @@ class Sidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: IconButton(
-                icon: const Icon(Icons.add_rounded, color: AppTheme.primary),
+                icon: Icon(Icons.add_rounded, color: c.primary),
                 tooltip: 'New Chat',
                 style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.primaryLight,
+                  backgroundColor: c.primaryLight,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () => onTabSelected(NavigationTab.chat),
@@ -141,25 +140,26 @@ class Sidebar extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Nav Items
-          _buildNavItem(NavigationTab.home, Icons.dashboard_rounded, 'Home'),
-          _buildNavItem(NavigationTab.chat, Icons.chat_bubble_rounded, 'Chat'),
-          _buildNavItem(NavigationTab.projects, Icons.folder_rounded, 'Projects'),
-          _buildNavItem(NavigationTab.tasks, Icons.task_alt_rounded, 'Tasks'),
-          _buildNavItem(NavigationTab.research, Icons.travel_explore_rounded, 'Research'),
-          _buildNavItem(NavigationTab.activity, Icons.insights_rounded, 'Activity'),
-          _buildNavItem(NavigationTab.memory, Icons.psychology_rounded, 'Memory'),
+          _buildNavItem(context, NavigationTab.home, Icons.dashboard_rounded, 'Home'),
+          _buildNavItem(context, NavigationTab.chat, Icons.chat_bubble_rounded, 'Chat'),
+          _buildNavItem(context, NavigationTab.projects, Icons.folder_rounded, 'Projects'),
+          _buildNavItem(context, NavigationTab.tasks, Icons.task_alt_rounded, 'Tasks'),
+          _buildNavItem(context, NavigationTab.research, Icons.travel_explore_rounded, 'Research'),
+          _buildNavItem(context, NavigationTab.activity, Icons.insights_rounded, 'Activity'),
+          _buildNavItem(context, NavigationTab.memory, Icons.psychology_rounded, 'Memory'),
 
           const Spacer(),
-          const Divider(height: 1, color: AppTheme.borderLight),
+          Divider(height: 1, color: c.border),
           const SizedBox(height: 6),
-          _buildNavItem(NavigationTab.settings, Icons.tune_rounded, 'Settings'),
+          _buildNavItem(context, NavigationTab.settings, Icons.tune_rounded, 'Settings'),
           const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(NavigationTab tab, IconData icon, String label) {
+  Widget _buildNavItem(BuildContext context, NavigationTab tab, IconData icon, String label) {
+    final c = AppTheme.colors(context);
     final isSelected = currentTab == tab;
 
     return Padding(
@@ -169,16 +169,16 @@ class Sidebar extends StatelessWidget {
         child: InkWell(
           onTap: () => onTabSelected(tab),
           borderRadius: BorderRadius.circular(8),
-          hoverColor: AppTheme.surfaceHighlightLight,
+          hoverColor: c.surfaceHighlight,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryLight : Colors.transparent,
+              color: isSelected ? c.primaryLight : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
               border: isSelected
-                  ? Border.all(color: AppTheme.primary.withValues(alpha: 0.3), width: 1)
+                  ? Border.all(color: c.primary.withValues(alpha: 0.35), width: 1)
                   : null,
             ),
             child: Row(
@@ -186,7 +186,7 @@ class Sidebar extends StatelessWidget {
                 Icon(
                   icon,
                   size: 19,
-                  color: isSelected ? AppTheme.primary : AppTheme.textSecondaryLight,
+                  color: isSelected ? c.primary : c.textSecondary,
                 ),
                 if (!isCollapsed) ...[
                   const SizedBox(width: 12),
@@ -195,7 +195,7 @@ class Sidebar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected ? AppTheme.primaryDark : AppTheme.textSecondaryLight,
+                      color: isSelected ? (Theme.of(context).brightness == Brightness.dark ? c.textPrimary : c.primaryDark) : c.textSecondary,
                     ),
                   ),
                 ],
@@ -207,4 +207,3 @@ class Sidebar extends StatelessWidget {
     );
   }
 }
-

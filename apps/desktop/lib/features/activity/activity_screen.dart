@@ -12,16 +12,17 @@ class ActivityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activityProvider);
+    final c = AppTheme.colors(context);
 
     return Container(
-      color: AppTheme.bgLight,
+      color: c.bg,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -31,13 +32,13 @@ class ActivityScreen extends ConsumerWidget {
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
-                        color: AppTheme.textPrimaryLight,
+                        color: c.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Real-time execution telemetry, model latencies, tool dispatches, and audit events.',
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
+                      style: TextStyle(fontSize: 13, color: c.textSecondary),
                     ),
                   ],
                 ),
@@ -53,12 +54,12 @@ class ActivityScreen extends ConsumerWidget {
 
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                ? Center(child: CircularProgressIndicator(color: c.primary))
                 : state.logs.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No activity traces recorded yet. Traces populate upon executing agent turns.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       )
                     : ListView.builder(
@@ -70,9 +71,9 @@ class ActivityScreen extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: c.surface,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.borderLight, width: 1),
+                              border: Border.all(color: c.border, width: 1),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.02),
@@ -86,16 +87,16 @@ class ActivityScreen extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryLight,
+                                    color: c.primaryLight,
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                                    border: Border.all(color: c.primary.withValues(alpha: 0.2)),
                                   ),
                                   child: Text(
                                     log.eventType,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryDark,
+                                      color: c.primaryDark,
                                     ),
                                   ),
                                 ),
@@ -103,10 +104,10 @@ class ActivityScreen extends ConsumerWidget {
                                 Expanded(
                                   child: Text(
                                     log.details,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w500,
-                                      color: AppTheme.textPrimaryLight,
+                                      color: c.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -114,15 +115,15 @@ class ActivityScreen extends ConsumerWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surfaceHighlightLight,
+                                      color: c.surfaceHighlight,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       '${log.latencyMs}ms',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.textSecondaryLight,
+                                        color: c.textSecondary,
                                       ),
                                     ),
                                   ),
@@ -130,7 +131,7 @@ class ActivityScreen extends ConsumerWidget {
                                 ],
                                 Text(
                                   DateFormatter.formatIso(log.timestamp),
-                                  style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                  style: TextStyle(fontSize: 11, color: c.textMuted),
                                 ),
                               ],
                             ),
@@ -143,4 +144,3 @@ class ActivityScreen extends ConsumerWidget {
     );
   }
 }
-

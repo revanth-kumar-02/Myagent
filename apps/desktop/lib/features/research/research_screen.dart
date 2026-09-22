@@ -30,14 +30,15 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(researchProvider);
+    final c = AppTheme.colors(context);
 
     return Container(
-      color: AppTheme.bgLight,
+      color: c.bg,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -46,13 +47,13 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.4,
-                  color: AppTheme.textPrimaryLight,
+                  color: c.textPrimary,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Live web retrieval engine for real-time external verification and evidence synthesis.',
-                style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
+                style: TextStyle(fontSize: 13, color: c.textSecondary),
               ),
             ],
           ),
@@ -64,7 +65,7 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceLight,
+                    color: c.surface,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
@@ -76,9 +77,11 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                   ),
                   child: TextField(
                     controller: _queryController,
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: c.textPrimary),
+                    decoration: InputDecoration(
                       hintText: 'Search DuckDuckGo or enter research topic...',
-                      prefixIcon: Icon(Icons.search_rounded, size: 20, color: AppTheme.secondary),
+                      hintStyle: TextStyle(color: c.textMuted),
+                      prefixIcon: Icon(Icons.search_rounded, size: 20, color: c.secondary),
                     ),
                     onSubmitted: (_) => _handleSearch(),
                   ),
@@ -89,7 +92,7 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                 icon: const Icon(Icons.travel_explore_rounded, size: 16),
                 label: const Text('Search Web'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
+                  backgroundColor: c.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -103,15 +106,15 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
           // Results Stream
           Expanded(
             child: state.isLoading
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(color: AppTheme.primary),
-                        SizedBox(height: 14),
+                        CircularProgressIndicator(color: c.primary),
+                        const SizedBox(height: 14),
                         Text(
                           'Querying DuckDuckGo & normalizing web snippets...',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 13, color: c.textSecondary, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -120,7 +123,7 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                     ? Center(
                         child: Text(
                           state.query.isEmpty ? 'Type a query above to search the live web.' : 'No results found for "${state.query}".',
-                          style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       )
                     : ListView.builder(
@@ -132,9 +135,9 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: c.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.borderLight, width: 1),
+                              border: Border.all(color: c.border, width: 1),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.02),
@@ -148,30 +151,30 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.language_rounded, size: 15, color: AppTheme.secondary),
+                                    Icon(Icons.language_rounded, size: 15, color: c.secondary),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         result.title,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14.5,
                                           fontWeight: FontWeight.w700,
-                                          color: AppTheme.primary,
+                                          color: c.primary,
                                         ),
                                       ),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.secondaryLight,
+                                        color: c.secondaryLight,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'DuckDuckGo',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.secondaryDark,
+                                          color: c.secondaryDark,
                                         ),
                                       ),
                                     ),
@@ -180,19 +183,19 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   result.url,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: AppTheme.textMuted,
+                                    color: c.textMuted,
                                     decoration: TextDecoration.underline,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   result.snippet,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     height: 1.45,
-                                    color: AppTheme.textPrimaryLight,
+                                    color: c.textPrimary,
                                   ),
                                 ),
                               ],
@@ -206,4 +209,3 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
     );
   }
 }
-

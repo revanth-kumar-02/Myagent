@@ -10,6 +10,7 @@ class MemoryScreen extends ConsumerWidget {
   const MemoryScreen({super.key});
 
   void _showAddMemoryDialog(BuildContext context, WidgetRef ref) {
+    final c = AppTheme.colors(context);
     final contentCtrl = TextEditingController();
     String selectedType = 'fact';
 
@@ -17,8 +18,9 @@ class MemoryScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
+          backgroundColor: c.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add Memory Record', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          title: Text('Add Memory Record', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c.textPrimary)),
           content: SizedBox(
             width: 420,
             child: Column(
@@ -27,8 +29,10 @@ class MemoryScreen extends ConsumerWidget {
                 TextField(
                   controller: contentCtrl,
                   maxLines: 3,
+                  style: TextStyle(color: c.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Memory Content',
+                    labelStyle: TextStyle(color: c.textSecondary),
                     hintText: 'e.g. User prefers concise answers with Python code examples.',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -36,15 +40,18 @@ class MemoryScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   value: selectedType,
+                  dropdownColor: c.surface,
+                  style: TextStyle(color: c.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Memory Type',
+                    labelStyle: TextStyle(color: c.textSecondary),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'fact', child: Text('Fact / Knowledge')),
-                    DropdownMenuItem(value: 'preference', child: Text('User Preference')),
-                    DropdownMenuItem(value: 'decision', child: Text('Past Decision')),
-                    DropdownMenuItem(value: 'context', child: Text('Task Context')),
+                  items: [
+                    DropdownMenuItem(value: 'fact', child: Text('Fact / Knowledge', style: TextStyle(color: c.textPrimary))),
+                    DropdownMenuItem(value: 'preference', child: Text('User Preference', style: TextStyle(color: c.textPrimary))),
+                    DropdownMenuItem(value: 'decision', child: Text('Past Decision', style: TextStyle(color: c.textPrimary))),
+                    DropdownMenuItem(value: 'context', child: Text('Task Context', style: TextStyle(color: c.textPrimary))),
                   ],
                   onChanged: (val) {
                     if (val != null) setModalState(() => selectedType = val);
@@ -55,12 +62,12 @@ class MemoryScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: c.textSecondary)),
               onPressed: () => Navigator.of(ctx).pop(),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.sageGreen,
+                backgroundColor: c.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -81,42 +88,43 @@ class MemoryScreen extends ConsumerWidget {
     );
   }
 
-  Color _badgeBgForType(String type, bool isDark) {
+  Color _badgeBgForType(String type, KoraColors c) {
     switch (type) {
       case 'preference':
-        return AppTheme.terracotta.withValues(alpha: 0.12);
+        return c.accent.withValues(alpha: 0.15);
       case 'fact':
-        return AppTheme.sageGreen.withValues(alpha: 0.12);
+        return c.primary.withValues(alpha: 0.15);
       case 'decision':
-        return AppTheme.softOlive.withValues(alpha: 0.14);
+        return c.secondary.withValues(alpha: 0.15);
       default:
-        return AppTheme.statusSearching.withValues(alpha: 0.12);
+        return c.warning.withValues(alpha: 0.15);
     }
   }
 
-  Color _badgeTextColorForType(String type) {
+  Color _badgeTextColorForType(String type, KoraColors c) {
     switch (type) {
       case 'preference':
-        return AppTheme.terracotta;
+        return c.accent;
       case 'fact':
-        return AppTheme.sageGreen;
+        return c.primary;
       case 'decision':
-        return AppTheme.softOlive;
+        return c.secondary;
       default:
-        return AppTheme.statusSearching;
+        return c.warning;
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(memoryProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = AppTheme.colors(context);
 
     final filtered = state.filterType == null
         ? state.memories
         : state.memories.where((m) => m.type == state.filterType).toList();
 
-    return Padding(
+    return Container(
+      color: c.bg,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,16 +135,16 @@ class MemoryScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Agent Long-Term Memory',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.3, color: c.textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Episodic facts, user preferences, and agent-learned context across sessions.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: c.textSecondary,
                       ),
                     ),
                   ],
@@ -147,7 +155,7 @@ class MemoryScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add Memory'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.sageGreen,
+                  backgroundColor: c.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -162,10 +170,10 @@ class MemoryScreen extends ConsumerWidget {
           Wrap(
             spacing: 8,
             children: [
-              _buildFilterChip(context, ref, label: 'All', value: null, selected: state.filterType == null),
-              _buildFilterChip(context, ref, label: 'Preferences', value: 'preference', selected: state.filterType == 'preference'),
-              _buildFilterChip(context, ref, label: 'Facts', value: 'fact', selected: state.filterType == 'fact'),
-              _buildFilterChip(context, ref, label: 'Decisions', value: 'decision', selected: state.filterType == 'decision'),
+              _buildFilterChip(context, ref, label: 'All', value: null, selected: state.filterType == null, c: c),
+              _buildFilterChip(context, ref, label: 'Preferences', value: 'preference', selected: state.filterType == 'preference', c: c),
+              _buildFilterChip(context, ref, label: 'Facts', value: 'fact', selected: state.filterType == 'fact', c: c),
+              _buildFilterChip(context, ref, label: 'Decisions', value: 'decision', selected: state.filterType == 'decision', c: c),
             ],
           ),
           const SizedBox(height: 18),
@@ -173,19 +181,19 @@ class MemoryScreen extends ConsumerWidget {
           // Memory Items
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.sageGreen))
+                ? Center(child: CircularProgressIndicator(color: c.primary))
                 : filtered.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.psychology_outlined, size: 40, color: AppTheme.softOlive.withValues(alpha: 0.5)),
+                            Icon(Icons.psychology_outlined, size: 40, color: c.secondary.withValues(alpha: 0.5)),
                             const SizedBox(height: 12),
                             Text(
                               'No memory records match this filter.',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                color: c.textSecondary,
                               ),
                             ),
                           ],
@@ -195,27 +203,25 @@ class MemoryScreen extends ConsumerWidget {
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final item = filtered[index];
-                          final badgeBg = _badgeBgForType(item.type, isDark);
-                          final badgeText = _badgeTextColorForType(item.type);
+                          final badgeBg = _badgeBgForType(item.type, c);
+                          final badgeText = _badgeTextColorForType(item.type, c);
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: isDark ? AppTheme.surfaceDark : AppTheme.cardLight,
+                              color: c.surface,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                                color: c.border,
                               ),
-                              boxShadow: isDark
-                                  ? []
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.02),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +252,7 @@ class MemoryScreen extends ConsumerWidget {
                                         style: TextStyle(
                                           fontSize: 13,
                                           height: 1.4,
-                                          color: isDark ? AppTheme.textPrimaryDark : AppTheme.charcoalText,
+                                          color: c.textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 6),
@@ -255,14 +261,14 @@ class MemoryScreen extends ConsumerWidget {
                                           Icon(
                                             Icons.shield_outlined,
                                             size: 11,
-                                            color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                            color: c.textSecondary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             'Confidence: ${(item.confidence * 100).toInt()}% • Created: ${DateFormatter.formatIso(item.createdAt)}',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                              color: c.textSecondary,
                                             ),
                                           ),
                                         ],
@@ -274,9 +280,9 @@ class MemoryScreen extends ConsumerWidget {
                                   icon: Icon(
                                     Icons.delete_outline,
                                     size: 16,
-                                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                    color: c.textSecondary,
                                   ),
-                                  hoverColor: AppTheme.terracotta.withValues(alpha: 0.1),
+                                  hoverColor: c.accent.withValues(alpha: 0.1),
                                   tooltip: 'Delete Record',
                                   onPressed: () => ref.read(memoryProvider.notifier).deleteMemory(item.id),
                                 ),
@@ -297,20 +303,21 @@ class MemoryScreen extends ConsumerWidget {
     required String label,
     required String? value,
     required bool selected,
+    required KoraColors c,
   }) {
     return FilterChip(
       label: Text(label),
       selected: selected,
-      selectedColor: AppTheme.sageGreen.withValues(alpha: 0.15),
-      checkmarkColor: AppTheme.sageGreen,
+      selectedColor: c.primary.withValues(alpha: 0.15),
+      checkmarkColor: c.primary,
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        color: selected ? AppTheme.sageGreen : null,
+        color: selected ? c.primary : c.textPrimary,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       side: BorderSide(
-        color: selected ? AppTheme.sageGreen : AppTheme.borderLight,
+        color: selected ? c.primary : c.border,
       ),
       onSelected: (_) => ref.read(memoryProvider.notifier).setFilterType(value),
     );

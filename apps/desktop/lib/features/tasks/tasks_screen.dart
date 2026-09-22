@@ -12,16 +12,17 @@ class TasksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(tasksProvider);
+    final c = AppTheme.colors(context);
 
     return Container(
-      color: AppTheme.bgLight,
+      color: c.bg,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -31,13 +32,13 @@ class TasksScreen extends ConsumerWidget {
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
-                        color: AppTheme.textPrimaryLight,
+                        color: c.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Monitor multi-step agent plans, background execution, and tool workflows.',
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryLight),
+                      style: TextStyle(fontSize: 13, color: c.textSecondary),
                     ),
                   ],
                 ),
@@ -53,27 +54,27 @@ class TasksScreen extends ConsumerWidget {
 
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                ? Center(child: CircularProgressIndicator(color: c.primary))
                 : state.tasks.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No background tasks currently recorded.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                          style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       )
                     : ListView.builder(
                         itemCount: state.tasks.length,
                         itemBuilder: (context, index) {
                           final task = state.tasks[index];
-                          final (statusBg, statusFg, icon, statusText) = _resolveTaskBadge(task.status);
+                          final (statusBg, statusFg, icon, statusText) = _resolveTaskBadge(task.status, c);
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: c.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.borderLight, width: 1),
+                              border: Border.all(color: c.border, width: 1),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.02),
@@ -99,16 +100,16 @@ class TasksScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         task.title,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
-                                          color: AppTheme.textPrimaryLight,
+                                          color: c.textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Category: ${task.category} • Duration: ${task.durationMs}ms • Created: ${DateFormatter.formatIso(task.createdAt)}',
-                                        style: const TextStyle(fontSize: 11.5, color: AppTheme.textSecondaryLight),
+                                        style: TextStyle(fontSize: 11.5, color: c.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -140,27 +141,26 @@ class TasksScreen extends ConsumerWidget {
     );
   }
 
-  (Color, Color, IconData, String) _resolveTaskBadge(String status) {
+  (Color, Color, IconData, String) _resolveTaskBadge(String status, KoraColors c) {
     final s = status.toLowerCase();
     if (s == 'completed' || s == 'done') {
-      return (AppTheme.successLight, AppTheme.statusCompleted, Icons.check_circle_rounded, 'COMPLETED');
+      return (c.successLight, c.statusCompleted, Icons.check_circle_rounded, 'COMPLETED');
     }
     if (s == 'running' || s == 'executing') {
-      return (AppTheme.primaryLight, AppTheme.statusThinking, Icons.motion_photos_on_rounded, 'RUNNING');
+      return (c.primaryLight, c.statusThinking, Icons.motion_photos_on_rounded, 'RUNNING');
     }
     if (s == 'searching') {
-      return (AppTheme.warningLight, AppTheme.statusSearching, Icons.travel_explore_rounded, 'SEARCHING');
+      return (c.warningLight, c.statusSearching, Icons.travel_explore_rounded, 'SEARCHING');
     }
     if (s == 'reading') {
-      return (AppTheme.primaryLight, AppTheme.statusReading, Icons.auto_stories_rounded, 'READING');
+      return (c.primaryLight, c.statusReading, Icons.auto_stories_rounded, 'READING');
     }
     if (s == 'verifying') {
-      return (AppTheme.secondaryLight, AppTheme.statusVerifying, Icons.verified_rounded, 'VERIFYING');
+      return (c.secondaryLight, c.statusVerifying, Icons.verified_rounded, 'VERIFYING');
     }
     if (s == 'failed' || s == 'error') {
-      return (AppTheme.errorLight, AppTheme.error, Icons.cancel_rounded, 'FAILED');
+      return (c.errorLight, c.error, Icons.cancel_rounded, 'FAILED');
     }
-    return (AppTheme.surfaceHighlightLight, AppTheme.textSecondaryLight, Icons.schedule_rounded, s.toUpperCase());
+    return (c.surfaceHighlight, c.textSecondary, Icons.schedule_rounded, s.toUpperCase());
   }
 }
-

@@ -30,6 +30,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final conn = ref.watch(connectionProvider);
     final modelsState = ref.watch(modelsProvider);
+    final c = AppTheme.colors(context);
 
     final currentView = switch (_currentTab) {
       NavigationTab.home     => HomeScreen(onNavigate: (t) => setState(() => _currentTab = t)),
@@ -43,7 +44,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     };
 
     return Scaffold(
-      backgroundColor: AppTheme.bgLight,
+      backgroundColor: c.bg,
       body: Row(
         children: [
           // Sidebar
@@ -61,11 +62,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                 Container(
                   height: 52,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: const BoxDecoration(
-                    color: AppTheme.surfaceLight,
+                  decoration: BoxDecoration(
+                    color: c.surface,
                     border: Border(
                       bottom: BorderSide(
-                        color: AppTheme.borderLight,
+                        color: c.border,
                         width: 1,
                       ),
                     ),
@@ -76,7 +77,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         icon: Icon(
                           _isSidebarCollapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
                           size: 20,
-                          color: AppTheme.textSecondaryLight,
+                          color: c.textSecondary,
                         ),
                         tooltip: _isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
                         onPressed: () => setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
@@ -85,20 +86,21 @@ class _AppShellState extends ConsumerState<AppShell> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceHighlightLight,
+                          color: c.surfaceHighlight,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: c.borderSubtle),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.auto_awesome_rounded, size: 14, color: AppTheme.primary),
+                            Icon(Icons.auto_awesome_rounded, size: 14, color: c.primary),
                             const SizedBox(width: 6),
                             Text(
                               _getTabTitle(_currentTab),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
-                                color: AppTheme.textPrimaryLight,
+                                color: c.textPrimary,
                               ),
                             ),
                           ],
@@ -110,21 +112,21 @@ class _AppShellState extends ConsumerState<AppShell> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryLight,
+                            color: c.primaryLight,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                            border: Border.all(color: c.primary.withValues(alpha: 0.25)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.tune_rounded, size: 12, color: AppTheme.primary),
+                              Icon(Icons.tune_rounded, size: 12, color: c.primary),
                               const SizedBox(width: 6),
                               Text(
                                 modelsState.activeChatModel ?? (modelsState.models.isNotEmpty ? modelsState.models.first.name : 'Model Gateway'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.primaryDark,
+                                  color: c.primaryDark,
                                 ),
                               ),
                             ],
@@ -162,4 +164,3 @@ class _AppShellState extends ConsumerState<AppShell> {
     };
   }
 }
-
