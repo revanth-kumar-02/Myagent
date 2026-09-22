@@ -309,6 +309,7 @@ class MemoryManager:
                 await self._db.execute(stmt)
                 await self._db.commit()
             except Exception as e:
+                await self._db.rollback()
                 logger.warning("db_delete_memory_failed", error=str(e))
         return True
 
@@ -328,6 +329,7 @@ class MemoryManager:
                     self._memory_store[record.memory_id] = record
                     return record
             except Exception as e:
+                await self._db.rollback()
                 logger.warning("db_get_memory_failed", error=str(e))
 
         return None
@@ -409,6 +411,7 @@ class MemoryManager:
 
                 await self._db.commit()
             except Exception as e:
+                await self._db.rollback()
                 logger.warning("db_persist_record_failed", error=str(e))
 
     async def _get_active_records(
@@ -417,6 +420,24 @@ class MemoryManager:
         include_global: bool = True,
     ) -> list[MemoryRecord]:
         """Fetch active records matching project scope and global fallback."""
+        if self._db is not None:
+            try:
+                from db.schema import AgentMemory
+                stmt = select(AgentMemory).where(AgentMemory.status == MemoryStatus.ACTIVE.value)
+                if project_id is not None:
+                    if include_global:
+                        stmt = stmt.where((AgentMemory.project_id == project_id) | (AgentMemory.project_id == None))
+                    else:
+                        stmt = stmt.where(AgentMemory.project_id == project_id)
+                res = await self._db.execute(stmt)
+                db_items = res.scalars().all()
+                for db_item in db_items:
+                    rec = self._from_db_model(db_item)
+                    self._memory_store[rec.memory_id] = rec
+            except Exception as e:
+                await self._db.rollback()
+                logger.warning("db_fetch_active_memories_failed", error=str(e))
+
         records: list[MemoryRecord] = []
 
         # From memory store

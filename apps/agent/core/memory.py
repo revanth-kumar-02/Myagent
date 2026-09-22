@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from graph.service import KnowledgeGraphService
 from memory.extractor import MemoryCandidateDetector
 from memory.manager import MemoryManager
 from memory.types import MemoryRecord, MemoryRetrievalResult, MemorySource, MemoryType
@@ -28,6 +27,7 @@ from memory.types import MemoryRecord, MemoryRetrievalResult, MemorySource, Memo
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
     from sqlalchemy.ext.asyncio import AsyncSession
+    from graph.service import KnowledgeGraphService
 
 logger = structlog.get_logger(__name__)
 

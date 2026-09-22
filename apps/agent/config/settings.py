@@ -16,10 +16,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(Path(__file__).parent.parent / ".env"), ".env"),
         env_file_encoding="utf-8",
         env_prefix="KORA_",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── Application ───────────────────────────────────────────────────────────

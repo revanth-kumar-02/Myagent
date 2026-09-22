@@ -25,11 +25,11 @@ from core.planner import Planner
 from core.tool_router import ToolRouter
 from core.types import ActionType, ChatRequest, ChatResponse, Source, VerifierVerdict, WebSource
 from core.verifier import Verifier
-from graph.service import KnowledgeGraphService
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
     from sqlalchemy.ext.asyncio import AsyncSession
+    from graph.service import KnowledgeGraphService
     from models.registry import ModelRegistry
     from permissions.gate import PermissionGate
     from permissions.types import PermissionGrant
@@ -71,6 +71,7 @@ class AgentSession:
 
         self._model_router = ModelRouter(model_registry)
         self._context = ContextManager(session_id, project_id, db, redis)
+        from graph.service import KnowledgeGraphService
         self._graph_service = KnowledgeGraphService(db_session=db)
         self._memory = Memory(
             session_id,
