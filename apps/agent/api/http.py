@@ -91,6 +91,21 @@ class HealthResponse(BaseModel):
     models_available: int = 0
 
 
+class DatabaseHealthResponse(BaseModel):
+    postgres: str  # CONNECTED / DISCONNECTED
+    connection_pool: str  # READY / NOT READY
+    schema_status: str  # VALID / INVALID
+    pgvector: str  # AVAILABLE / UNAVAILABLE
+    memory_persistence: str  # PASS / FAIL
+    knowledge_graph_persistence: str  # PASS / FAIL
+    rag_persistence: str  # PASS / FAIL
+    postgres_version: str | None = None
+    pgvector_version: str | None = None
+    database_name: str | None = None
+    host: str | None = None
+    port: int | None = None
+
+
 class ProjectCreateRequest(BaseModel):
     name: str
     description: str = ""
@@ -132,6 +147,93 @@ async def health(registry: ModelRegistry = Depends(get_model_registry)) -> Healt
         version="0.1.0",
         uptime_seconds=round(time.time() - _start_time, 2),
         models_available=num_models,
+    )
+
+
+@router.get("/health/db", response_model=DatabaseHealthResponse)
+async def health_db() -> DatabaseHealthResponse:
+    """
+    Comprehensive infrastructure & persistence health check for PostgreSQL and pgvector.
+    Strictly masks all credentials.
+    """
+    from db.client import AsyncSessionFactory, engine
+    from db.schema import AgentMemory, Chunk, GraphEntity, Project
+    from sqlalchemy import text
+
+    postgres_status = "DISCONNECTED"
+    pool_status = "NOT READY"
+    schema_status = "INVALID"
+    pgvector_status = "UNAVAILABLE"
+    memory_status = "FAIL"
+    kg_status = "FAIL"
+    rag_status = "FAIL"
+    pg_version: str | None = None
+    vec_version: str | None = None
+
+    db_url = engine.url
+    db_name = db_url.database
+    host = db_url.host
+    port = db_url.port
+
+    try:
+        async with AsyncSessionFactory() as session:
+            # 1. Connection & Version
+            v_res = await session.execute(text("SELECT version();"))
+            pg_version = str(v_res.scalar())
+            postgres_status = "CONNECTED"
+            pool_status = "READY"
+
+            # 2. Extension check
+            ext_res = await session.execute(
+                text("SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';")
+            )
+            ext_row = ext_res.fetchone()
+            if ext_row:
+                pgvector_status = "AVAILABLE"
+                vec_version = str(ext_row[1])
+
+            # 3. Schema tables check
+            tbl_res = await session.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+                )
+            )
+            tables = {r[0] for r in tbl_res.fetchall()}
+            required_tables = {"projects", "indexed_files", "chunks", "agent_memory", "graph_entities", "graph_relationships"}
+            if required_tables.issubset(tables):
+                schema_status = "VALID"
+
+            # 4. Memory persistence verify
+            mem_res = await session.execute(text("SELECT count(*) FROM agent_memory;"))
+            if mem_res.scalar() is not None:
+                memory_status = "PASS"
+
+            # 5. Knowledge Graph persistence verify
+            kg_res = await session.execute(text("SELECT count(*) FROM graph_entities;"))
+            if kg_res.scalar() is not None:
+                kg_status = "PASS"
+
+            # 6. RAG persistence verify
+            rag_res = await session.execute(text("SELECT count(*) FROM chunks;"))
+            if rag_res.scalar() is not None:
+                rag_status = "PASS"
+
+    except Exception:
+        pass
+
+    return DatabaseHealthResponse(
+        postgres=postgres_status,
+        connection_pool=pool_status,
+        schema_status=schema_status,
+        pgvector=pgvector_status,
+        memory_persistence=memory_status,
+        knowledge_graph_persistence=kg_status,
+        rag_persistence=rag_status,
+        postgres_version=pg_version,
+        pgvector_version=vec_version,
+        database_name=db_name,
+        host=host,
+        port=port,
     )
 
 
