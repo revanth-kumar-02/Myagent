@@ -93,6 +93,16 @@ class BaseTool(abc.ABC):
         """Whether this tool is currently available on the host system."""
         return True
 
+    @property
+    def requires_network(self) -> bool:
+        """Whether this tool requires active Internet connectivity."""
+        return self.category == ToolCategory.WEB
+
+    @property
+    def available_offline(self) -> bool:
+        """Whether this tool is available offline."""
+        return not self.requires_network
+
     def validate_params(self, params: dict[str, Any]) -> None:
         """
         Validates provided parameters against the tool's parameter schema.

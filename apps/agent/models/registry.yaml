@@ -72,3 +72,17 @@ models:
     context_window: 512
     dimension: null
 
+  # ── Local Ollama Fallback ───────────────────────────────────────────────────
+  ollama-chat:
+    provider: ollama
+    model_id: "qwen3:1.7b"
+    capabilities:
+      - chat
+      - reason
+      - code
+    context_window: 32768
+    metadata:
+      local: true
+      requires_network: false
+
+

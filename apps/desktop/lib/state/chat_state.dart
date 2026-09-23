@@ -50,6 +50,7 @@ class ChatState {
 class ChatNotifier extends StateNotifier<ChatState> {
   final KoraSocketService _socketService;
   StreamSubscription? _socketSubscription;
+  StreamSubscription? _stateSubscription;
 
   ChatNotifier(this._socketService)
       : super(ChatState(sessionId: const Uuid().v4())) {
@@ -58,11 +59,38 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void _initSocketListener() {
     _socketSubscription = _socketService.messages.listen(_handleIncomingMessage);
+    _stateSubscription = _socketService.stateStream.listen((connState) {
+      if ((connState == SocketConnectionState.disconnected || connState == SocketConnectionState.error) && state.isStreaming) {
+        _abortStreamingDueToDisconnect(connState);
+      }
+    });
+  }
+
+  void _abortStreamingDueToDisconnect(SocketConnectionState connState) {
+    if (state.messages.isNotEmpty) {
+      final last = state.messages.last;
+      if (last.role == MessageRole.assistant && last.status == MessageStatus.streaming) {
+        final errText = connState == SocketConnectionState.error
+            ? 'Connection failed: Unable to communicate with Kora backend at ws://127.0.0.1:8765/ws.'
+            : 'Connection lost: Disconnected from Kora backend.';
+        final list = List<ChatMessage>.from(state.messages);
+        list[list.length - 1] = last.copyWith(
+          status: MessageStatus.error,
+          errorMessage: errText,
+          content: last.content.isEmpty ? errText : '${last.content}\n\n[$errText]',
+          activeTool: null,
+        );
+        state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
+      }
+    } else {
+      state = state.copyWith(isStreaming: false, activeTool: null);
+    }
   }
 
   @override
   void dispose() {
     _socketSubscription?.cancel();
+    _stateSubscription?.cancel();
     super.dispose();
   }
 

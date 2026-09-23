@@ -64,12 +64,14 @@ class AgentSession:
         research_router: "ResearchRouter",
         tool_registry: "ToolRegistry",
         permission_gate: "PermissionGate",
+        failover_manager: Any | None = None,
     ) -> None:
         self.session_id = session_id
         self.project_id = project_id
         self.ws_send = ws_send
+        self._failover_manager = failover_manager
 
-        self._model_router = ModelRouter(model_registry)
+        self._model_router = ModelRouter(model_registry, failover_manager=failover_manager)
         self._context = ContextManager(session_id, project_id, db, redis)
         from graph.service import KnowledgeGraphService
         self._graph_service = KnowledgeGraphService(db_session=db)
@@ -88,14 +90,33 @@ class AgentSession:
         self._tool_router = ToolRouter(rag_retriever, research_router, tool_registry, permission_gate)
         self._executor = Executor(ws_send=ws_send, model_router=self._model_router)
         self._verifier = Verifier()
+        self._status_listener: Any | None = None
 
     def handle_permission_response(self, grant: "PermissionGrant") -> None:
         """Handle incoming PERMISSION_RESPONSE frame."""
         self._permission_gate.receive_grant(grant)
 
     async def start(self) -> None:
-        """Load session state on connection."""
+        """Load session state and register provider status listener on connection."""
         await self._context.load()
+
+        if self._failover_manager is not None:
+            async def _on_provider_status(status_payload: dict[str, Any]) -> None:
+                await self.ws_send({
+                    "type": "PROVIDER_STATUS",
+                    "session_id": str(self.session_id),
+                    "payload": status_payload,
+                })
+
+            self._failover_manager.add_status_listener(_on_provider_status)
+            self._status_listener = _on_provider_status
+
+            # Send initial provider status frame immediately
+            await self.ws_send({
+                "type": "PROVIDER_STATUS",
+                "session_id": str(self.session_id),
+                "payload": self._failover_manager.get_status_payload(),
+            })
 
     async def run(self, request: ChatRequest) -> ChatResponse:
         """

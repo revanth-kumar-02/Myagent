@@ -28,58 +28,11 @@ from tools.registry import ToolRegistry
 
 router = APIRouter(prefix="/api")
 
-# In-memory stores for runtime desktop state when Postgres is local/standalone
-_projects_store: dict[str, dict[str, Any]] = {
-    "default-project": {
-        "id": "default-project",
-        "name": "Kora Workspace",
-        "description": "Primary development and research workspace",
-        "root_path": "/workspace",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "file_count": 42,
-        "chunk_count": 128,
-    }
-}
-
+# In-memory stores for runtime desktop state
+_projects_store: dict[str, dict[str, Any]] = {}
 _memory_store: list[dict[str, Any]] = []
-
-_tasks_store: list[dict[str, Any]] = [
-    {
-        "id": "task-101",
-        "title": "Index Workspace Codebase",
-        "status": "completed",
-        "category": "RAG",
-        "duration_ms": 1240,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "project_id": "default-project",
-    },
-    {
-        "id": "task-102",
-        "title": "Autonomous Decision Loop Monitoring",
-        "status": "running",
-        "category": "Agent Core",
-        "duration_ms": 530,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "project_id": "default-project",
-    }
-]
-
-_activity_store: list[dict[str, Any]] = [
-    {
-        "id": "act-1",
-        "event_type": "MODEL_ROUTE",
-        "details": "Routed capability 'chat' to model 'qwen-chat'",
-        "latency_ms": 12,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    },
-    {
-        "id": "act-2",
-        "event_type": "RAG_RETRIEVE",
-        "details": "Dense vector retrieval completed with BAAI/bge-m3",
-        "latency_ms": 48,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-]
+_tasks_store: list[dict[str, Any]] = []
+_activity_store: list[dict[str, Any]] = []
 
 
 # ── Schemas ─────────────────────────────────────────────────────────────────
@@ -235,6 +188,17 @@ async def health_db() -> DatabaseHealthResponse:
         host=host,
         port=port,
     )
+
+
+@router.get("/health/providers")
+async def health_providers() -> dict[str, Any]:
+    """
+    Returns live provider status, online/offline detection, and HuggingFace/Ollama health.
+    """
+    from api.deps import get_failover_manager
+    fm = get_failover_manager()
+    await fm.update_all_health()
+    return fm.get_status_payload()
 
 
 # ── Model Registry ──────────────────────────────────────────────────────────

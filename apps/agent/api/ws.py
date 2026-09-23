@@ -80,8 +80,9 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                         )
                         await session.start()
 
+                    user_text = payload.get("message") or payload.get("content", "")
                     request = ChatRequest(
-                        message=payload["message"],
+                        message=user_text,
                         session_id=session_id,
                         project_id=project_id,
                         attachments=payload.get("attachments", []),
@@ -114,6 +115,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                             logger.error("chat_turn_timeout", session_id=str(session_id))
                             await ws_send({
                                 "type": "ERROR",
+                                "session_id": str(session_id),
                                 "payload": {"code": "TIMEOUT", "message": "Inference request timed out after 45s."},
                             })
                         except asyncio.CancelledError:
@@ -127,6 +129,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                             logger.exception("chat_turn_failed", error=str(err))
                             await ws_send({
                                 "type": "ERROR",
+                                "session_id": str(session_id),
                                 "payload": {"code": "CHAT_ERROR", "message": str(err)},
                             })
 
@@ -148,6 +151,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                     stats = await indexer.run(incremental=payload.get("incremental", True))
                     await ws_send({
                         "type": "INDEX_DONE",
+                        "session_id": str(session_id),
                         "payload": {
                             "project_id": payload["project_id"],
                             "files_added": stats.files_added,
@@ -167,10 +171,18 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
                         session.handle_permission_response(grant)
 
                 case "HEARTBEAT":
-                    await ws_send({"type": "HEARTBEAT", "payload": {}})
+                    await ws_send({"type": "HEARTBEAT", "session_id": str(session_id), "payload": {}})
 
                 case _:
                     logger.warning("ws_unknown_message_type", type=msg_type)
+                    await ws_send({
+                        "type": "ERROR",
+                        "session_id": str(session_id),
+                        "payload": {
+                            "code": "UNKNOWN_MESSAGE_TYPE",
+                            "message": f"Unsupported or unknown message type: {msg_type}"
+                        }
+                    })
 
     except WebSocketDisconnect:
         logger.info("ws_disconnected", session_id=str(session_id))
@@ -180,4 +192,8 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
             await session.stop()
     except Exception as e:
         logger.exception("ws_error", session_id=str(session_id), error=str(e))
-        await ws_send({"type": "ERROR", "payload": {"code": "INTERNAL_ERROR", "message": str(e)}})
+        await ws_send({
+            "type": "ERROR",
+            "session_id": str(session_id),
+            "payload": {"code": "INTERNAL_ERROR", "message": str(e)}
+        })

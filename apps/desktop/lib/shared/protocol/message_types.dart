@@ -18,6 +18,7 @@ enum WsMessageType {
   indexDone,
   indexError,
   heartbeat,
+  providerStatus,
   error;
 
   static WsMessageType fromString(String s) {
@@ -39,6 +40,7 @@ enum WsMessageType {
       'INDEX_DONE'          => indexDone,
       'INDEX_ERROR'         => indexError,
       'HEARTBEAT'           => heartbeat,
+      'PROVIDER_STATUS'     => providerStatus,
       'ERROR'               => error,
       _                     => error,
     };
@@ -62,6 +64,7 @@ enum WsMessageType {
       WsMessageType.indexDone          => 'INDEX_DONE',
       WsMessageType.indexError         => 'INDEX_ERROR',
       WsMessageType.heartbeat          => 'HEARTBEAT',
+      WsMessageType.providerStatus     => 'PROVIDER_STATUS',
       WsMessageType.error              => 'ERROR',
     };
   }

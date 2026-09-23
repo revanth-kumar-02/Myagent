@@ -135,6 +135,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       const SizedBox(width: 12),
                       StatusPill(
                         status: conn.status,
+                        label: conn.displayStatusText,
                         onTap: () => ref.read(connectionProvider.notifier).checkConnection(),
                       ),
                     ],

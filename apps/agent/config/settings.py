@@ -51,6 +51,29 @@ class Settings(BaseSettings):
         description="HuggingFace API token (required for Inference API)",
     )
     huggingface_base_url: str = "https://router.huggingface.co/v1"
+    huggingface_health_check_interval_seconds: float = 20.0
+
+    # ── Ollama & Local Offline Fallback ───────────────────────────────────────
+    ollama_base_url: str = Field(
+        default="http://127.0.0.1:11434",
+        validation_alias="OLLAMA_BASE_URL",
+        description="Local Ollama HTTP endpoint",
+    )
+    ollama_chat_model: str = Field(
+        default="qwen3:1.7b",
+        validation_alias="OLLAMA_CHAT_MODEL",
+        description="Local Ollama chat model name",
+    )
+    ollama_enabled: bool = Field(
+        default=True,
+        validation_alias="OLLAMA_ENABLED",
+        description="Whether local Ollama provider is enabled",
+    )
+    offline_fallback_enabled: bool = Field(
+        default=True,
+        validation_alias="OFFLINE_FALLBACK_ENABLED",
+        description="Whether to automatically fallback to Ollama when offline or on HF failure",
+    )
 
     # ── Model Registry ────────────────────────────────────────────────────────
     model_registry_path: Path = Path(__file__).parent.parent / "models" / "registry.yaml"

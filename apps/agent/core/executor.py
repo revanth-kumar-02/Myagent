@@ -85,14 +85,41 @@ class Executor:
         return ExecutorResult(step=step, success=True, content=f"RAG query: {step.params.get('query')}")
 
     async def _run_web_research(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
-        """Execute DuckDuckGo web research."""
+        """Execute DuckDuckGo web research with offline awareness."""
+        is_online = True
+        if self._model_router and hasattr(self._model_router, "failover_manager"):
+            is_online = self._model_router.failover_manager.is_internet_available
+            if not is_online:
+                is_online = await self._model_router.failover_manager.check_internet()
+
+        if not is_online:
+            offline_msg = (
+                "I'm currently offline, so Internet research is unavailable. "
+                "I can still assist you with local files, system information, applications, and other local tools."
+            )
+            return ExecutorResult(
+                step=step,
+                success=True,
+                content=offline_msg,
+                raw={"offline": True, "requires_network": True, "reason": "no_internet"},
+            )
+
         if target.callable_ is not None:
-            if inspect.iscoroutinefunction(target.callable_):
-                res = await target.callable_(**target.params)
-            else:
-                res = target.callable_(**target.params)
-            content = getattr(res, "context_text", str(res))
-            return ExecutorResult(step=step, success=True, content=content, raw=res)
+            try:
+                if inspect.iscoroutinefunction(target.callable_):
+                    res = await target.callable_(**target.params)
+                else:
+                    res = target.callable_(**target.params)
+                content = getattr(res, "context_text", str(res))
+                return ExecutorResult(step=step, success=True, content=content, raw=res)
+            except Exception as e:
+                logger.warning("web_research_error", error=str(e))
+                return ExecutorResult(
+                    step=step,
+                    success=True,
+                    content=f"Internet research is currently unavailable ({e}). You can proceed using local tools.",
+                    raw={"error": str(e)},
+                )
         return ExecutorResult(step=step, success=True, content=f"Web search: {step.params.get('query')}")
 
     async def _run_memory(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
@@ -107,8 +134,27 @@ class Executor:
         return ExecutorResult(step=step, success=True, content=f"Memory query: {step.params.get('query')}")
 
     async def _run_tool(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
-        """Execute tool with WebSocket notifications."""
+        """Execute tool with WebSocket notifications and offline availability checks."""
         tool_name = target.tool_name or step.required_tool or "tool"
+        tool_inst = getattr(target, "tool_instance", None)
+
+        # Check offline tool requirements
+        if tool_inst is not None and getattr(tool_inst, "requires_network", False):
+            is_online = True
+            if self._model_router and hasattr(self._model_router, "failover_manager"):
+                is_online = self._model_router.failover_manager.is_internet_available
+            if not is_online:
+                unavailable_msg = (
+                    f"Tool '{tool_name}' requires active Internet connectivity and is unavailable offline. "
+                    "Local tools (system_info, clipboard, app_launcher, files, dev tools) remain fully operational."
+                )
+                return ExecutorResult(
+                    step=step,
+                    success=True,
+                    content=unavailable_msg,
+                    raw={"tool": tool_name, "requires_network": True, "available_offline": False},
+                )
+
         if self._ws_send is not None:
             await self._ws_send({
                 "type": "TOOL_CALL_NOTIFY",
@@ -118,17 +164,25 @@ class Executor:
         output = ""
         res: Any = None
         if target.callable_ is not None:
-            sig = inspect.signature(target.callable_)
-            if len(sig.parameters) == 1 or "params" in sig.parameters:
-                if inspect.iscoroutinefunction(target.callable_):
-                    res = await target.callable_(target.params)
+            try:
+                sig = inspect.signature(target.callable_)
+                param_names = list(sig.parameters.keys())
+
+                if "params" in param_names or (len(param_names) == 1 and list(sig.parameters.values())[0].kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)):
+                    if inspect.iscoroutinefunction(target.callable_):
+                        res = await target.callable_(target.params)
+                    else:
+                        res = target.callable_(target.params)
                 else:
-                    res = target.callable_(target.params)
-            else:
-                if inspect.iscoroutinefunction(target.callable_):
-                    res = await target.callable_(**target.params)
-                else:
-                    res = target.callable_(**target.params)
+                    has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+                    call_kwargs = target.params if has_varkw else {k: v for k, v in target.params.items() if k in param_names}
+                    if inspect.iscoroutinefunction(target.callable_):
+                        res = await target.callable_(**call_kwargs)
+                    else:
+                        res = target.callable_(**call_kwargs)
+            except Exception as e:
+                logger.warning("tool_invocation_error", tool=tool_name, error=str(e))
+                return ExecutorResult(step=step, success=False, content="", error=str(e))
 
             if hasattr(res, "error") and res.error:
                 return ExecutorResult(step=step, success=False, content="", error=str(res.error), raw=res)

@@ -4,11 +4,13 @@ import '../state/connection_state.dart';
 
 class StatusPill extends StatelessWidget {
   final BackendStatus status;
+  final String? label;
   final VoidCallback? onTap;
 
   const StatusPill({
     super.key,
     required this.status,
+    this.label,
     this.onTap,
   });
 
@@ -16,11 +18,28 @@ class StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppTheme.colors(context);
 
-    final (color, label, icon) = switch (status) {
-      BackendStatus.online     => (c.success, 'Connected', Icons.check_circle_rounded),
-      BackendStatus.connecting => (c.warning, 'Connecting...', Icons.sync_rounded),
-      BackendStatus.offline    => (c.error, 'Offline', Icons.cloud_off_rounded),
+    final displayLabel = label ?? switch (status) {
+      BackendStatus.online     => 'Connected',
+      BackendStatus.connecting => 'Connecting...',
+      BackendStatus.offline    => 'Offline',
     };
+
+    final (color, icon) = () {
+      if (status == BackendStatus.connecting) {
+        return (c.warning, Icons.sync_rounded);
+      }
+      if (status == BackendStatus.offline) {
+        return (c.error, Icons.cloud_off_rounded);
+      }
+      final l = displayLabel.toLowerCase();
+      if (l.contains('no provider')) {
+        return (c.error, Icons.error_outline_rounded);
+      }
+      if (l.contains('local') || l.contains('ollama')) {
+        return (const Color(0xFFF59E0B), Icons.storage_rounded);
+      }
+      return (c.success, Icons.check_circle_rounded);
+    }();
 
     return InkWell(
       onTap: onTap,
@@ -38,7 +57,7 @@ class StatusPill extends StatelessWidget {
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 6),
             Text(
-              label,
+              displayLabel,
               style: TextStyle(
                 color: color,
                 fontSize: 11,
@@ -51,3 +70,4 @@ class StatusPill extends StatelessWidget {
     );
   }
 }
+

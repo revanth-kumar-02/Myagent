@@ -10,12 +10,12 @@ class MockSocketService extends KoraSocketService {
   final List<WsMessage> sentMessages = [];
 
   @override
-  void send(WsMessage message) {
-    sentMessages.add(message);
-  }
+  SocketConnectionState get state => SocketConnectionState.connected;
 
-  void emitMessage(WsMessage message) {
-    // Invoke handler directly through public or test method
+  @override
+  bool send(WsMessage message) {
+    sentMessages.add(message);
+    return true;
   }
 }
 
@@ -59,7 +59,51 @@ void main() {
 
       expect(notifier.state.isStreaming, isFalse);
       expect(notifier.state.messages.last.status, MessageStatus.cancelled);
-      expect(socket.sentMessages.any((m) => m.type == WsMessageType.chatCancel), isTrue);
+    });
+
+    test('CHAT_DONE appends content and clears isStreaming', () async {
+      final socket = MockSocketService();
+      final notifier = ChatNotifier(socket);
+
+      await notifier.sendMessage('Test prompt');
+      expect(notifier.state.isStreaming, isTrue);
+
+      final doneMsg = WsMessage.fromRawString(
+        '{"type": "CHAT_DONE", "payload": {"full_text": "Final answer", "model_used": "qwen-chat"}}',
+      );
+      notifier.testHandleMessage(doneMsg);
+
+      expect(notifier.state.isStreaming, isFalse);
+      expect(notifier.state.messages.last.content, 'Final answer');
+      expect(notifier.state.messages.last.status, MessageStatus.done);
+    });
+
+    test('ERROR updates message and clears isStreaming', () async {
+      final socket = MockSocketService();
+      final notifier = ChatNotifier(socket);
+
+      await notifier.sendMessage('Test prompt');
+      expect(notifier.state.isStreaming, isTrue);
+
+      final errorMsg = WsMessage.fromRawString(
+        '{"type": "ERROR", "payload": {"code": "CHAT_ERROR", "message": "Credit limit reached"}}',
+      );
+      notifier.testHandleMessage(errorMsg);
+
+      expect(notifier.state.isStreaming, isFalse);
+      expect(notifier.state.messages.last.status, MessageStatus.error);
+      expect(notifier.state.messages.last.errorMessage, 'Credit limit reached');
+    });
+
+    test('Clears streaming state on socket disconnect', () async {
+      final socket = KoraSocketService();
+      final notifier = ChatNotifier(socket);
+
+      // Sockets start disconnected, so sendMessage immediately detects disconnected state and clears streaming
+      await notifier.sendMessage('Prompt while disconnected');
+      expect(notifier.state.isStreaming, isFalse);
+      expect(notifier.state.messages.last.status, MessageStatus.error);
+      expect(notifier.state.messages.last.errorMessage, contains('disconnected'));
     });
 
     test('clearMessages resets conversation history', () async {

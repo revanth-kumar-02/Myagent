@@ -269,41 +269,47 @@ class Planner:
         msg_clean = message.strip()
         if msg_clean.startswith("/"):
             parts = msg_clean[1:].split(maxsplit=1)
-            tool_name = parts[0]
-            args_str = parts[1] if len(parts) > 1 else ""
+            tool_name = parts[0].lower().replace("-", "_")
+            args_str = parts[1].strip() if len(parts) > 1 else ""
 
-            params: dict[str, Any] = {
-                "action": args_str or "execute",
-                "command": args_str,
-                "query": args_str,
-                "tool": tool_name,
-                "app_name": args_str,
-                "url": args_str,
-                "path": args_str,
-                "destination_path": args_str,
-                "goal": args_str,
-                "task_id": args_str,
-                "selector": args_str,
-                "title": args_str or "Notification",
-                "message": args_str or "Kora Notification",
-                "text": args_str,
-            }
-            if tool_name == "clipboard" and not args_str:
-                params["action"] = "read"
-            elif tool_name == "browser_control" and not args_str:
-                params["action"] = "open"
-            elif tool_name == "app_launcher" and args_str:
+            params: dict[str, Any] = {}
+            if tool_name in ("system_info", "sysinfo"):
+                tool_name = "system_info"
+                params = {}
+            elif tool_name == "clipboard":
+                if args_str:
+                    params = {"action": "write", "text": args_str}
+                else:
+                    params = {"action": "read"}
+            elif tool_name in ("app_launcher", "launch"):
+                tool_name = "app_launcher"
                 app_parts = args_str.split()
-                params["app_name"] = app_parts[0]
-                params["args"] = app_parts[1:]
-            elif tool_name == "download_manager":
+                params = {
+                    "app_name": app_parts[0] if app_parts else "bash",
+                    "args": app_parts[1:] if len(app_parts) > 1 else [],
+                }
+            elif tool_name in ("page_navigation", "browser", "browser_control"):
+                tool_name = "page_navigation" if tool_name == "page_navigation" else "browser_control"
+                params = {"url": args_str or "https://google.com"}
+            elif tool_name in ("download_manager", "download"):
+                tool_name = "download_manager"
                 subparts = args_str.split(maxsplit=1)
                 if len(subparts) == 2:
-                    params["url"] = subparts[0]
-                    params["destination_path"] = subparts[1]
+                    params = {"url": subparts[0], "destination_path": subparts[1]}
                 elif len(subparts) == 1 and subparts[0]:
-                    params["url"] = subparts[0]
-                    params["destination_path"] = "downloaded_file"
+                    params = {"url": subparts[0], "destination_path": "downloaded_file"}
+                else:
+                    params = {"url": "https://example.com", "destination_path": "downloaded_file"}
+            elif tool_name in ("notification", "notify"):
+                tool_name = "notification"
+                params = {"title": "Kora Notification", "message": args_str or "Action completed"}
+            elif tool_name in ("shell_command", "shell", "bash"):
+                tool_name = "shell_command"
+                params = {"command": args_str or "echo 'Kora Shell'"}
+            elif tool_name in ("read_file", "write_file", "list_files", "delete_file"):
+                params = {"path": args_str, "content": args_str}
+            else:
+                params = {"query": args_str, "command": args_str, "text": args_str}
 
             return PlanStep(
                 index=index,
@@ -316,24 +322,99 @@ class Planner:
                 params=params,
             )
 
+        # Natural language mapping
+        msg_lower = msg_clean.lower()
+        if re.search(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu\s+info|os\s+version|hardware\s+info)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: system_info",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="system_info",
+                goal="Query hardware and OS details from local machine",
+                expected_result="Accurate OS and hardware summary",
+                verification_method="tool_output_check",
+                params={},
+            )
+
+        if re.search(r"\b(?:read\s+clipboard|check\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: clipboard",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="clipboard",
+                goal="Read current clipboard content",
+                expected_result="Clipboard text",
+                verification_method="tool_output_check",
+                params={"action": "read"},
+            )
+
+        if re.search(r"\b(?:open\s+(?:vs\s*code|vscode|code)|launch\s+(?:vs\s*code|vscode|code))\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: app_launcher",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="app_launcher",
+                goal="Launch VS Code application",
+                expected_result="Process launch confirmation",
+                verification_method="tool_output_check",
+                params={"app_name": "code", "args": []},
+            )
+
+        if re.search(r"\b(?:open\s+terminal|launch\s+terminal)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: app_launcher",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="app_launcher",
+                goal="Launch terminal application",
+                expected_result="Process launch confirmation",
+                verification_method="tool_output_check",
+                params={"app_name": "bash", "args": []},
+            )
+
+        if re.search(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: system_info",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="system_info",
+                goal="List running system processes",
+                expected_result="Active process listing",
+                verification_method="tool_output_check",
+                params={},
+            )
+
+        if re.search(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+files\s+in|show\s+files\s+in)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: directory_ops",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="directory_ops",
+                goal="List workspace directory contents",
+                expected_result="Directory contents listing",
+                verification_method="tool_output_check",
+                params={"path": ".", "operation": "list"},
+            )
+
         if "pytest" in message.lower() or "test" in message.lower():
             return PlanStep(
                 index=index,
                 label="Execute automated tests",
                 action_type=ActionType.TOOL_CALL,
-                required_tool="bash",
+                required_tool="terminal_exec",
                 goal="Run test command in workspace",
                 expected_result="Test execution exit code 0",
                 verification_method="exit_code_zero",
                 params={"command": "pytest"},
             )
+
         return PlanStep(
             index=index,
             label="Execute tool action",
             action_type=ActionType.TOOL_CALL,
-            required_tool="general_tool",
-            goal="Perform user requested tool action",
+            required_tool="system_info",
+            goal="Perform requested system action",
             expected_result="Successful tool output",
             verification_method="tool_output_check",
-            params={"action": message},
+            params={},
         )

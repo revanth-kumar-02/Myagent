@@ -19,8 +19,14 @@ from research.router import ResearchRouter
 from tools.registry import build_default_registry, ToolRegistry
 
 
+from models.failover import ProviderFailoverManager
 from permissions.gate import PermissionGate
 from rag.retriever import RAGRetriever
+
+
+@lru_cache(maxsize=1)
+def get_failover_manager() -> ProviderFailoverManager:
+    return ProviderFailoverManager()
 
 
 @lru_cache(maxsize=1)
@@ -45,6 +51,7 @@ async def get_agent_dependencies() -> AsyncGenerator[dict[str, Any], None]:
     """
     async with AsyncSessionFactory() as db:
         model_reg = get_model_registry()
+        failover_mgr = get_failover_manager()
         yield {
             "db": db,
             "redis": get_redis(),
@@ -53,5 +60,6 @@ async def get_agent_dependencies() -> AsyncGenerator[dict[str, Any], None]:
             "research_router": get_research_router(),
             "rag_retriever": RAGRetriever(db=db, model_router=None),
             "permission_gate": PermissionGate(),
+            "failover_manager": failover_mgr,
         }
 

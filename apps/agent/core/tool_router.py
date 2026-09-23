@@ -39,11 +39,13 @@ class DispatchTarget:
         callable_: Callable[..., Any] | None,
         params: dict[str, Any],
         tool_name: str | None = None,
+        tool_instance: Any | None = None,
     ) -> None:
         self.action_type = action_type
         self.callable_ = callable_
         self.params = params
         self.tool_name = tool_name
+        self.tool_instance = tool_instance
 
 
 class ToolRouter:
@@ -96,7 +98,10 @@ class ToolRouter:
                 tool_name = step.required_tool or step.params.get("tool") or "general_tool"
                 tool_instance = None
                 if self._tools is not None and hasattr(self._tools, "get"):
-                    tool_instance = self._tools.get(tool_name)
+                    try:
+                        tool_instance = self._tools.get(tool_name)
+                    except Exception:
+                        pass
 
                 # Check permission gate
                 if self._permissions is not None and tool_instance is not None:
@@ -108,9 +113,10 @@ class ToolRouter:
 
                 return DispatchTarget(
                     action_type=ActionType.TOOL_CALL,
-                    callable_=getattr(tool_instance, "execute", None),
+                    callable_=getattr(tool_instance, "run", getattr(tool_instance, "execute", None)) if tool_instance else None,
                     params=step.params,
                     tool_name=tool_name,
+                    tool_instance=tool_instance,
                 )
 
             case ActionType.MODEL_GENERATE:

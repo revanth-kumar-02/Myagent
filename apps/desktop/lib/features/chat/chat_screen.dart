@@ -724,7 +724,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Kora is reasoning & executing plan...',
+                          message.activeTool != null
+                              ? 'Executing /${message.activeTool}...'
+                              : (message.planSteps.isNotEmpty
+                                  ? 'Kora is reasoning & executing plan...'
+                                  : 'Kora is thinking...'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,

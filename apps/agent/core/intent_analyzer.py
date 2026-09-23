@@ -27,8 +27,12 @@ logger = structlog.get_logger(__name__)
 
 # Patterns indicating direct tool / terminal / file manipulation actions
 _TOOL_PATTERNS = [
-    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|create\s+(?:a\s+|an\s+|new\s+)?file|write\s+(?:a\s+|to\s+)?file|edit\s+(?:a\s+)?file|delete\s+(?:a\s+)?file|modify\s+(?:a\s+)?file|mkdir|open\s+(?:vs\s*code|browser|terminal|app|application))\b", re.IGNORECASE),
+    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|create\s+(?:a\s+|an\s+|new\s+)?file|write\s+(?:a\s+|to\s+)?file|edit\s+(?:a\s+)?file|delete\s+(?:a\s+)?file|modify\s+(?:a\s+)?file|mkdir|open\s+(?:vs\s*code|vscode|code|browser|terminal|app|application)|launch\s+(?:vs\s*code|vscode|code|app|application))\b", re.IGNORECASE),
     re.compile(r"\b(?:apply migration|run build|npm run|cargo test|flutter run|execute script)\b", re.IGNORECASE),
+    re.compile(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu\s+info|os\s+version|hardware\s+info)\b", re.IGNORECASE),
+    re.compile(r"\b(?:read\s+clipboard|check\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard|paste\s+clipboard|copy\s+to\s+clipboard|write\s+(?:to\s+)?clipboard)\b", re.IGNORECASE),
+    re.compile(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes|show\s+processes)\b", re.IGNORECASE),
+    re.compile(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+files\s+in|show\s+files\s+in)\b", re.IGNORECASE),
 ]
 
 # Patterns indicating multi-step sequential tasks

@@ -45,6 +45,7 @@ class ModelRegistry:
                 capabilities=entry.get("capabilities", []),
                 context_window=entry.get("context_window", 4096),
                 dimension=entry.get("dimension"),
+                metadata=entry.get("metadata"),
             )
             logger.info("model_registered", name=name, capabilities=models[name].capabilities)
 

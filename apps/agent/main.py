@@ -23,7 +23,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown lifecycle."""
     configure_logging()
     await db_startup()
+    from api.deps import get_failover_manager
+    fm = get_failover_manager()
+    await fm.start_background_monitor()
     yield
+    fm.stop_background_monitor()
     await db_shutdown()
 
 
