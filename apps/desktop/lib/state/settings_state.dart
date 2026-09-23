@@ -14,15 +14,14 @@ class SettingsState {
   final bool isLoading;
   final String? errorMessage;
 
-  SettingsState({
+  const SettingsState({
     this.themeMode = ThemeMode.light,
-    String? backendHttpUrl,
-    String? backendWsUrl,
+    this.backendHttpUrl = AppConfig.fallbackHttpUrl,
+    this.backendWsUrl = AppConfig.fallbackWsUrl,
     this.availableModels = const [],
     this.isLoading = false,
     this.errorMessage,
-  })  : backendHttpUrl = backendHttpUrl ?? AppConfig.defaultHttpUrl,
-        backendWsUrl = backendWsUrl ?? AppConfig.defaultWsUrl;
+  });
 
   SettingsState copyWith({
     ThemeMode? themeMode,
@@ -54,6 +53,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> _loadPersistedSettings() async {
     try {
+      final envHttp = AppConfig.defaultHttpUrl;
+      final envWs = AppConfig.defaultWsUrl;
+      if (envHttp != AppConfig.fallbackHttpUrl || envWs != AppConfig.fallbackWsUrl) {
+        state = state.copyWith(backendHttpUrl: envHttp, backendWsUrl: envWs);
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final modeStr = prefs.getString(_themePrefKey);
       if (modeStr != null) {

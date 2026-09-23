@@ -65,24 +65,37 @@ class HealthMonitor:
         return report
 
     async def check_database(self) -> ComponentHealth:
-        """Probe PostgreSQL connection and query latency."""
+        """Probe PostgreSQL connection and query latency via real SELECT 1."""
         start = time.monotonic()
-        if self._db is None:
-            return ComponentHealth(
-                component=ComponentType.DATABASE,
-                status=HealthStatus.HEALTHY,
-                latency_ms=0,
-                message="In-memory DB mode active (Mock/Standalone)",
-            )
+        if self._db is not None:
+            try:
+                await self._db.execute(text("SELECT 1"))
+                elapsed = int((time.monotonic() - start) * 1000)
+                return ComponentHealth(
+                    component=ComponentType.DATABASE,
+                    status=HealthStatus.HEALTHY,
+                    latency_ms=elapsed,
+                    message="PostgreSQL connection active",
+                )
+            except Exception as exc:
+                elapsed = int((time.monotonic() - start) * 1000)
+                return ComponentHealth(
+                    component=ComponentType.DATABASE,
+                    status=HealthStatus.UNHEALTHY,
+                    latency_ms=elapsed,
+                    message=f"PostgreSQL probe failed: {str(exc)}",
+                )
 
         try:
-            await self._db.execute(text("SELECT 1"))
+            from db.client import engine
+            async with engine.begin() as conn:
+                await conn.execute(text("SELECT 1"))
             elapsed = int((time.monotonic() - start) * 1000)
             return ComponentHealth(
                 component=ComponentType.DATABASE,
                 status=HealthStatus.HEALTHY,
                 latency_ms=elapsed,
-                message="PostgreSQL connection active",
+                message="PostgreSQL connection active (Engine verified)",
             )
         except Exception as exc:
             elapsed = int((time.monotonic() - start) * 1000)

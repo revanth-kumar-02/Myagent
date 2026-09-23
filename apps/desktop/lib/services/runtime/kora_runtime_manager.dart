@@ -213,6 +213,7 @@ class KoraRuntimeManager {
   }
 
   void _startRecoveryMonitor() {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     _recoveryTimer?.cancel();
     _recoveryTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       final remoteApiUrl = config.httpBaseUrl;

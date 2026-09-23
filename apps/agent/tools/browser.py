@@ -15,7 +15,7 @@ class BrowserNavigateTool(BaseTool):
     }
     required_permissions = ["browser_navigate"]
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: Playwright implementation in feature phase
 
 
@@ -28,7 +28,7 @@ class BrowserClickTool(BaseTool):
         "required": ["selector"],
     }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: implement in feature phase
 
 
@@ -42,5 +42,5 @@ class BrowserExtractTool(BaseTool):
         },
     }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: implement in feature phase

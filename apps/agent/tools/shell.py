@@ -19,5 +19,5 @@ class ShellExecTool(BaseTool):
     }
     required_permissions = ["shell_exec"]
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: implement in feature phase

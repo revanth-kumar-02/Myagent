@@ -38,12 +38,23 @@ class AppConfig {
   final String wsUrl;
   final Duration requestTimeout;
 
-  AppConfig({
+  const AppConfig({
+    this.httpBaseUrl = fallbackHttpUrl,
+    this.wsUrl = fallbackWsUrl,
+    this.requestTimeout = const Duration(seconds: 30),
+  });
+
+  factory AppConfig.configured({
     String? httpBaseUrl,
     String? wsUrl,
-    this.requestTimeout = const Duration(seconds: 30),
-  })  : httpBaseUrl = httpBaseUrl ?? defaultHttpUrl,
-        wsUrl = wsUrl ?? defaultWsUrl;
+    Duration requestTimeout = const Duration(seconds: 30),
+  }) {
+    return AppConfig(
+      httpBaseUrl: httpBaseUrl ?? defaultHttpUrl,
+      wsUrl: wsUrl ?? defaultWsUrl,
+      requestTimeout: requestTimeout,
+    );
+  }
 
   AppConfig copyWith({
     String? httpBaseUrl,

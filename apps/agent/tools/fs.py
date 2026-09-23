@@ -19,7 +19,7 @@ class FileReadTool(BaseTool):
         "required": ["path"],
     }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: implement in feature phase
 
 
@@ -37,5 +37,5 @@ class FileWriteTool(BaseTool):
     }
     required_permissions = ["file_write"]
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: implement in feature phase

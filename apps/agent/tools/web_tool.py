@@ -20,5 +20,5 @@ class WebSearchTool(BaseTool):
         "required": ["query"],
     }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         raise NotImplementedError  # TODO: wire to ResearchRouter in feature phase

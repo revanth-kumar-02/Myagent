@@ -129,12 +129,17 @@ class OllamaToolAdapter:
 
         for tc in tool_calls:
             tool_name = tc.get("name", "")
-            tool_args = tc.get("arguments", {})
-            if isinstance(tool_args, str):
+            raw_args = tc.get("arguments", {})
+            tool_args: dict[str, Any] = {}
+            if isinstance(raw_args, str):
                 try:
-                    tool_args = json.loads(tool_args)
+                    parsed = json.loads(raw_args)
+                    if isinstance(parsed, dict):
+                        tool_args = parsed
                 except Exception:
                     tool_args = {}
+            elif isinstance(raw_args, dict):
+                tool_args = dict(raw_args)
 
             logger.info("ollama_tool_call_detected", tool=tool_name, args=tool_args)
 

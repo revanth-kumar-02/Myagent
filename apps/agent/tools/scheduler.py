@@ -70,13 +70,14 @@ class ScheduleTaskTool(BaseTool):
             "required": ["goal"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         from tasks.types import TaskPriority, TriggerConfig, TriggerType
 
-        goal = params["goal"]
-        trig_type_str = params.get("trigger_type", "manual")
-        trig_params = params.get("trigger_params", {})
-        priority_str = params.get("priority", "normal")
+        p = {**(params or {}), **kwargs}
+        goal = p["goal"]
+        trig_type_str = p.get("trigger_type", "manual")
+        trig_params = p.get("trigger_params", {})
+        priority_str = p.get("priority", "normal")
 
         try:
             trig_type = TriggerType(trig_type_str)
@@ -163,9 +164,10 @@ class CancelTaskTool(BaseTool):
             "required": ["task_id"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        task_id = params["task_id"]
-        reason = params.get("reason", "Cancelled via tool")
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = {**(params or {}), **kwargs}
+        task_id = p["task_id"]
+        reason = p.get("reason", "Cancelled via tool")
         try:
             task = await self.task_manager.cancel_task(task_id, reason=reason)
             if self.automation_engine:
@@ -217,9 +219,10 @@ class ListTasksTool(BaseTool):
             },
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = {**(params or {}), **kwargs}
         tasks = await self.task_manager.list_tasks()
-        status_filter = params.get("status")
+        status_filter = p.get("status")
         if status_filter:
             tasks = [t for t in tasks if t.status.value == status_filter]
 
@@ -285,8 +288,9 @@ class PauseTaskTool(BaseTool):
             "required": ["task_id"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        task_id = params["task_id"]
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = {**(params or {}), **kwargs}
+        task_id = p["task_id"]
         try:
             task = await self.task_manager.pause_task(task_id)
             if self.automation_engine:
@@ -341,8 +345,9 @@ class ResumeTaskTool(BaseTool):
             "required": ["task_id"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        task_id = params["task_id"]
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = {**(params or {}), **kwargs}
+        task_id = p["task_id"]
         try:
             task = await self.task_manager.resume_task(task_id)
             if self.automation_engine:

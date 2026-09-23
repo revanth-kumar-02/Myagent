@@ -151,9 +151,7 @@ class Executor:
         if tool_inst is not None and getattr(tool_inst, "requires_network", False):
             is_online = True
             if self._model_router and hasattr(self._model_router, "failover_manager"):
-                is_online = self._model_router.failover_manager.is_internet_available
-                if not is_online:
-                    is_online = await self._model_router.failover_manager.check_internet()
+                is_online = getattr(self._model_router.failover_manager, "is_internet_available", True)
             if not is_online:
                 unavailable_msg = (
                     f"Tool '{tool_name}' requires active Internet connectivity and is unavailable offline. "

@@ -66,6 +66,7 @@ class LocalRuntimeManager {
   /// Ensure local runtime is running. If not already up, launch it.
   Future<bool> ensureStarted({String baseUrl = 'http://127.0.0.1:8765'}) async {
     if (kIsWeb) return false;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return false;
 
     // 1. Probe if already running
     final alreadyHealthy = await probeHealth(baseUrl: baseUrl);
