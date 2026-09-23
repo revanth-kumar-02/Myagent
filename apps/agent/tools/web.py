@@ -157,9 +157,13 @@ class DownloadManagerTool(BaseTool):
             "required": ["url", "destination_path"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        url = params["url"]
-        dst = Path(params["destination_path"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        url = p.get("url")
+        dst_str = p.get("destination_path")
+        if not url or not dst_str:
+            return self._make_result(error="Missing required parameters: 'url' and 'destination_path'")
+        dst = Path(dst_str)
 
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)

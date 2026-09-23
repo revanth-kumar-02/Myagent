@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import inspect
 import sys
 import time
 import uuid
@@ -103,6 +104,20 @@ class BaseTool(abc.ABC):
         """Whether this tool is available offline."""
         return not self.requires_network
 
+    def sanitize_params(self, params: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        """
+        Filter parameters strictly according to this tool's parameters JSON Schema.
+        Drops undeclared generic parameters (such as spurious 'action') unless declared in properties.
+        """
+        combined = dict(params or {})
+        if kwargs:
+            combined.update(kwargs)
+        schema = self.parameters
+        props = schema.get("properties") if isinstance(schema, dict) else None
+        if isinstance(props, dict):
+            return {k: v for k, v in combined.items() if k in props}
+        return combined
+
     def validate_params(self, params: dict[str, Any]) -> None:
         """
         Validates provided parameters against the tool's parameter schema.
@@ -123,6 +138,7 @@ class BaseTool(abc.ABC):
         """
         start_ns = time.monotonic_ns()
         call_id = uuid.uuid4()
+        sanitized = self.sanitize_params(params)
 
         # 1. Platform check
         current_os = self._get_current_platform_os()
@@ -149,7 +165,7 @@ class BaseTool(abc.ABC):
 
         # 2. Input validation
         try:
-            self.validate_params(params)
+            self.validate_params(sanitized)
         except ToolValidationError as ve:
             duration_ms = int((time.monotonic_ns() - start_ns) / 1_000_000)
             res = ToolResult(
@@ -172,7 +188,12 @@ class BaseTool(abc.ABC):
 
         # 3. Execution with timeout
         try:
-            result = await asyncio.wait_for(self.execute(params), timeout=self.timeout)
+            sig = inspect.signature(self.execute)
+            param_names = list(sig.parameters.keys())
+            if "params" in param_names or len(param_names) == 1:
+                result = await asyncio.wait_for(self.execute(sanitized), timeout=self.timeout)
+            else:
+                result = await asyncio.wait_for(self.execute(**sanitized), timeout=self.timeout)
             duration_ms = int((time.monotonic_ns() - start_ns) / 1_000_000)
             result.execution_time_ms = duration_ms
             result.call_id = call_id
@@ -231,7 +252,7 @@ class BaseTool(abc.ABC):
             return res
 
     @abc.abstractmethod
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         """Concrete tool implementation. Must return a ToolResult."""
 
     def _make_result(

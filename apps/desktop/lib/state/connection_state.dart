@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/kora_api_service.dart';
 import '../services/kora_socket_service.dart';
+import '../services/runtime/kora_runtime_manager.dart';
 import '../shared/protocol/message_types.dart';
 import '../shared/protocol/ws_message.dart';
 
@@ -30,24 +31,20 @@ class ConnectionState {
 
   String get displayStatusText {
     if (status == BackendStatus.connecting) return 'Connecting...';
-    if (status == BackendStatus.offline) return 'Offline';
 
     final mode = providerMode?.toLowerCase();
     final prov = activeProvider?.toLowerCase();
 
-    if (mode == 'no_provider' || prov == 'none') {
-      return 'No provider';
+    if (mode == 'no_provider' || prov == 'none' || (status == BackendStatus.offline && prov == null)) {
+      return 'AI unavailable';
     }
-    if (mode == 'local_fallback' || isLocalFallback) {
-      return 'Local fallback · Ollama';
-    }
-    if (mode == 'offline' || prov == 'ollama') {
+    if (mode == 'offline' || mode == 'local_fallback' || isLocalFallback || prov == 'ollama') {
       return 'Offline · Local AI';
     }
     if (mode == 'online' || prov == 'huggingface' || mode == 'online_degraded') {
-      return 'Online · HuggingFace';
+      return 'Online · Cloud AI';
     }
-    return 'Online · HuggingFace';
+    return 'Online · Cloud AI';
   }
 
   ConnectionState copyWith({
@@ -86,13 +83,25 @@ final socketServiceProvider = Provider<KoraSocketService>((ref) {
   return service;
 });
 
+final runtimeManagerProvider = Provider<KoraRuntimeManager>((ref) {
+  final socket = ref.watch(socketServiceProvider);
+  final manager = KoraRuntimeManager(socketService: socket);
+  manager.initialize();
+  ref.onDispose(() {
+    manager.dispose();
+  });
+  return manager;
+});
+
 class ConnectionNotifier extends StateNotifier<ConnectionState> {
   final KoraApiService _apiService;
   final KoraSocketService _socketService;
+  final KoraRuntimeManager _runtimeManager;
   StreamSubscription? _msgSub;
   StreamSubscription? _socketStatusSub;
+  StreamSubscription? _runtimeStatusSub;
 
-  ConnectionNotifier(this._apiService, this._socketService) : super(const ConnectionState()) {
+  ConnectionNotifier(this._apiService, this._socketService, this._runtimeManager) : super(const ConnectionState()) {
     _initListeners();
     checkConnection();
   }
@@ -120,8 +129,28 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
       } else if (sState == SocketConnectionState.connecting) {
         state = state.copyWith(status: BackendStatus.connecting);
       } else if (sState == SocketConnectionState.disconnected || sState == SocketConnectionState.error) {
-        state = state.copyWith(status: BackendStatus.offline);
+        // If local runtime is active, status remains online via local provider
+        if (state.activeProvider != 'ollama') {
+          state = state.copyWith(status: BackendStatus.offline);
+        }
       }
+    });
+
+    _runtimeStatusSub = _runtimeManager.statusStream.listen((rStatus) {
+      BackendStatus bStatus = BackendStatus.connecting;
+      if (rStatus.mode == KoraRuntimeMode.onlineCloud || rStatus.mode == KoraRuntimeMode.offlineLocal) {
+        bStatus = BackendStatus.online;
+      } else if (rStatus.mode == KoraRuntimeMode.noProvider) {
+        bStatus = BackendStatus.offline;
+      }
+
+      state = state.copyWith(
+        status: bStatus,
+        providerMode: rStatus.mode.name,
+        activeProvider: rStatus.provider,
+        activeModel: rStatus.model,
+        isLocalFallback: rStatus.isLocalFallback,
+      );
     });
   }
 
@@ -129,6 +158,7 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
   void dispose() {
     _msgSub?.cancel();
     _socketStatusSub?.cancel();
+    _runtimeStatusSub?.cancel();
     super.dispose();
   }
 
@@ -144,7 +174,7 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
       );
     } catch (e) {
       state = state.copyWith(
-        status: BackendStatus.offline,
+        status: state.activeProvider == 'ollama' ? BackendStatus.online : BackendStatus.offline,
         errorMessage: e.toString(),
       );
     }
@@ -154,5 +184,6 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
 final connectionProvider = StateNotifierProvider<ConnectionNotifier, ConnectionState>((ref) {
   final api = ref.watch(apiServiceProvider);
   final socket = ref.watch(socketServiceProvider);
-  return ConnectionNotifier(api, socket);
+  final runtime = ref.watch(runtimeManagerProvider);
+  return ConnectionNotifier(api, socket, runtime);
 });

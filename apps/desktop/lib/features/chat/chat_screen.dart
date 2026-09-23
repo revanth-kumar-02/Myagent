@@ -32,13 +32,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _showSlashPicker = false;
   String _slashFilter = '';
   int _selectedSlashIndex = 0;
+  bool _userScrolledUp = false;
 
   @override
   void initState() {
     super.initState();
     _inputController.addListener(_onTextChanged);
     _inputFocusNode.onKeyEvent = _handleKeyEvent;
+    _scrollController.addListener(_onScroll);
     _fetchDynamicTools();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll > 60) {
+      if (!_userScrolledUp) {
+        _userScrolledUp = true;
+      }
+    } else {
+      if (_userScrolledUp) {
+        _userScrolledUp = false;
+      }
+    }
   }
 
   Future<void> _fetchDynamicTools() async {
@@ -154,6 +171,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _inputController.removeListener(_onTextChanged);
     _inputController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _inputFocusNode.dispose();
     super.dispose();
@@ -166,20 +184,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final isStreaming = ref.read(chatProvider).isStreaming;
     if (isStreaming) return;
 
+    _userScrolledUp = false;
     ref.read(chatProvider.notifier).sendMessage(text);
     _inputController.clear();
     setState(() {
       _showSlashPicker = false;
     });
-    _scrollToBottom();
+    _scrollToBottom(force: true);
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool force = false}) {
+    if (!force && _userScrolledUp) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
         );
       }
@@ -192,9 +212,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final projectsState = ref.watch(projectsProvider);
     final c = AppTheme.colors(context);
 
-    // Auto scroll when streaming
+    // Auto scroll when streaming unless user scrolled up
     ref.listen(chatProvider, (previous, next) {
-      if (next.isStreaming) {
+      if (next.isStreaming && !_userScrolledUp) {
         _scrollToBottom();
       }
     });
@@ -751,11 +771,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     MarkdownBody(
                       data: message.content,
                       selectable: true,
+                      onTapLink: (text, href, title) {
+                        if (href != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Link: $href'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
                       styleSheet: MarkdownStyleSheet(
                         p: TextStyle(
                           fontSize: 13.5,
                           height: 1.5,
                           color: c.textPrimary,
+                        ),
+                        a: TextStyle(
+                          color: c.primary,
+                          decoration: TextDecoration.underline,
                         ),
                         strong: TextStyle(
                           fontWeight: FontWeight.w700,

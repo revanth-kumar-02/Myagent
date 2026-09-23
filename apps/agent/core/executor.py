@@ -134,31 +134,56 @@ class Executor:
         return ExecutorResult(step=step, success=True, content=f"Memory query: {step.params.get('query')}")
 
     async def _run_tool(self, target: Any, step: PlanStep, start_ms: int) -> ExecutorResult:
-        """Execute tool with WebSocket notifications and offline availability checks."""
+        """Execute tool with WebSocket notifications, parameter sanitization, and offline availability checks."""
         tool_name = target.tool_name or step.required_tool or "tool"
         tool_inst = getattr(target, "tool_instance", None)
+
+        # Sanitize parameters strictly according to the tool schema
+        sanitized_params = dict(target.params or {})
+        if tool_inst is not None and hasattr(tool_inst, "sanitize_params"):
+            sanitized_params = tool_inst.sanitize_params(sanitized_params)
+        elif tool_inst is not None and hasattr(tool_inst, "parameters"):
+            schema_props = getattr(tool_inst, "parameters", {}).get("properties")
+            if isinstance(schema_props, dict):
+                sanitized_params = {k: v for k, v in sanitized_params.items() if k in schema_props}
 
         # Check offline tool requirements
         if tool_inst is not None and getattr(tool_inst, "requires_network", False):
             is_online = True
             if self._model_router and hasattr(self._model_router, "failover_manager"):
                 is_online = self._model_router.failover_manager.is_internet_available
+                if not is_online:
+                    is_online = await self._model_router.failover_manager.check_internet()
             if not is_online:
                 unavailable_msg = (
                     f"Tool '{tool_name}' requires active Internet connectivity and is unavailable offline. "
                     "Local tools (system_info, clipboard, app_launcher, files, dev tools) remain fully operational."
                 )
+                if self._ws_send is not None:
+                    await self._ws_send({
+                        "type": "TOOL_ERROR",
+                        "payload": {
+                            "tool": tool_name,
+                            "error": unavailable_msg,
+                            "requires_network": True,
+                            "available_offline": False,
+                        },
+                    })
                 return ExecutorResult(
                     step=step,
                     success=True,
                     content=unavailable_msg,
-                    raw={"tool": tool_name, "requires_network": True, "available_offline": False},
+                    raw={"tool": tool_name, "requires_network": True, "available_offline": False, "reason": "offline"},
                 )
 
         if self._ws_send is not None:
             await self._ws_send({
+                "type": "TOOL_START",
+                "payload": {"tool": tool_name, "params": sanitized_params},
+            })
+            await self._ws_send({
                 "type": "TOOL_CALL_NOTIFY",
-                "payload": {"tool": tool_name, "params": target.params},
+                "payload": {"tool": tool_name, "params": sanitized_params},
             })
 
         output = ""
@@ -170,30 +195,44 @@ class Executor:
 
                 if "params" in param_names or (len(param_names) == 1 and list(sig.parameters.values())[0].kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)):
                     if inspect.iscoroutinefunction(target.callable_):
-                        res = await target.callable_(target.params)
+                        res = await target.callable_(sanitized_params)
                     else:
-                        res = target.callable_(target.params)
+                        res = target.callable_(sanitized_params)
                 else:
                     has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
-                    call_kwargs = target.params if has_varkw else {k: v for k, v in target.params.items() if k in param_names}
+                    call_kwargs = sanitized_params if has_varkw else {k: v for k, v in sanitized_params.items() if k in param_names}
                     if inspect.iscoroutinefunction(target.callable_):
                         res = await target.callable_(**call_kwargs)
                     else:
                         res = target.callable_(**call_kwargs)
             except Exception as e:
                 logger.warning("tool_invocation_error", tool=tool_name, error=str(e))
+                if self._ws_send is not None:
+                    await self._ws_send({
+                        "type": "TOOL_ERROR",
+                        "payload": {"tool": tool_name, "error": str(e)},
+                    })
                 return ExecutorResult(step=step, success=False, content="", error=str(e))
 
             if hasattr(res, "error") and res.error:
+                if self._ws_send is not None:
+                    await self._ws_send({
+                        "type": "TOOL_ERROR",
+                        "payload": {"tool": tool_name, "error": str(res.error)},
+                    })
                 return ExecutorResult(step=step, success=False, content="", error=str(res.error), raw=res)
             if hasattr(res, "output"):
                 output = str(res.output) if res.output is not None else str(res)
             else:
                 output = str(res)
         else:
-            output = f"Executed {tool_name} with params {target.params}"
+            output = f"Executed {tool_name} with params {sanitized_params}"
 
         if self._ws_send is not None:
+            await self._ws_send({
+                "type": "TOOL_RESULT",
+                "payload": {"tool": tool_name, "output": output[:200]},
+            })
             await self._ws_send({
                 "type": "TOOL_RESULT_NOTIFY",
                 "payload": {"tool": tool_name, "output": output[:200]},

@@ -163,7 +163,7 @@ class SystemInfoTool(BaseTool):
             "properties": {},
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         adapter = get_platform_adapter()
         info = await adapter.get_system_info()
         return self._make_result(output=info)

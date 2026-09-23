@@ -32,11 +32,14 @@ class StatusPill extends StatelessWidget {
         return (c.error, Icons.cloud_off_rounded);
       }
       final l = displayLabel.toLowerCase();
-      if (l.contains('no provider')) {
+      if (l.contains('unavailable') || l.contains('no provider')) {
         return (c.error, Icons.error_outline_rounded);
       }
       if (l.contains('local') || l.contains('ollama')) {
-        return (const Color(0xFFF59E0B), Icons.storage_rounded);
+        return (const Color(0xFFF59E0B), Icons.memory_rounded);
+      }
+      if (l.contains('cloud') || l.contains('online')) {
+        return (c.success, Icons.cloud_done_rounded);
       }
       return (c.success, Icons.check_circle_rounded);
     }();

@@ -15,11 +15,13 @@ class WsMessage {
   WsMessage({
     String? id,
     required this.type,
-    required this.sessionId,
+    String? sessionId,
     this.projectId,
-    required this.payload,
+    Map<String, dynamic>? payload,
     int? ts,
   })  : id = id ?? const Uuid().v4(),
+        sessionId = sessionId ?? '',
+        payload = payload ?? const {},
         ts = ts ?? DateTime.now().millisecondsSinceEpoch;
 
   factory WsMessage.fromJson(Map<String, dynamic> json) {
@@ -36,8 +38,8 @@ class WsMessage {
     return WsMessage(
       id: json['id']?.toString() ?? const Uuid().v4(),
       type: WsMessageType.fromString(typeStr),
-      sessionId: json['session_id']?.toString() ?? '',
-      projectId: json['project_id']?.toString(),
+      sessionId: json['session_id']?.toString() ?? json['sessionId']?.toString() ?? '',
+      projectId: json['project_id']?.toString() ?? json['projectId']?.toString(),
       payload: payload,
       ts: timestamp,
     );
@@ -57,7 +59,7 @@ class WsMessage {
         'id': id,
         'type': type.toApiString(),
         'session_id': sessionId,
-        'project_id': projectId,
+        if (projectId != null) 'project_id': projectId,
         'payload': payload,
         'ts': ts,
       };

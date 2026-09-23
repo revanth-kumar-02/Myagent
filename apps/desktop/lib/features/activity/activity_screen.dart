@@ -58,7 +58,7 @@ class ActivityScreen extends ConsumerWidget {
                 : state.logs.isEmpty
                     ? Center(
                         child: Text(
-                          'No activity traces recorded yet. Traces populate upon executing agent turns.',
+                          'No activity yet.',
                           style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       )

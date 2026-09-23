@@ -1,17 +1,49 @@
-/// Application Configuration for Kora Desktop
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+/// Application Configuration for Kora Desktop & Web
 class AppConfig {
-  static const String defaultHttpUrl = 'http://127.0.0.1:8765';
-  static const String defaultWsUrl = 'ws://127.0.0.1:8765/ws';
+  static const String fallbackHttpUrl = 'http://127.0.0.1:8765';
+  static const String fallbackWsUrl = 'ws://127.0.0.1:8765/ws';
+
+  static String get defaultHttpUrl {
+    const fromEnv = String.fromEnvironment('KORA_API_URL', defaultValue: '');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (!kIsWeb) {
+      try {
+        final platEnv = Platform.environment['KORA_API_URL'];
+        if (platEnv != null && platEnv.trim().isNotEmpty) {
+          return platEnv.trim();
+        }
+      } catch (_) {}
+    }
+    return fallbackHttpUrl;
+  }
+
+  static String get defaultWsUrl {
+    const fromEnv = String.fromEnvironment('KORA_WS_URL', defaultValue: '');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (!kIsWeb) {
+      try {
+        final platEnv = Platform.environment['KORA_WS_URL'];
+        if (platEnv != null && platEnv.trim().isNotEmpty) {
+          return platEnv.trim();
+        }
+      } catch (_) {}
+    }
+    return fallbackWsUrl;
+  }
 
   final String httpBaseUrl;
   final String wsUrl;
   final Duration requestTimeout;
 
-  const AppConfig({
-    this.httpBaseUrl = defaultHttpUrl,
-    this.wsUrl = defaultWsUrl,
+  AppConfig({
+    String? httpBaseUrl,
+    String? wsUrl,
     this.requestTimeout = const Duration(seconds: 30),
-  });
+  })  : httpBaseUrl = httpBaseUrl ?? defaultHttpUrl,
+        wsUrl = wsUrl ?? defaultWsUrl;
 
   AppConfig copyWith({
     String? httpBaseUrl,

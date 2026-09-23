@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/config/app_config.dart';
 import '../models/model_info.dart';
 import '../services/kora_api_service.dart';
 import 'connection_state.dart';
@@ -13,14 +14,15 @@ class SettingsState {
   final bool isLoading;
   final String? errorMessage;
 
-  const SettingsState({
+  SettingsState({
     this.themeMode = ThemeMode.light,
-    this.backendHttpUrl = 'http://127.0.0.1:8765',
-    this.backendWsUrl = 'ws://127.0.0.1:8765/ws',
+    String? backendHttpUrl,
+    String? backendWsUrl,
     this.availableModels = const [],
     this.isLoading = false,
     this.errorMessage,
-  });
+  })  : backendHttpUrl = backendHttpUrl ?? AppConfig.defaultHttpUrl,
+        backendWsUrl = backendWsUrl ?? AppConfig.defaultWsUrl;
 
   SettingsState copyWith({
     ThemeMode? themeMode,

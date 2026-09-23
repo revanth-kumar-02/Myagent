@@ -51,9 +51,15 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
         except Exception:
             pass
 
-    session: AgentSession | None = None
-    active_chat_task: asyncio.Task[None] | None = None
+    session = AgentSession(
+        session_id=session_id,
+        project_id=None,
+        ws_send=ws_send,
+        **deps,
+    )
+    await session.start()
 
+    active_chat_task: asyncio.Task[None] | None = None
 
     try:
         while True:
@@ -71,14 +77,8 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
 
             match msg_type:
                 case "CHAT_REQUEST":
-                    if session is None:
-                        session = AgentSession(
-                            session_id=session_id,
-                            project_id=project_id,
-                            ws_send=ws_send,
-                            **deps,
-                        )
-                        await session.start()
+                    if project_id is not None:
+                        session.project_id = project_id
 
                     user_text = payload.get("message") or payload.get("content", "")
                     request = ChatRequest(

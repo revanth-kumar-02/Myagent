@@ -204,7 +204,7 @@ class HomeScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Center(
                         child: Text(
-                          'No recent activity logs. Send a prompt to see agent reasoning traces.',
+                          'No activity yet.',
                           style: TextStyle(fontSize: 13, color: c.textMuted),
                         ),
                       ),

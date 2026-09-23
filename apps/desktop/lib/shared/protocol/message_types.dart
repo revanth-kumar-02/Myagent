@@ -9,8 +9,11 @@ enum WsMessageType {
   chatCancelled,
   planCreated,
   planUpdate,
+  toolStart,
   toolCallNotify,
+  toolResult,
   toolResultNotify,
+  toolError,
   permissionRequest,
   permissionResponse,
   indexRequest,
@@ -22,7 +25,7 @@ enum WsMessageType {
   error;
 
   static WsMessageType fromString(String s) {
-    return switch (s) {
+    return switch (s.toUpperCase().trim()) {
       'CHAT_REQUEST'        => chatRequest,
       'CHAT_CHUNK'          => chatChunk,
       'CHAT_DONE'           => chatDone,
@@ -31,8 +34,11 @@ enum WsMessageType {
       'CHAT_CANCELLED'      => chatCancelled,
       'PLAN_CREATED'        => planCreated,
       'PLAN_UPDATE'         => planUpdate,
+      'TOOL_START'          => toolStart,
       'TOOL_CALL_NOTIFY'    => toolCallNotify,
+      'TOOL_RESULT'         => toolResult,
       'TOOL_RESULT_NOTIFY'  => toolResultNotify,
+      'TOOL_ERROR'          => toolError,
       'PERMISSION_REQUEST'  => permissionRequest,
       'PERMISSION_RESPONSE' => permissionResponse,
       'INDEX_REQUEST'       => indexRequest,
@@ -55,8 +61,11 @@ enum WsMessageType {
       WsMessageType.chatCancelled      => 'CHAT_CANCELLED',
       WsMessageType.planCreated        => 'PLAN_CREATED',
       WsMessageType.planUpdate         => 'PLAN_UPDATE',
+      WsMessageType.toolStart          => 'TOOL_START',
       WsMessageType.toolCallNotify     => 'TOOL_CALL_NOTIFY',
+      WsMessageType.toolResult         => 'TOOL_RESULT',
       WsMessageType.toolResultNotify   => 'TOOL_RESULT_NOTIFY',
+      WsMessageType.toolError          => 'TOOL_ERROR',
       WsMessageType.permissionRequest  => 'PERMISSION_REQUEST',
       WsMessageType.permissionResponse => 'PERMISSION_RESPONSE',
       WsMessageType.indexRequest       => 'INDEX_REQUEST',
