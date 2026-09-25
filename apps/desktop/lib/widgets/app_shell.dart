@@ -24,7 +24,7 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  NavigationTab _currentTab = NavigationTab.chat; // Primary default
+  NavigationTab _currentTab = NavigationTab.home; // Default to Home screen
   bool _isSidebarCollapsed = false;
 
   @override
