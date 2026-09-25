@@ -53,7 +53,7 @@ class KoraSocketService {
   Stream<WsMessage> get messages => _messageController.stream;
 
   /// Whether the socket is currently connected.
-  bool get isConnected => _state == SocketConnectionState.connected && _channel != null;
+  bool get isConnected => state == SocketConnectionState.connected;
 
   KoraSocketService({this.backendUrl = _defaultUrl});
 
@@ -122,17 +122,13 @@ class KoraSocketService {
 
     try {
       final uri = Uri.parse(backendUrl);
-      _channel = WebSocketChannel.connect(uri);
+      final channel = WebSocketChannel.connect(uri);
+      _channel = channel;
 
       // Listen to incoming frames
       _subscription?.cancel();
-      _subscription = _channel!.stream.listen(
+      _subscription = channel.stream.listen(
         (data) {
-          if (_state != SocketConnectionState.connected) {
-            _reconnectAttempts = 0;
-            _setState(SocketConnectionState.connected);
-            _startHeartbeat();
-          }
           _onMessage(data);
         },
         onError: _onError,
@@ -140,13 +136,16 @@ class KoraSocketService {
         cancelOnError: false,
       );
 
-      // On Web/Native, when connection establishes or first ping succeeds
+      // Wait until connection is actually established
+      await channel.ready;
+
       _reconnectAttempts = 0;
       _setState(SocketConnectionState.connected);
       _startHeartbeat();
     } catch (e) {
       debugPrint('[KoraSocketService] Connection failed: $e');
       _channel = null;
+      _setState(SocketConnectionState.disconnected);
       _scheduleReconnect();
     }
   }
@@ -186,6 +185,7 @@ class KoraSocketService {
     debugPrint('[KoraSocketService] WebSocket error: $error');
     _channel = null;
     _heartbeatTimer?.cancel();
+    _setState(SocketConnectionState.disconnected);
     _scheduleReconnect();
   }
 
@@ -193,6 +193,7 @@ class KoraSocketService {
     debugPrint('[KoraSocketService] WebSocket stream closed.');
     _channel = null;
     _heartbeatTimer?.cancel();
+    _setState(SocketConnectionState.disconnected);
     _scheduleReconnect();
   }
 

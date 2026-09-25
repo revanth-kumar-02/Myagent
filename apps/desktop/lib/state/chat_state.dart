@@ -7,6 +7,7 @@ import '../models/chat_message.dart';
 import '../models/citation.dart';
 import '../models/plan_step.dart';
 import '../services/kora_socket_service.dart';
+import '../services/ollama_direct_service.dart';
 import '../shared/protocol/message_types.dart';
 import '../shared/protocol/ws_message.dart';
 import 'connection_state.dart';
@@ -49,18 +50,24 @@ class ChatState {
 
 class ChatNotifier extends StateNotifier<ChatState> {
   final KoraSocketService _socketService;
+  final OllamaDirectService _ollamaService;
   StreamSubscription? _socketSubscription;
   StreamSubscription? _stateSubscription;
+  StreamSubscription? _directOllamaSub;
+  bool _isDirectOllamaActive = false;
 
-  ChatNotifier(this._socketService)
-      : super(ChatState(sessionId: const Uuid().v4())) {
+  ChatNotifier(this._socketService, [OllamaDirectService? ollamaService])
+      : _ollamaService = ollamaService ?? OllamaDirectService(),
+        super(ChatState(sessionId: const Uuid().v4())) {
     _initSocketListener();
   }
 
   void _initSocketListener() {
     _socketSubscription = _socketService.messages.listen(_handleIncomingMessage);
     _stateSubscription = _socketService.stateStream.listen((connState) {
-      if ((connState == SocketConnectionState.disconnected || connState == SocketConnectionState.error) && state.isStreaming) {
+      if ((connState == SocketConnectionState.disconnected || connState == SocketConnectionState.error) &&
+          state.isStreaming &&
+          !_isDirectOllamaActive) {
         _abortStreamingDueToDisconnect(connState);
       }
     });
@@ -91,6 +98,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void dispose() {
     _socketSubscription?.cancel();
     _stateSubscription?.cancel();
+    _directOllamaSub?.cancel();
     super.dispose();
   }
 
@@ -109,6 +117,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void cancelGeneration() {
     if (!state.isStreaming) return;
+    _isDirectOllamaActive = false;
+    _directOllamaSub?.cancel();
+    _directOllamaSub = null;
     _socketService.send(WsMessage(
       type: WsMessageType.chatCancel,
       sessionId: state.sessionId,
@@ -158,15 +169,104 @@ class ChatNotifier extends StateNotifier<ChatState> {
       activePlanSteps: [],
     );
 
-    _socketService.send(WsMessage(
-      type: WsMessageType.chatRequest,
-      sessionId: state.sessionId,
-      projectId: state.selectedProjectId,
-      payload: {
-        'message': trimmed,
-        'attachments': [],
-      },
-    ));
+    if (_socketService.isConnected) {
+      _isDirectOllamaActive = false;
+      _socketService.send(WsMessage(
+        type: WsMessageType.chatRequest,
+        sessionId: state.sessionId,
+        projectId: state.selectedProjectId,
+        payload: {
+          'message': trimmed,
+          'attachments': [],
+        },
+      ));
+    } else {
+      // Backend is unavailable/offline -> stream directly from local Ollama
+      _isDirectOllamaActive = true;
+      await _streamFromDirectOllama(trimmed, assistantMsgId);
+    }
+  }
+
+  Future<void> _streamFromDirectOllama(String prompt, String assistantMsgId) async {
+    try {
+      final ollamaAvailable = await _ollamaService.isAvailable();
+      if (!ollamaAvailable) {
+        _isDirectOllamaActive = false;
+        _updateAssistantMessage(
+          assistantMsgId,
+          (msg) => msg.copyWith(
+            status: MessageStatus.error,
+            errorMessage: 'Cannot communicate with Kora backend (disconnected). Local Ollama is also unreachable at http://127.0.0.1:11434.\n\nStart Ollama or the Kora backend to chat.',
+            content: 'Cannot communicate with Kora backend (disconnected). Local Ollama is also unreachable at http://127.0.0.1:11434.\n\nStart Ollama or the Kora backend to chat.',
+          ),
+        );
+        state = state.copyWith(isStreaming: false);
+        return;
+      }
+
+      final stopwatch = Stopwatch()..start();
+      _directOllamaSub = _ollamaService
+          .streamChat(history: state.messages, prompt: prompt)
+          .listen(
+        (chunk) {
+          _updateAssistantMessage(
+            assistantMsgId,
+            (msg) => msg.copyWith(
+              content: msg.content + chunk,
+              status: MessageStatus.streaming,
+            ),
+          );
+        },
+        onError: (err) {
+          _isDirectOllamaActive = false;
+          _directOllamaSub = null;
+          _updateAssistantMessage(
+            assistantMsgId,
+            (msg) => msg.copyWith(
+              status: MessageStatus.error,
+              errorMessage: 'Ollama local inference error: $err',
+            ),
+          );
+          state = state.copyWith(isStreaming: false);
+        },
+        onDone: () {
+          _isDirectOllamaActive = false;
+          _directOllamaSub = null;
+          stopwatch.stop();
+          _updateAssistantMessage(
+            assistantMsgId,
+            (msg) => msg.copyWith(
+              status: MessageStatus.done,
+              modelUsed: 'qwen3:1.7b',
+              latencyMs: stopwatch.elapsedMilliseconds,
+            ),
+          );
+          state = state.copyWith(isStreaming: false);
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      _isDirectOllamaActive = false;
+      _directOllamaSub = null;
+      _updateAssistantMessage(
+        assistantMsgId,
+        (msg) => msg.copyWith(
+          status: MessageStatus.error,
+          errorMessage: 'Failed to stream from local Ollama: $e',
+        ),
+      );
+      state = state.copyWith(isStreaming: false);
+    }
+  }
+
+  void _updateAssistantMessage(String id, ChatMessage Function(ChatMessage) updater) {
+    if (state.messages.isEmpty) return;
+    final list = List<ChatMessage>.from(state.messages);
+    final idx = list.indexWhere((m) => m.id == id);
+    if (idx != -1) {
+      list[idx] = updater(list[idx]);
+      state = state.copyWith(messages: list);
+    }
   }
 
   @visibleForTesting
@@ -357,5 +457,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final socketService = ref.watch(socketServiceProvider);
-  return ChatNotifier(socketService);
+  final ollamaService = ref.watch(ollamaDirectServiceProvider);
+  return ChatNotifier(socketService, ollamaService);
 });

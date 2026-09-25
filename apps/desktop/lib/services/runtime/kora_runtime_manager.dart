@@ -174,22 +174,9 @@ class KoraRuntimeManager {
         _startRecoveryMonitor();
         return;
       }
-
-      // Check if Ollama alone is running
-      final ollamaUp = await localRuntime.probeOllama();
-      if (ollamaUp) {
-        _setStatus(_status.copyWith(
-          mode: KoraRuntimeMode.offlineLocal,
-          provider: 'ollama',
-          model: 'qwen3:1.7b',
-          isLocalFallback: true,
-        ));
-        _startRecoveryMonitor();
-        return;
-      }
     }
 
-    // 3. Fallback check on standard local backend port
+    // Check if local backend port is responding
     final localDirect = await _probeUrl('${AppConfig.fallbackHttpUrl}/api/health');
     if (localDirect) {
       _setStatus(_status.copyWith(
@@ -200,14 +187,30 @@ class KoraRuntimeManager {
         activeApiUrl: AppConfig.fallbackHttpUrl,
         activeWsUrl: AppConfig.fallbackWsUrl,
       ));
-    } else {
-      _setStatus(_status.copyWith(
-        mode: KoraRuntimeMode.noProvider,
-        provider: 'none',
-        model: null,
-        isLocalFallback: false,
-      ));
+      _startRecoveryMonitor();
+      return;
     }
+
+    // Check if Ollama daemon alone is running (Web or Desktop)
+    final ollamaUp = await localRuntime.probeOllama();
+    if (ollamaUp) {
+      _setStatus(_status.copyWith(
+        mode: KoraRuntimeMode.offlineLocal,
+        provider: 'ollama',
+        model: 'qwen3:1.7b',
+        isLocalFallback: true,
+      ));
+      _startRecoveryMonitor();
+      return;
+    }
+
+    // Neither remote nor local runtime could be verified
+    _setStatus(_status.copyWith(
+      mode: KoraRuntimeMode.noProvider,
+      provider: 'none',
+      model: null,
+      isLocalFallback: false,
+    ));
 
     _startRecoveryMonitor();
   }

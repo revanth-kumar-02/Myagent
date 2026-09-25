@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/research_result.dart';
@@ -25,6 +26,18 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
     final query = _queryController.text;
     if (query.trim().isEmpty) return;
     ref.read(researchProvider.notifier).search(query);
+  }
+
+  Future<void> _launchUrl(String rawUrl) async {
+    var urlString = rawUrl.trim();
+    if (urlString.isEmpty) return;
+    if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
+      urlString = 'https://$urlString';
+    }
+    final uri = Uri.tryParse(urlString);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -131,74 +144,105 @@ class _ResearchScreenState extends ConsumerState<ResearchScreen> {
                         itemBuilder: (context, index) {
                           final result = state.results[index];
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: c.surface,
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: c.border, width: 1),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.02),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
+                              onTap: () => _launchUrl(result.url),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: c.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: c.border, width: 1),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.language_rounded, size: 15, color: c.secondary),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        result.title,
-                                        style: TextStyle(
-                                          fontSize: 14.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: c.primary,
+                                    Row(
+                                      children: [
+                                        Icon(Icons.language_rounded, size: 15, color: c.secondary),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            result.title,
+                                            style: TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: c.primary,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: c.secondaryLight,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'DuckDuckGo',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: c.secondaryDark,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Tooltip(
+                                          message: 'Open link in new tab',
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(6),
+                                            onTap: () => _launchUrl(result.url),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(
+                                                Icons.open_in_new_rounded,
+                                                size: 16,
+                                                color: c.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: GestureDetector(
+                                        onTap: () => _launchUrl(result.url),
+                                        child: Text(
+                                          result.url,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: c.primary,
+                                            decoration: TextDecoration.underline,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                      decoration: BoxDecoration(
-                                        color: c.secondaryLight,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'DuckDuckGo',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: c.secondaryDark,
-                                        ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      result.snippet,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        height: 1.45,
+                                        color: c.textPrimary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  result.url,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: c.textMuted,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  result.snippet,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.45,
-                                    color: c.textPrimary,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           );
                         },

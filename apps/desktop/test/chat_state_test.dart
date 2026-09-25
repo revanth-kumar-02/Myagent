@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kora_desktop/models/chat_message.dart';
 import 'package:kora_desktop/models/plan_step.dart';
 import 'package:kora_desktop/services/kora_socket_service.dart';
+import 'package:kora_desktop/services/ollama_direct_service.dart';
 import 'package:kora_desktop/shared/protocol/message_types.dart';
 import 'package:kora_desktop/shared/protocol/ws_message.dart';
 import 'package:kora_desktop/state/chat_state.dart';
@@ -16,6 +17,30 @@ class MockSocketService extends KoraSocketService {
   bool send(WsMessage message) {
     sentMessages.add(message);
     return true;
+  }
+}
+
+class MockOllamaService extends OllamaDirectService {
+  final bool available;
+  final List<String> chunks;
+
+  MockOllamaService({
+    this.available = false,
+    this.chunks = const ['Hello', ' from local Ollama'],
+  });
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Stream<String> streamChat({
+    required List<ChatMessage> history,
+    required String prompt,
+    String? modelOverride,
+  }) async* {
+    for (final c in chunks) {
+      yield c;
+    }
   }
 }
 
@@ -95,15 +120,31 @@ void main() {
       expect(notifier.state.messages.last.errorMessage, 'Credit limit reached');
     });
 
-    test('Clears streaming state on socket disconnect', () async {
+    test('Clears streaming state on socket disconnect when Ollama is also unavailable', () async {
       final socket = KoraSocketService();
-      final notifier = ChatNotifier(socket);
+      final notifier = ChatNotifier(socket, MockOllamaService(available: false));
 
       // Sockets start disconnected, so sendMessage immediately detects disconnected state and clears streaming
       await notifier.sendMessage('Prompt while disconnected');
       expect(notifier.state.isStreaming, isFalse);
       expect(notifier.state.messages.last.status, MessageStatus.error);
       expect(notifier.state.messages.last.errorMessage, contains('disconnected'));
+    });
+
+    test('Falls back directly to local Ollama when socket is disconnected', () async {
+      final socket = KoraSocketService();
+      final notifier = ChatNotifier(
+        socket,
+        MockOllamaService(available: true, chunks: ['Hello', ' from Ollama!']),
+      );
+
+      await notifier.sendMessage('Direct prompt');
+      // Allow async generator stream to flush
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(notifier.state.messages.length, 2);
+      expect(notifier.state.messages.last.content, 'Hello from Ollama!');
+      expect(notifier.state.messages.last.status, MessageStatus.done);
+      expect(notifier.state.isStreaming, isFalse);
     });
 
     test('clearMessages resets conversation history', () async {
