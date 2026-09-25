@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -11,12 +10,9 @@ import 'package:kora_desktop/features/projects/file_preview_modal.dart';
 import 'package:kora_desktop/features/projects/project_detail_screen.dart';
 import 'package:kora_desktop/features/projects/projects_screen.dart';
 import 'package:kora_desktop/models/project.dart';
-import 'package:kora_desktop/models/project_file_data.dart';
 import 'package:kora_desktop/services/project/file_type_detector.dart';
 import 'package:kora_desktop/services/project/language_detector.dart';
-import 'package:kora_desktop/services/project/project_scanner.dart';
 import 'package:kora_desktop/services/project/project_service.dart';
-import 'package:kora_desktop/services/project/syntax_highlighter.dart';
 import 'package:kora_desktop/state/projects_state.dart';
 
 void main() {

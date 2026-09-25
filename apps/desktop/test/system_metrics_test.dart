@@ -1,12 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kora_desktop/models/system_metrics_model.dart';
-import 'package:kora_desktop/services/kora_api_service.dart';
-import 'package:kora_desktop/services/kora_socket_service.dart';
-import 'package:kora_desktop/state/connection_state.dart';
 import 'package:kora_desktop/state/system_metrics_state.dart';
 import 'package:kora_desktop/widgets/header_system_indicator.dart';
 import 'package:kora_desktop/widgets/system_details_modal.dart';

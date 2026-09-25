@@ -1,10 +1,6 @@
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kora_desktop/models/chat_message.dart';
-import 'package:kora_desktop/services/kora_socket_service.dart';
 import 'package:kora_desktop/shared/protocol/message_types.dart';
 import 'package:kora_desktop/shared/protocol/ws_message.dart';
-import 'package:kora_desktop/state/chat_state.dart';
 
 void main() {
   group('WebSocket Protocol Tests', () {

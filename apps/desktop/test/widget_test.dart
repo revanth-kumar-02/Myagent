@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kora_desktop/app.dart';
 import 'package:kora_desktop/widgets/sidebar.dart';
-import 'package:kora_desktop/widgets/status_pill.dart';
 
 void main() {
   setUp(() {
