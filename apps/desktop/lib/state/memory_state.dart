@@ -12,6 +12,12 @@ class MemoryState {
   final String? filterType;
   final String searchQuery;
 
+  // Live stats from /memory/stats
+  final int activeCount;
+  final int totalMemories;
+  final double avgConfidence;
+  final Map<String, int> byType;
+
   const MemoryState({
     this.memories = const [],
     this.entities = const [],
@@ -20,6 +26,10 @@ class MemoryState {
     this.errorMessage,
     this.filterType,
     this.searchQuery = '',
+    this.activeCount = 0,
+    this.totalMemories = 0,
+    this.avgConfidence = 0.0,
+    this.byType = const {},
   });
 
   MemoryState copyWith({
@@ -30,6 +40,10 @@ class MemoryState {
     String? errorMessage,
     String? filterType,
     String? searchQuery,
+    int? activeCount,
+    int? totalMemories,
+    double? avgConfidence,
+    Map<String, int>? byType,
   }) {
     return MemoryState(
       memories: memories ?? this.memories,
@@ -39,6 +53,10 @@ class MemoryState {
       errorMessage: errorMessage ?? this.errorMessage,
       filterType: filterType ?? this.filterType,
       searchQuery: searchQuery ?? this.searchQuery,
+      activeCount: activeCount ?? this.activeCount,
+      totalMemories: totalMemories ?? this.totalMemories,
+      avgConfidence: avgConfidence ?? this.avgConfidence,
+      byType: byType ?? this.byType,
     );
   }
 }
@@ -53,19 +71,33 @@ class MemoryNotifier extends StateNotifier<MemoryState> {
   Future<void> loadMemories({String? projectId}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final list = await _apiService.getMemories(projectId: projectId);
-      final graphRes = await _apiService.getKnowledgeGraph(projectId: projectId);
-      
+      // Fetch memories, graph, and stats in parallel
+      final results = await Future.wait([
+        _apiService.getMemories(projectId: projectId),
+        _apiService.getKnowledgeGraph(projectId: projectId),
+        _apiService.getMemoryStats(projectId: projectId),
+      ]);
+
+      final list = results[0] as List<MemoryItem>;
+      final graphRes = results[1] as Map<String, dynamic>;
+      final statsRes = results[2] as Map<String, dynamic>;
+
       final rawEntities = graphRes['entities'] as List<dynamic>? ?? [];
       final rawRels = graphRes['relationships'] as List<dynamic>? ?? [];
-
       final entities = rawEntities.map((e) => GraphEntityItem.fromJson(e as Map<String, dynamic>)).toList();
       final rels = rawRels.map((e) => GraphRelationshipItem.fromJson(e as Map<String, dynamic>)).toList();
+
+      final rawByType = statsRes['by_type'] as Map<String, dynamic>? ?? {};
+      final byType = rawByType.map((k, v) => MapEntry(k, (v as num).toInt()));
 
       state = state.copyWith(
         memories: list,
         entities: entities,
         relationships: rels,
+        activeCount: (statsRes['active_count'] as num?)?.toInt() ?? list.length,
+        totalMemories: (statsRes['total_memories'] as num?)?.toInt() ?? list.length,
+        avgConfidence: (statsRes['avg_confidence'] as num?)?.toDouble() ?? 0.0,
+        byType: byType,
         isLoading: false,
       );
     } catch (e) {
@@ -120,6 +152,7 @@ class MemoryNotifier extends StateNotifier<MemoryState> {
       await _apiService.deleteMemory(id);
       state = state.copyWith(
         memories: state.memories.where((m) => m.id != id).toList(),
+        activeCount: state.activeCount > 0 ? state.activeCount - 1 : 0,
       );
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
@@ -134,3 +167,4 @@ final memoryProvider = StateNotifierProvider<MemoryNotifier, MemoryState>((ref) 
   final api = ref.watch(apiServiceProvider);
   return MemoryNotifier(api);
 });
+

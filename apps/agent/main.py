@@ -7,6 +7,7 @@ Starts the FastAPI + uvicorn server. Handles startup and shutdown lifecycle.
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

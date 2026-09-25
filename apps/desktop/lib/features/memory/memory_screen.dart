@@ -266,10 +266,18 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       filtered = filtered.where((m) => m.content.toLowerCase().contains(query)).toList();
     }
 
-    final activeCount = state.memories.where((m) => m.isActive).length;
-    final avgConf = state.memories.isEmpty
-        ? 0
-        : (state.memories.map((m) => m.confidence).reduce((a, b) => a + b) / state.memories.length * 100).toInt();
+    // Use server-side stats when available; fall back to local counts
+    final activeCount = state.activeCount > 0
+        ? state.activeCount
+        : state.memories.where((m) => m.isActive).length;
+    final avgConf = state.avgConfidence > 0
+        ? (state.avgConfidence * 100).toInt()
+        : (state.memories.isEmpty
+            ? 0
+            : (state.memories.map((m) => m.confidence).reduce((a, b) => a + b) /
+                    state.memories.length *
+                    100)
+                .toInt());
 
     return Container(
       color: c.bg,
@@ -348,6 +356,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                 _buildStatItem('Relationships', '${state.relationships.length}', Icons.share_outlined, c.accent, c),
                 _buildStatDivider(c),
                 _buildStatItem('Avg Confidence', '$avgConf%', Icons.verified_outlined, c.primary, c),
+
               ],
             ),
           ),

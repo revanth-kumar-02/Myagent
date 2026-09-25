@@ -278,3 +278,67 @@ class KnowledgeGraphService:
             project_id=project_id,
             max_tokens=max_tokens,
         )
+
+    async def get_graph_summary(
+        self,
+        project_id: uuid.UUID | None = None,
+        max_entities: int = 200,
+    ) -> dict[str, Any]:
+        """
+        Fetch all graph entities and their relationships for UI visualization.
+        Returns serializable dicts suitable for JSON responses.
+        """
+        try:
+            entity_records = await self.store.find_entities(
+                project_id=project_id,
+                limit=max_entities,
+            )
+        except Exception as e:
+            logger.warning("graph_summary_entity_fetch_failed", error=str(e))
+            entity_records: list[GraphEntityRecord] = []
+
+        # Build entity id → name lookup
+        entity_name_map: dict[str, str] = {}
+        entities: list[dict[str, Any]] = []
+
+        for ent in entity_records:
+            eid = str(ent.entity_id)
+            entity_name_map[eid] = ent.name
+            entities.append({
+                "id": eid,
+                "name": ent.name,
+                "type": ent.entity_type.value if hasattr(ent.entity_type, "value") else str(ent.entity_type),
+                "label": ent.name,
+                "project_id": str(ent.project_id) if ent.project_id else None,
+            })
+
+        relationships: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+
+        for ent in entity_records:
+            try:
+                rels = await self.store.get_relationships_for_entity(ent.entity_id)
+                for rel in rels:
+                    rid = str(rel.relationship_id)
+                    if rid in seen_ids:
+                        continue
+                    seen_ids.add(rid)
+                    source_name = entity_name_map.get(str(rel.source_entity_id), str(rel.source_entity_id))
+                    target_name = entity_name_map.get(str(rel.target_entity_id), str(rel.target_entity_id))
+                    rel_type = rel.relationship_type.value if hasattr(rel.relationship_type, "value") else str(rel.relationship_type)
+                    relationships.append({
+                        "id": rid,
+                        "source": source_name,
+                        "target": target_name,
+                        "type": rel_type,
+                        "confidence": rel.confidence,
+                    })
+            except Exception:
+                pass
+
+        return {
+            "entities": entities,
+            "relationships": relationships,
+        }
+
+

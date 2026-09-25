@@ -1180,124 +1180,274 @@ async def list_memories(
     type: str | None = None,
     status: str | None = None,
 ) -> dict[str, Any]:
-    """List stored memories, optionally filtered by project, type, or status."""
-    res = list(_memory_store)
-    if project_id:
-        res = [m for m in res if m.get("project_id") == project_id or m.get("project_id") is None]
-    if type:
-        res = [m for m in res if m.get("type") == type]
-    if status:
-        res = [m for m in res if m.get("status") == status]
-    return {"memories": res}
+    """List stored memories from real PostgreSQL storage, filtered by project, type, or status."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+    from memory.types import MemoryStatus, MemoryType
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            pid = uuid.UUID(project_id) if project_id else None
+            records = await mgr._get_active_records(project_id=pid, include_global=True)
+
+            # Apply status filter
+            if status and status != "active":
+                try:
+                    filter_status = MemoryStatus(status)
+                    records = [r for r in records if r.status == filter_status]
+                except ValueError:
+                    pass
+
+            # Apply type filter
+            if type:
+                records = [r for r in records if r.type.value == type]
+
+            memories = []
+            for r in records:
+                memories.append({
+                    "id": str(r.memory_id),
+                    "content": r.content,
+                    "type": r.type.value,
+                    "source": r.source.value,
+                    "confidence": r.confidence,
+                    "importance": r.importance,
+                    "status": r.status.value,
+                    "project_id": str(r.project_id) if r.project_id else None,
+                    "created_at": r.created_at.isoformat(),
+                    "updated_at": r.updated_at.isoformat(),
+                    "last_accessed_at": r.last_accessed_at.isoformat(),
+                    "metadata": r.metadata,
+                })
+            # Newest first
+            memories.sort(key=lambda m: m["created_at"], reverse=True)
+            return {"memories": memories}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory retrieval failed: {exc}")
+
+
+@router.get("/memory/stats")
+async def get_memory_stats(project_id: str | None = None) -> dict[str, Any]:
+    """Return live statistical counts of memories stored in PostgreSQL."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            pid = uuid.UUID(project_id) if project_id else None
+            # Load all records (active + non-active) for full stats
+            all_records = await mgr._get_active_records(project_id=pid, include_global=True)
+            stats = await mgr.get_memory_status(project_id=pid)
+            return {
+                "total_memories": stats.total_memories,
+                "active_count": stats.active_count,
+                "archived_count": stats.archived_count,
+                "expired_count": stats.expired_count,
+                "superseded_count": stats.superseded_count,
+                "by_type": stats.by_type,
+                "avg_confidence": (
+                    round(sum(r.confidence for r in all_records) / len(all_records), 2)
+                    if all_records else 0.0
+                ),
+            }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory stats failed: {exc}")
+
+
+class MemorySearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    project_id: str | None = None
+
+
+@router.post("/memory/search")
+async def search_memories(req: MemorySearchRequest) -> dict[str, Any]:
+    """Semantic search across stored memories using multi-signal retrieval."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+
+    if not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            pid = uuid.UUID(req.project_id) if req.project_id else None
+            results = await mgr.retrieve_memories(
+                query=req.query,
+                project_id=pid,
+                top_k=req.top_k,
+                include_global=True,
+            )
+            return {
+                "query": req.query,
+                "results": [
+                    {
+                        "id": str(r.record.memory_id),
+                        "content": r.record.content,
+                        "type": r.record.type.value,
+                        "source": r.record.source.value,
+                        "confidence": r.record.confidence,
+                        "importance": r.record.importance,
+                        "score": round(r.score, 4),
+                        "semantic_score": round(r.semantic_score, 4),
+                        "recency_score": round(r.recency_score, 4),
+                        "created_at": r.record.created_at.isoformat(),
+                    }
+                    for r in results
+                ],
+                "count": len(results),
+            }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory search failed: {exc}")
 
 
 @router.post("/memory")
 async def create_memory(req: MemoryCreateRequest) -> dict[str, Any]:
-    """Store a new memory item."""
-    mem_id = f"mem-{uuid.uuid4().hex[:8]}"
-    now = datetime.now(timezone.utc).isoformat()
-    meta: dict[str, Any] = {}
-    item: dict[str, Any] = {
-        "id": mem_id,
-        "content": req.content,
-        "type": req.type,
-        "confidence": req.confidence,
-        "importance": req.importance,
-        "source": req.source,
-        "status": "active",
-        "created_at": now,
-        "updated_at": now,
-        "project_id": req.project_id or "default-project",
-        "metadata": meta,
-    }
-    _memory_store.insert(0, item)
-    return item
+    """Store a new memory item in PostgreSQL via MemoryManager."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+    from memory.types import MemorySource, MemoryType
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            pid = uuid.UUID(req.project_id) if req.project_id else None
+            record = await mgr.create_memory(
+                content=req.content,
+                type=req.type,
+                project_id=pid,
+                confidence=req.confidence,
+                importance=req.importance,
+                source=req.source,
+            )
+            return {
+                "id": str(record.memory_id),
+                "content": record.content,
+                "type": record.type.value,
+                "source": record.source.value,
+                "confidence": record.confidence,
+                "importance": record.importance,
+                "status": record.status.value,
+                "project_id": str(record.project_id) if record.project_id else None,
+                "created_at": record.created_at.isoformat(),
+                "updated_at": record.updated_at.isoformat(),
+            }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory creation failed: {exc}")
 
 
 @router.patch("/memory/{memory_id}")
 @router.put("/memory/{memory_id}")
 async def update_memory(memory_id: str, req: MemoryUpdateRequest) -> dict[str, Any]:
-    """Correct or update an existing memory item."""
-    now = datetime.now(timezone.utc).isoformat()
-    for m in _memory_store:
-        if m["id"] == memory_id:
-            if req.content is not None:
-                m["content"] = req.content
-            if req.type is not None:
-                m["type"] = req.type
-            if req.confidence is not None:
-                m["confidence"] = req.confidence
-            if req.importance is not None:
-                m["importance"] = req.importance
-            if req.status is not None:
-                m["status"] = req.status
-            m["updated_at"] = now
-            return m
-    raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+    """Correct or update an existing memory in PostgreSQL."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+    from memory.types import MemoryStatus
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            mid = uuid.UUID(memory_id)
+            status_val = MemoryStatus(req.status) if req.status else None
+            record = await mgr.update_memory(
+                memory_id=mid,
+                content=req.content,
+                confidence=req.confidence,
+                importance=req.importance,
+                status=status_val,
+            )
+            if record is None:
+                raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+            return {
+                "id": str(record.memory_id),
+                "content": record.content,
+                "type": record.type.value,
+                "confidence": record.confidence,
+                "importance": record.importance,
+                "status": record.status.value,
+                "updated_at": record.updated_at.isoformat(),
+            }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory update failed: {exc}")
 
 
 @router.post("/memory/{memory_id}/toggle")
 async def toggle_memory(memory_id: str) -> dict[str, Any]:
-    """Toggle memory between active and archived."""
-    now = datetime.now(timezone.utc).isoformat()
-    for m in _memory_store:
-        if m["id"] == memory_id:
-            m["status"] = "archived" if m.get("status") == "active" else "active"
-            m["updated_at"] = now
-            return m
-    raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+    """Toggle memory between active and archived in PostgreSQL."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+    from memory.types import MemoryStatus
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            mid = uuid.UUID(memory_id)
+            record = await mgr.get_memory(mid)
+            if record is None:
+                raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
+            new_status = MemoryStatus.ARCHIVED if record.status == MemoryStatus.ACTIVE else MemoryStatus.ACTIVE
+            updated = await mgr.update_memory(memory_id=mid, status=new_status)
+            return {
+                "id": str(updated.memory_id),
+                "status": updated.status.value,
+                "updated_at": updated.updated_at.isoformat(),
+            }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory toggle failed: {exc}")
 
 
 @router.delete("/memory/{memory_id}")
 async def delete_memory(memory_id: str) -> dict[str, Any]:
-    """Delete/forget a memory entry permanently."""
-    global _memory_store
-    _memory_store = [m for m in _memory_store if m["id"] != memory_id]
-    return {"deleted": True, "memory_id": memory_id}
+    """Delete/forget a memory entry permanently from PostgreSQL."""
+    from db.client import AsyncSessionFactory
+    from memory.manager import MemoryManager
+
+    try:
+        async with AsyncSessionFactory() as db:
+            mgr = MemoryManager(db_session=db)
+            mid = uuid.UUID(memory_id)
+            deleted = await mgr.delete_memory(mid)
+            return {"deleted": deleted, "memory_id": memory_id}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Memory deletion failed: {exc}")
 
 
 @router.get("/memory/graph")
 @router.get("/graph")
 async def get_knowledge_graph(project_id: str | None = None) -> dict[str, Any]:
-    """Return entities and relationships connected to memories and knowledge."""
-    # Synthesize entities and relationships from active memories
-    entities: list[dict[str, Any]] = [
-        {"id": "ent-user", "name": "User", "type": "person", "label": "User"},
-        {"id": "ent-kora", "name": "Kora", "type": "agent", "label": "Kora Agent"},
-    ]
-    relationships: list[dict[str, Any]] = []
+    """Return entities and relationships from the real Knowledge Graph (PostgreSQL)."""
+    from db.client import AsyncSessionFactory
+    from graph.service import KnowledgeGraphService
 
-    for m in _memory_store:
-        if m.get("status") == "archived":
-            continue
-        mem_id = m["id"]
-        mem_type = m.get("type", "fact")
-        content = m.get("content", "")
-        # Extract keywords as entities
-        words = [w.strip(",.!?\"'") for w in content.split() if len(w) > 4 and w.lower() not in {"prefer", "always", "decided", "using", "project", "building"}]
-        for w in words[:2]:
-            ent_id = f"ent-{w.lower()}"
-            if not any(e["id"] == ent_id for e in entities):
-                entities.append({
-                    "id": ent_id,
-                    "name": w,
-                    "type": "concept" if mem_type == "decision" else "technology",
-                    "label": w,
-                })
-            relationships.append({
-                "source": "User",
-                "target": w,
-                "type": "prefers" if "pref" in mem_type else ("decided" if "dec" in mem_type else "associated_with"),
-                "confidence": m.get("confidence", 0.9),
-                "memory_id": mem_id,
-            })
-
-    return {
-        "entities": entities,
-        "relationships": relationships,
-        "entity_count": len(entities),
-        "relationship_count": len(relationships),
-    }
+    try:
+        async with AsyncSessionFactory() as db:
+            svc = KnowledgeGraphService(db_session=db)
+            pid = uuid.UUID(project_id) if project_id else None
+            graph_data = await svc.get_graph_summary(project_id=pid)
+            entities = graph_data.get("entities", [])
+            relationships = graph_data.get("relationships", [])
+            return {
+                "entities": entities,
+                "relationships": relationships,
+                "entity_count": len(entities),
+                "relationship_count": len(relationships),
+            }
+    except Exception:
+        # Fallback: return minimal stub so UI stays functional
+        return {
+            "entities": [
+                {"id": "ent-user", "name": "User", "type": "person", "label": "User"},
+                {"id": "ent-kora", "name": "Kora", "type": "agent", "label": "Kora Agent"},
+            ],
+            "relationships": [],
+            "entity_count": 2,
+            "relationship_count": 0,
+        }
 
 
 # ── Research ────────────────────────────────────────────────────────────────

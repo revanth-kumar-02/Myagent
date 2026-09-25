@@ -174,6 +174,26 @@ class KoraApiService {
     return await _client.get('/api/memory/graph', projectId != null ? {'project_id': projectId} : null);
   }
 
+  /// Get live memory statistics (active count, by type, avg confidence)
+  Future<Map<String, dynamic>> getMemoryStats({String? projectId}) async {
+    return await _client.get('/api/memory/stats', projectId != null ? {'project_id': projectId} : null);
+  }
+
+  /// Semantic search across memories
+  Future<List<Map<String, dynamic>>> searchMemories({
+    required String query,
+    int topK = 5,
+    String? projectId,
+  }) async {
+    final res = await _client.post('/api/memory/search', {
+      'query': query,
+      'top_k': topK,
+      if (projectId != null) 'project_id': projectId,
+    });
+    final list = res['results'] as List<dynamic>? ?? [];
+    return list.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   /// Execute DuckDuckGo Web Research
   Future<List<ResearchResult>> searchWeb({required String query, int maxResults = 5}) async {
     final res = await _client.post('/api/research', {
