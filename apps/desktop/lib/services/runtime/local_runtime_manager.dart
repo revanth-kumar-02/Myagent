@@ -118,10 +118,14 @@ class LocalRuntimeManager {
         debugPrint('[LocalBackend ERR] $line');
       });
 
-      _process!.exitCode.then((code) {
+      _process!.exitCode.then((code) async {
         debugPrint('[LocalRuntimeManager] Backend process exited with code $code');
         _process = null;
-        if (_state != LocalRuntimeState.stopped) {
+        final healthy = await probeHealth(baseUrl: baseUrl);
+        if (healthy) {
+          debugPrint('[LocalRuntimeManager] Existing backend active on port, keeping running state');
+          _setState(LocalRuntimeState.running);
+        } else if (_state != LocalRuntimeState.stopped) {
           _setState(LocalRuntimeState.stopped);
         }
       });

@@ -35,16 +35,58 @@ class LinuxAdapter(BasePlatformAdapter):
         }
 
     async def launch_app(self, app_name: str, args: list[str] | None = None) -> dict[str, Any]:
-        cmd = [app_name] + (args or [])
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            return {"launched": True, "app": app_name, "pid": proc.pid}
-        except Exception as e:
-            return {"launched": False, "app": app_name, "error": str(e)}
+        # 1. Check direct binary or lowercase command
+        candidate_bin = shutil.which(app_name)
+        if not candidate_bin:
+            lowered = app_name.lower().replace(" ", "-")
+            candidate_bin = shutil.which(lowered)
+        if not candidate_bin:
+            # Common desktop app name mappings
+            common_mappings = {
+                "chrome": "google-chrome",
+                "google chrome": "google-chrome",
+                "browser": "google-chrome",
+                "files": "nautilus",
+                "file manager": "nautilus",
+                "calculator": "gnome-calculator",
+                "terminal": "gnome-terminal",
+                "code": "code",
+                "vscode": "code",
+            }
+            mapped = common_mappings.get(app_name.lower().strip())
+            if mapped:
+                candidate_bin = shutil.which(mapped)
+
+        if candidate_bin:
+            cmd = [candidate_bin] + (args or [])
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                return {"launched": True, "app": app_name, "pid": proc.pid}
+            except Exception as e:
+                return {"launched": False, "app": app_name, "error": str(e)}
+
+        # 2. Try gtk-launch if available
+        if shutil.which("gtk-launch"):
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "gtk-launch",
+                    app_name.lower().replace(" ", "-"),
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                return {"launched": True, "app": app_name, "pid": proc.pid}
+            except Exception:
+                pass
+
+        return {
+            "launched": False,
+            "app": app_name,
+            "error": f"Application '{app_name}' could not be found or executed on this Linux system.",
+        }
 
     async def read_clipboard(self) -> str:
         # Check xclip or wl-paste if available, else buffer

@@ -28,7 +28,7 @@ enum SocketConnectionState {
 class KoraSocketService {
   static const String _defaultUrl = 'ws://127.0.0.1:8765/ws';
 
-  final String backendUrl;
+  String backendUrl;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   Timer? _heartbeatTimer;
@@ -68,6 +68,15 @@ class KoraSocketService {
     _reconnectTimer?.cancel();
     _reconnectAttempts = 0;
     await _connect();
+  }
+
+  /// Update backend WebSocket URL dynamically and reconnect.
+  void updateBackendUrl(String newUrl) {
+    final trimmed = newUrl.trim();
+    if (trimmed.isNotEmpty && backendUrl != trimmed) {
+      backendUrl = trimmed;
+      retry();
+    }
   }
 
   /// Send a typed message to the backend.
@@ -215,17 +224,21 @@ class KoraSocketService {
     _isReconnecting = true;
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      debugPrint('[KoraSocketService] Max reconnect attempts reached. Setting state to error.');
+      debugPrint('[KoraSocketService] Max reconnect attempts reached. Backing off to periodic retry.');
       _setState(SocketConnectionState.error);
       _messageController.add(WsMessage(
         type: WsMessageType.error,
         sessionId: '',
         payload: {
           'code': 'CONNECTION_REFUSED',
-          'message': 'Unable to connect to Kora backend at $backendUrl after $_maxReconnectAttempts attempts. Please ensure the backend server is running.',
+          'message': 'Unable to connect to Kora backend at $backendUrl after $_maxReconnectAttempts attempts. Retrying periodically...',
         },
       ));
-      _isReconnecting = false;
+      // Retry every 5 seconds so app automatically recovers when backend starts
+      _reconnectTimer = Timer(const Duration(seconds: 5), () async {
+        _isReconnecting = false;
+        await _connect();
+      });
       return;
     }
 

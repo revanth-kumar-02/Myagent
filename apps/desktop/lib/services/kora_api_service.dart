@@ -1,3 +1,4 @@
+import '../core/config/app_config.dart';
 import '../core/networking/api_client.dart';
 import '../models/activity_log.dart';
 import '../models/automation_model.dart';
@@ -14,6 +15,11 @@ class KoraApiService {
   final ApiClient _client;
 
   KoraApiService({ApiClient? client}) : _client = client ?? ApiClient();
+
+  /// Update HTTP base URL dynamically
+  void updateBaseUrl(String newHttpUrl) {
+    _client.updateConfig(AppConfig.configured(httpBaseUrl: newHttpUrl));
+  }
 
   /// Health check
   Future<Map<String, dynamic>> checkHealth() async {

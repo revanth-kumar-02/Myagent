@@ -42,7 +42,7 @@ class KoraRuntimeStatus {
       case KoraRuntimeMode.onlineCloud:
         return 'Online · Cloud AI';
       case KoraRuntimeMode.offlineLocal:
-        return 'Offline · Local AI';
+        return 'Online · Local AI';
       case KoraRuntimeMode.degraded:
         return 'Degraded · Local Fallback';
       case KoraRuntimeMode.noProvider:
@@ -157,20 +157,28 @@ class KoraRuntimeManager {
       debugPrint('[KoraRuntimeManager] Remote hosted backend unreachable. Switching to offline mode...');
     }
 
-    // 2. Offline / Local mode
+    // 2. Local Kora Backend mode
     if (!kIsWeb) {
       // On Desktop: ensure local runtime is available
       debugPrint('[KoraRuntimeManager] Ensuring local Kora desktop runtime is active...');
       final localStarted = await localRuntime.ensureStarted(baseUrl: AppConfig.fallbackHttpUrl);
       if (localStarted) {
-        _setStatus(_status.copyWith(
-          mode: KoraRuntimeMode.offlineLocal,
-          provider: 'ollama',
-          model: 'qwen3:1.7b',
-          isLocalFallback: true,
-          activeApiUrl: AppConfig.fallbackHttpUrl,
-          activeWsUrl: AppConfig.fallbackWsUrl,
-        ));
+        // If we haven't received a more specific status from WebSocket yet, set local backend online
+        if (_status.provider == 'none' || _status.mode == KoraRuntimeMode.connecting) {
+          _setStatus(_status.copyWith(
+            mode: KoraRuntimeMode.onlineCloud,
+            provider: 'huggingface',
+            model: 'qwen-chat',
+            isLocalFallback: false,
+            activeApiUrl: AppConfig.fallbackHttpUrl,
+            activeWsUrl: AppConfig.fallbackWsUrl,
+          ));
+        } else {
+          _setStatus(_status.copyWith(
+            activeApiUrl: AppConfig.fallbackHttpUrl,
+            activeWsUrl: AppConfig.fallbackWsUrl,
+          ));
+        }
         _startRecoveryMonitor();
         return;
       }
@@ -179,14 +187,21 @@ class KoraRuntimeManager {
     // Check if local backend port is responding
     final localDirect = await _probeUrl('${AppConfig.fallbackHttpUrl}/api/health');
     if (localDirect) {
-      _setStatus(_status.copyWith(
-        mode: KoraRuntimeMode.offlineLocal,
-        provider: 'ollama',
-        model: 'qwen3:1.7b',
-        isLocalFallback: true,
-        activeApiUrl: AppConfig.fallbackHttpUrl,
-        activeWsUrl: AppConfig.fallbackWsUrl,
-      ));
+      if (_status.provider == 'none' || _status.mode == KoraRuntimeMode.connecting) {
+        _setStatus(_status.copyWith(
+          mode: KoraRuntimeMode.onlineCloud,
+          provider: 'huggingface',
+          model: 'qwen-chat',
+          isLocalFallback: false,
+          activeApiUrl: AppConfig.fallbackHttpUrl,
+          activeWsUrl: AppConfig.fallbackWsUrl,
+        ));
+      } else {
+        _setStatus(_status.copyWith(
+          activeApiUrl: AppConfig.fallbackHttpUrl,
+          activeWsUrl: AppConfig.fallbackWsUrl,
+        ));
+      }
       _startRecoveryMonitor();
       return;
     }

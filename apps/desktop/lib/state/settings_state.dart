@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/app_config.dart';
 import '../models/model_info.dart';
 import '../services/kora_api_service.dart';
+import '../services/kora_socket_service.dart';
 import 'connection_state.dart';
 
 class SettingsState {
@@ -44,22 +45,36 @@ class SettingsState {
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _themePrefKey = 'kora_theme_mode';
+  static const _httpPrefKey = 'kora_backend_http_url';
+  static const _wsPrefKey = 'kora_backend_ws_url';
   final KoraApiService _apiService;
+  final KoraSocketService _socketService;
 
-  SettingsNotifier(this._apiService) : super(const SettingsState()) {
+  SettingsNotifier(this._apiService, this._socketService) : super(const SettingsState()) {
     _loadPersistedSettings();
     loadModelInfo();
   }
 
   Future<void> _loadPersistedSettings() async {
     try {
-      final envHttp = AppConfig.defaultHttpUrl;
-      final envWs = AppConfig.defaultWsUrl;
-      if (envHttp != AppConfig.fallbackHttpUrl || envWs != AppConfig.fallbackWsUrl) {
-        state = state.copyWith(backendHttpUrl: envHttp, backendWsUrl: envWs);
+      final prefs = await SharedPreferences.getInstance();
+
+      final savedHttp = prefs.getString(_httpPrefKey);
+      final savedWs = prefs.getString(_wsPrefKey);
+
+      final httpUrl = (savedHttp != null && savedHttp.isNotEmpty)
+          ? savedHttp
+          : AppConfig.defaultHttpUrl;
+      final wsUrl = (savedWs != null && savedWs.isNotEmpty)
+          ? savedWs
+          : AppConfig.defaultWsUrl;
+
+      if (httpUrl != AppConfig.fallbackHttpUrl || wsUrl != AppConfig.fallbackWsUrl) {
+        state = state.copyWith(backendHttpUrl: httpUrl, backendWsUrl: wsUrl);
+        _apiService.updateBaseUrl(httpUrl);
+        _socketService.updateBackendUrl(wsUrl);
       }
 
-      final prefs = await SharedPreferences.getInstance();
       final modeStr = prefs.getString(_themePrefKey);
       if (modeStr != null) {
         final mode = switch (modeStr) {
@@ -103,12 +118,20 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     }
   }
 
-  void updateBackendUrls({required String httpUrl, required String wsUrl}) {
+  Future<void> updateBackendUrls({required String httpUrl, required String wsUrl}) async {
     state = state.copyWith(backendHttpUrl: httpUrl, backendWsUrl: wsUrl);
+    _apiService.updateBaseUrl(httpUrl);
+    _socketService.updateBackendUrl(wsUrl);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_httpPrefKey, httpUrl);
+      await prefs.setString(_wsPrefKey, wsUrl);
+    } catch (_) {}
   }
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
   final api = ref.watch(apiServiceProvider);
-  return SettingsNotifier(api);
+  final socket = ref.watch(socketServiceProvider);
+  return SettingsNotifier(api, socket);
 });

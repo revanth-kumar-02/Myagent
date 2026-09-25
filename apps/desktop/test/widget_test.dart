@@ -38,14 +38,14 @@ void main() {
     expect(find.descendant(of: sidebar, matching: find.text('Memory')), findsOneWidget);
     expect(find.descendant(of: sidebar, matching: find.text('Settings')), findsOneWidget);
 
-    // Default primary screen is Chat
+    // Default primary screen is Home Dashboard
+    expect(find.text('Good day, Workspace User'), findsOneWidget);
+
+    // Navigate to Chat
+    await tester.tap(find.descendant(of: sidebar, matching: find.text('Chat')));
+    await tester.pumpAndSettle();
     expect(find.text('Kora Chat'), findsOneWidget);
     expect(find.text('How can Kora assist you today?'), findsOneWidget);
-
-    // Navigate to Home
-    await tester.tap(find.descendant(of: sidebar, matching: find.text('Home')));
-    await tester.pumpAndSettle();
-    expect(find.text('Good day, Workspace User'), findsOneWidget);
 
     // Navigate to Projects
     await tester.tap(find.descendant(of: sidebar, matching: find.text('Projects')));

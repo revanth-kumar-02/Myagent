@@ -108,6 +108,16 @@ class MockKoraApiService extends KoraApiService {
   Future<Map<String, dynamic>> getKnowledgeGraph({String? projectId}) async {
     return mockGraph;
   }
+
+  @override
+  Future<Map<String, dynamic>> getMemoryStats({String? projectId}) async {
+    return {
+      'active_count': mockMemories.length,
+      'total_memories': mockMemories.length,
+      'avg_confidence': 0.95,
+      'by_type': {'user_preference': 1, 'decision': 1},
+    };
+  }
 }
 
 void main() {

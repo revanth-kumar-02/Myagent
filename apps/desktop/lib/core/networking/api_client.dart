@@ -14,13 +14,17 @@ class ApiException implements Exception {
 
 /// HTTP API Client for Kora Desktop backend communication
 class ApiClient {
-  final AppConfig config;
+  AppConfig config;
   final http.Client _client;
 
   ApiClient({
     this.config = const AppConfig(),
     http.Client? client,
   }) : _client = client ?? http.Client();
+
+  void updateConfig(AppConfig newConfig) {
+    config = newConfig;
+  }
 
   Future<Map<String, dynamic>> get(String path, [Map<String, dynamic>? queryParams]) async {
     final uri = Uri.parse('${config.httpBaseUrl}$path').replace(

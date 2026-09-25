@@ -31,15 +31,16 @@ class ConnectionState {
 
   String get displayStatusText {
     if (status == BackendStatus.connecting) return 'Connecting...';
+    if (status == BackendStatus.offline) return 'AI unavailable';
 
     final mode = providerMode?.toLowerCase();
     final prov = activeProvider?.toLowerCase();
 
-    if (mode == 'no_provider' || prov == 'none' || (status == BackendStatus.offline && prov == null)) {
+    if (mode == 'no_provider' || prov == 'none') {
       return 'AI unavailable';
     }
     if (mode == 'offline' || mode == 'local_fallback' || isLocalFallback || prov == 'ollama') {
-      return 'Offline · Local AI';
+      return 'Online · Local AI';
     }
     if (mode == 'online' || prov == 'huggingface' || mode == 'online_degraded') {
       return 'Online · Cloud AI';
@@ -126,6 +127,7 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
     _socketStatusSub = _socketService.stateStream.listen((sState) {
       if (sState == SocketConnectionState.connected) {
         state = state.copyWith(status: BackendStatus.online, errorMessage: null);
+        checkConnection();
       } else if (sState == SocketConnectionState.connecting) {
         state = state.copyWith(status: BackendStatus.connecting);
       } else if (sState == SocketConnectionState.disconnected || sState == SocketConnectionState.error) {
