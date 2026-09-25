@@ -7,6 +7,7 @@ import '../../state/connection_state.dart';
 import '../../state/projects_state.dart';
 import '../../state/tasks_state.dart';
 import '../../widgets/sidebar.dart';
+import '../../widgets/system_status_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   final ValueChanged<NavigationTab> onNavigate;
@@ -89,9 +90,9 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Knowledge Base',
+                    title: 'Projects',
                     value: '${projectsState.projects.length}',
-                    subtitle: 'Projects Indexed',
+                    subtitle: 'Local Repositories',
                     icon: Icons.folder_rounded,
                     color: c.secondary,
                     c: c,
@@ -112,7 +113,11 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+
+            // Live Host Machine Telemetry Section
+            const SystemStatusCard(),
+            const SizedBox(height: 24),
 
             // Quick Capabilities & Actions
             Text(

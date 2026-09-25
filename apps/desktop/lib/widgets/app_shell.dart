@@ -12,6 +12,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/tasks/tasks_screen.dart';
 import '../state/connection_state.dart';
 import '../state/models_state.dart';
+import 'header_system_indicator.dart';
 import 'sidebar.dart';
 import 'status_pill.dart';
 
@@ -132,7 +133,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                             ],
                           ),
                         ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
+                      const HeaderSystemIndicator(),
+                      const SizedBox(width: 10),
                       StatusPill(
                         status: conn.status,
                         label: conn.displayStatusText,
@@ -156,8 +159,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     return switch (tab) {
       NavigationTab.home     => 'Dashboard',
       NavigationTab.chat     => 'Chat Workspace',
-      NavigationTab.projects => 'Knowledge Base & Projects',
-      NavigationTab.tasks    => 'Autonomous Tasks',
+      NavigationTab.projects => 'Kora Projects',
+      NavigationTab.tasks    => 'Automation Center',
       NavigationTab.research => 'DuckDuckGo Research',
       NavigationTab.activity => 'Observability & Traces',
       NavigationTab.memory   => 'Memory & Entities',

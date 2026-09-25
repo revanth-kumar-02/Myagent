@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kora_desktop/app.dart';
 import 'package:kora_desktop/widgets/sidebar.dart';
 import 'package:kora_desktop/widgets/status_pill.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('AppShell renders with sidebar and home dashboard', (WidgetTester tester) async {
     // Set desktop window size
     tester.view.physicalSize = const Size(1200, 800);
@@ -45,7 +50,7 @@ void main() {
     // Navigate to Projects
     await tester.tap(find.descendant(of: sidebar, matching: find.text('Projects')));
     await tester.pumpAndSettle();
-    expect(find.text('Knowledge Base & Projects'), findsWidgets);
+    expect(find.text('Kora Projects'), findsWidgets);
 
     // Navigate to Research
     await tester.tap(find.descendant(of: sidebar, matching: find.text('Research')));

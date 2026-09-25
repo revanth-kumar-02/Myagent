@@ -23,10 +23,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown lifecycle."""
     configure_logging()
     await db_startup()
-    from api.deps import get_failover_manager
+    from api.deps import get_automation_engine, get_failover_manager, get_task_storage, get_system_monitor
+    from tasks.types import TriggerType
+
     fm = get_failover_manager()
     await fm.start_background_monitor()
+
+    # Start Real-Time Host System Telemetry Monitor
+    monitor = get_system_monitor()
+    monitor.start()
+
+    # Start Kora Automation & Scheduling Engine
+    engine = get_automation_engine()
+    engine.start()
+
+    # Restore active scheduled automations from persistent storage
+    try:
+        storage = get_task_storage()
+        tasks = await storage.list_tasks()
+        for t in tasks:
+            if t.is_active and t.trigger.trigger_type != TriggerType.MANUAL:
+                await engine.schedule_task(t)
+    except Exception as e:
+        structlog.get_logger(__name__).error("failed_to_restore_automations", error=str(e))
+
     yield
+
+    monitor.stop()
+    engine.shutdown(wait=False)
     fm.stop_background_monitor()
     await db_shutdown()
 

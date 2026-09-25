@@ -1,11 +1,13 @@
 import '../core/networking/api_client.dart';
 import '../models/activity_log.dart';
+import '../models/automation_model.dart';
 import '../models/memory_item.dart';
 import '../models/model_info.dart';
 import '../models/project.dart';
 import '../models/research_result.dart';
 import '../models/task_item.dart';
 import '../models/tool_command.dart';
+import '../models/system_metrics_model.dart';
 
 /// Concrete API Service for all Kora backend REST operations
 class KoraApiService {
@@ -51,11 +53,67 @@ class KoraApiService {
     await _client.delete('/api/projects/$projectId');
   }
 
-  /// List tasks
+  /// List tasks (backwards compatible)
   Future<List<TaskItem>> getTasks() async {
     final res = await _client.get('/api/tasks');
     final list = res['tasks'] as List<dynamic>? ?? [];
     return list.map((e) => TaskItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// List automations with real metrics
+  Future<Map<String, dynamic>> getAutomations({String? status}) async {
+    final params = status != null ? {'status': status} : null;
+    return await _client.get('/api/automations', params);
+  }
+
+  /// Create an automation
+  Future<AutomationItem> createAutomation(Map<String, dynamic> data) async {
+    final res = await _client.post('/api/automations', data);
+    return AutomationItem.fromJson(res);
+  }
+
+  /// Update an automation
+  Future<AutomationItem> updateAutomation(String id, Map<String, dynamic> data) async {
+    final res = await _client.put('/api/automations/$id', data);
+    return AutomationItem.fromJson(res);
+  }
+
+  /// Delete an automation
+  Future<void> deleteAutomation(String id) async {
+    await _client.delete('/api/automations/$id');
+  }
+
+  /// Trigger execution now
+  Future<void> runAutomation(String id) async {
+    await _client.post('/api/automations/$id/run', {});
+  }
+
+  /// Pause an automation schedule
+  Future<void> pauseAutomation(String id) async {
+    await _client.post('/api/automations/$id/pause', {});
+  }
+
+  /// Resume a paused automation
+  Future<void> resumeAutomation(String id) async {
+    await _client.post('/api/automations/$id/resume', {});
+  }
+
+  /// Get single automation details with execution history
+  Future<AutomationItem> getAutomationDetail(String id) async {
+    final res = await _client.get('/api/automations/$id');
+    return AutomationItem.fromJson(res);
+  }
+
+  /// Interpret natural language prompt into structured automation
+  Future<Map<String, dynamic>> interpretAutomationPrompt(String prompt) async {
+    return await _client.post('/api/automations/interpret', {'prompt': prompt});
+  }
+
+  /// Retrieve curated starter templates
+  Future<List<AutomationTemplate>> getAutomationTemplates() async {
+    final res = await _client.get('/api/automations/templates');
+    final list = res['templates'] as List<dynamic>? ?? [];
+    return list.map((e) => AutomationTemplate.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// List memories
@@ -143,5 +201,16 @@ class KoraApiService {
     } catch (_) {
       return defaultToolCommands;
     }
+  }
+
+  /// Fetch real-time host system resource metrics
+  Future<SystemMetrics> getSystemMetrics() async {
+    final res = await _client.get('/api/system/metrics');
+    return SystemMetrics.fromJson(res);
+  }
+
+  /// Query host system load state
+  Future<Map<String, dynamic>> getSystemLoad() async {
+    return await _client.get('/api/system/load');
   }
 }

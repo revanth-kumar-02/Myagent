@@ -109,6 +109,8 @@ class AutomationEngine:
                     replace_existing=True,
                 )
                 self._scheduled_jobs[task_id_str] = job.id
+                task.next_run_at = getattr(job, "next_run_time", None)
+                await self.task_manager.storage.save_task(task)
                 logger.info("scheduled_date_task", task_id=task_id_str, run_date=str(run_date))
 
             case TriggerType.INTERVAL:
@@ -121,6 +123,8 @@ class AutomationEngine:
                     replace_existing=True,
                 )
                 self._scheduled_jobs[task_id_str] = job.id
+                task.next_run_at = getattr(job, "next_run_time", None)
+                await self.task_manager.storage.save_task(task)
                 logger.info("scheduled_interval_task", task_id=task_id_str, interval_seconds=sec)
 
             case TriggerType.CRON:
@@ -150,6 +154,8 @@ class AutomationEngine:
                     replace_existing=True,
                 )
                 self._scheduled_jobs[task_id_str] = job.id
+                task.next_run_at = getattr(job, "next_run_time", None)
+                await self.task_manager.storage.save_task(task)
                 logger.info("scheduled_cron_task", task_id=task_id_str, cron=str(cron_expr))
 
             case TriggerType.EVENT:

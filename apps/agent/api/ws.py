@@ -33,6 +33,17 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
+_active_ws_connections: set[WebSocket] = set()
+
+
+async def broadcast_ws(payload: dict[str, Any]) -> None:
+    """Broadcast a JSON message to all active WebSocket clients."""
+    for ws in list(_active_ws_connections):
+        try:
+            await ws.send_json(payload)
+        except Exception:
+            _active_ws_connections.discard(ws)
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_agent_dependencies)) -> None:
@@ -41,6 +52,7 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
     All client-server communication flows through this single connection.
     """
     await ws.accept()
+    _active_ws_connections.add(ws)
     session_id = uuid.uuid4()
     logger.info("ws_connected", session_id=str(session_id))
 
@@ -197,3 +209,5 @@ async def websocket_endpoint(ws: WebSocket, deps: dict[str, Any] = Depends(get_a
             "session_id": str(session_id),
             "payload": {"code": "INTERNAL_ERROR", "message": str(e)}
         })
+    finally:
+        _active_ws_connections.discard(ws)

@@ -13,6 +13,18 @@ class CitationCard extends StatelessWidget {
     this.webSources = const [],
   });
 
+  Future<void> _launchUrl(String rawUrl) async {
+    var urlString = rawUrl.trim();
+    if (urlString.isEmpty) return;
+    if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
+      urlString = 'https://$urlString';
+    }
+    final uri = Uri.tryParse(urlString);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (sources.isEmpty && webSources.isEmpty) return const SizedBox.shrink();
@@ -132,73 +144,82 @@ class CitationCard extends StatelessWidget {
                       ],
                     ),
                   )),
-                  ...webSources.map((web) => Container(
-                    constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: c.surfaceHighlight.withValues(alpha: 0.6),
+                  ...webSources.map((web) => Material(
+                    color: Colors.transparent,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: c.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      onTap: () => _launchUrl(web.url),
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: c.surfaceHighlight.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: c.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: c.accentLight,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Icon(Icons.public_rounded, size: 13, color: c.accent),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                web.title,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: c.textPrimary,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: c.accentLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(Icons.public_rounded, size: 13, color: c.accent),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    web.title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: c.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.open_in_new_rounded, size: 12, color: c.primary),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    web.url,
+                                    style: TextStyle(fontSize: 10, color: c.primary, decoration: TextDecoration.underline),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: c.accentLight,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Web',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: c.accent,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                web.url,
-                                style: TextStyle(fontSize: 10, color: c.primary, decoration: TextDecoration.underline),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: c.accentLight,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Web',
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: c.accent,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   )),
                 ],

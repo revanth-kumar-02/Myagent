@@ -22,6 +22,13 @@ enum WsMessageType {
   indexError,
   heartbeat,
   providerStatus,
+  automationStarted,
+  automationPlan,
+  automationStepStart,
+  automationStepFinish,
+  automationCompleted,
+  automationFailed,
+  systemMetrics,
   error;
 
   static WsMessageType fromString(String s) {
@@ -47,6 +54,13 @@ enum WsMessageType {
       'INDEX_ERROR'         => indexError,
       'HEARTBEAT'           => heartbeat,
       'PROVIDER_STATUS'     => providerStatus,
+      'AUTOMATION_STARTED'     => automationStarted,
+      'AUTOMATION_PLAN'        => automationPlan,
+      'AUTOMATION_STEP_START'  => automationStepStart,
+      'AUTOMATION_STEP_FINISH' => automationStepFinish,
+      'AUTOMATION_COMPLETED'   => automationCompleted,
+      'AUTOMATION_FAILED'      => automationFailed,
+      'SYSTEM_METRICS'         => systemMetrics,
       'ERROR'               => error,
       _                     => error,
     };
@@ -74,6 +88,13 @@ enum WsMessageType {
       WsMessageType.indexError         => 'INDEX_ERROR',
       WsMessageType.heartbeat          => 'HEARTBEAT',
       WsMessageType.providerStatus     => 'PROVIDER_STATUS',
+      WsMessageType.automationStarted  => 'AUTOMATION_STARTED',
+      WsMessageType.automationPlan     => 'AUTOMATION_PLAN',
+      WsMessageType.automationStepStart  => 'AUTOMATION_STEP_START',
+      WsMessageType.automationStepFinish => 'AUTOMATION_STEP_FINISH',
+      WsMessageType.automationCompleted  => 'AUTOMATION_COMPLETED',
+      WsMessageType.automationFailed     => 'AUTOMATION_FAILED',
+      WsMessageType.systemMetrics      => 'SYSTEM_METRICS',
       WsMessageType.error              => 'ERROR',
     };
   }
