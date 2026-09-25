@@ -5,11 +5,7 @@ import 'package:kora_desktop/core/theme/app_theme.dart';
 import 'package:kora_desktop/features/tasks/tasks_screen.dart';
 import 'package:kora_desktop/models/automation_model.dart';
 import 'package:kora_desktop/services/kora_api_service.dart';
-import 'package:kora_desktop/services/kora_socket_service.dart';
-import 'package:kora_desktop/shared/protocol/message_types.dart';
-import 'package:kora_desktop/shared/protocol/ws_message.dart';
 import 'package:kora_desktop/state/connection_state.dart';
-import 'package:kora_desktop/state/tasks_state.dart';
 
 class MockKoraApiService extends KoraApiService {
   List<AutomationItem> mockAutomations = [];

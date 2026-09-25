@@ -46,9 +46,12 @@ class TerminalExecTool(BaseTool):
             "required": ["command"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        command = params["command"]
-        cwd = params.get("cwd")
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        command = p.get("command", "")
+        if not command:
+            return self._make_result(error="Missing required parameter: 'command'")
+        cwd = p.get("cwd")
 
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -107,10 +110,11 @@ class GitOperationsTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        repo_path = params.get("repo_path")
-        msg = params.get("message")
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "status")
+        repo_path = p.get("repo_path")
+        msg = p.get("message")
 
         cmd_map = {
             "status": "git status -s",
@@ -163,7 +167,10 @@ class DatabaseOpsTool(BaseTool):
             "required": ["query"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        query = params["query"]
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        query = p.get("query", "")
+        if not query:
+            return self._make_result(error="Missing required parameter: 'query'")
         # In a live DB environment, delegates to async SQLAlchemy session; returns simulated/mocked outcome in standalone
         return self._make_result(output={"query": query, "executed": True, "rows_affected": 0})

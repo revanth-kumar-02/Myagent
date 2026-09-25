@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kora_desktop/models/chat_message.dart';
-import 'package:kora_desktop/models/plan_step.dart';
 import 'package:kora_desktop/services/kora_socket_service.dart';
 import 'package:kora_desktop/services/ollama_direct_service.dart';
 import 'package:kora_desktop/shared/protocol/message_types.dart';

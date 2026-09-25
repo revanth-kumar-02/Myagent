@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
-import '../models/system_metrics_model.dart';
 import '../state/system_metrics_state.dart';
 import 'system_details_modal.dart';
 

@@ -4,7 +4,6 @@ import '../services/kora_api_service.dart';
 import '../services/kora_socket_service.dart';
 import '../services/runtime/kora_runtime_manager.dart';
 import '../shared/protocol/message_types.dart';
-import '../shared/protocol/ws_message.dart';
 
 enum BackendStatus { connecting, online, offline }
 

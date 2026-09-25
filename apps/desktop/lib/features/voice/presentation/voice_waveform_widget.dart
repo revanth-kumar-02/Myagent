@@ -28,7 +28,6 @@ class VoiceWaveformWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final stateColor = _getStateColor(voiceState);
 
     return Container(
@@ -36,7 +35,7 @@ class VoiceWaveformWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: stateColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.Border.all(color: stateColor.withValues(alpha: 0.3)),
+        border: Border.all(color: stateColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

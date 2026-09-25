@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../shared/protocol/message_types.dart';
-import '../../shared/protocol/ws_message.dart';
 import '../kora_socket_service.dart';
 import 'local_runtime_manager.dart';
 

@@ -47,14 +47,15 @@ class WindowManagerTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
         adapter = get_platform_adapter()
-        action = params["action"]
+        action = p.get("action", "list")
         if action == "list":
             windows = await adapter.list_windows()
             return self._make_result(output={"windows": windows, "count": len(windows)})
         elif action == "focus":
-            win_id = params.get("window_id", "")
+            win_id = p.get("window_id", "")
             ok = await adapter.focus_window(win_id)
             return self._make_result(output={"focused": ok, "window_id": win_id})
         return self._make_result(error=f"Unknown action: {action}")
@@ -93,14 +94,14 @@ class MouseControlTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-        btn = params.get("button", "left")
-        scroll = params.get("scroll_amount", 0)
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "click")
+        x = p.get("x", 0)
+        y = p.get("y", 0)
+        btn = p.get("button", "left")
+        scroll = p.get("scroll_amount", 0)
 
-        # Simulation or OS interaction via adapter
         return self._make_result(output={"executed": True, "action": action, "x": x, "y": y, "button": btn, "scroll": scroll})
 
 
@@ -135,10 +136,11 @@ class KeyboardControlTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        text = params.get("text", "")
-        keys = params.get("keys", [])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "type")
+        text = p.get("text", "")
+        keys = p.get("keys", [])
         return self._make_result(output={"executed": True, "action": action, "typed": text, "keys": keys})
 
 
@@ -177,12 +179,13 @@ class ScreenCaptureTool(BaseTool):
             },
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
         adapter = get_platform_adapter()
-        dest = params.get("output_path")
-        mon = params.get("monitor_index")
-        win = params.get("window_id")
-        reg = tuple(params["region"]) if params.get("region") else None
+        dest = p.get("output_path")
+        mon = p.get("monitor_index")
+        win = p.get("window_id")
+        reg = tuple(p["region"]) if p.get("region") else None
         path = await adapter.capture_screen(output_path=dest, monitor_index=mon, window_id=win, region=reg)
         return self._make_result(
             output={

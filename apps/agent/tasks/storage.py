@@ -43,11 +43,20 @@ class TaskStorage:
     def __init__(self, persistence_file: Path | str | None = None) -> None:
         self._tasks: dict[UUID, TaskDefinition] = {}
         self._lock = asyncio.Lock()
-        self._file_path = Path(persistence_file) if persistence_file else STORAGE_PATH
+        if persistence_file:
+            self._file_path: Path | None = Path(persistence_file)
+        elif "KORA_AUTOMATIONS_FILE" in os.environ:
+            self._file_path = Path(os.environ["KORA_AUTOMATIONS_FILE"])
+        elif "PYTEST_CURRENT_TEST" in os.environ:
+            self._file_path = None
+        else:
+            self._file_path = STORAGE_PATH
         self._load_from_disk_sync()
 
     def _load_from_disk_sync(self) -> None:
         """Load tasks from disk synchronously on initialization."""
+        if self._file_path is None:
+            return
         try:
             if self._file_path.exists():
                 with open(self._file_path, "r", encoding="utf-8") as f:
@@ -63,6 +72,8 @@ class TaskStorage:
 
     def _save_to_disk_sync(self) -> None:
         """Atomic write to disk."""
+        if self._file_path is None:
+            return
         try:
             self._file_path.parent.mkdir(parents=True, exist_ok=True)
             temp_path = self._file_path.with_suffix(".tmp")

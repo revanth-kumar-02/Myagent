@@ -54,14 +54,18 @@ class FileReadTool(BaseTool):
             "required": ["path"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        path = Path(params["path"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        path_str = p.get("path", "")
+        if not path_str:
+            return self._make_result(error="Missing required parameter: 'path'")
+        path = Path(path_str)
         if not path.exists():
             return self._make_result(error=f"File not found: {path}")
         if not path.is_file():
             return self._make_result(error=f"Path is not a file: {path}")
 
-        max_lines = params.get("max_lines")
+        max_lines = p.get("max_lines")
         try:
             async with aiofiles.open(path, mode="r", encoding="utf-8", errors="replace") as f:
                 if max_lines:
@@ -106,10 +110,14 @@ class FileWriteTool(BaseTool):
             "required": ["path", "content"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        path = Path(params["path"])
-        content = params["content"]
-        append = params.get("append", False)
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        path_str = p.get("path", "")
+        content = p.get("content", "")
+        if not path_str:
+            return self._make_result(error="Missing required parameter: 'path'")
+        path = Path(path_str)
+        append = p.get("append", False)
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -151,8 +159,12 @@ class FileCreateTool(BaseTool):
             "required": ["path"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        path = Path(params["path"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        path_str = p.get("path", "")
+        if not path_str:
+            return self._make_result(error="Missing required parameter: 'path'")
+        path = Path(path_str)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.touch(exist_ok=True)
@@ -191,9 +203,14 @@ class FileMoveTool(BaseTool):
             "required": ["source", "destination"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        src = Path(params["source"])
-        dst = Path(params["destination"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        src_str = p.get("source", "")
+        dst_str = p.get("destination", "")
+        if not src_str or not dst_str:
+            return self._make_result(error="Missing required parameters: 'source' and 'destination'")
+        src = Path(src_str)
+        dst = Path(dst_str)
         if not src.exists():
             return self._make_result(error=f"Source path does not exist: {src}")
 
@@ -235,9 +252,13 @@ class FileRenameTool(BaseTool):
             "required": ["path", "new_name"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        path = Path(params["path"])
-        new_name = params["new_name"]
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        path_str = p.get("path", "")
+        new_name = p.get("new_name", "")
+        if not path_str or not new_name:
+            return self._make_result(error="Missing required parameters: 'path' and 'new_name'")
+        path = Path(path_str)
         if not path.exists():
             return self._make_result(error=f"Path not found: {path}")
 
@@ -278,8 +299,12 @@ class FileDeleteTool(BaseTool):
             "required": ["path"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        path = Path(params["path"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        path_str = p.get("path", "")
+        if not path_str:
+            return self._make_result(error="Missing required parameter: 'path'")
+        path = Path(path_str)
         if not path.exists():
             return self._make_result(error=f"File not found: {path}")
 
@@ -323,9 +348,13 @@ class DirectoryOpsTool(BaseTool):
             "required": ["action", "path"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        path = Path(params["path"])
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "list")
+        path_str = p.get("path", "")
+        if not path_str:
+            return self._make_result(error="Missing required parameter: 'path'")
+        path = Path(path_str)
 
         try:
             if action == "list":

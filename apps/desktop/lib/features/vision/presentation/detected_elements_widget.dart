@@ -87,7 +87,7 @@ class DetectedElementsWidget extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: _getTypeColor(type).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.Border.all(
+                          border: Border.all(
                             color: _getTypeColor(type).withValues(alpha: 0.5),
                           ),
                         ),

@@ -8,7 +8,6 @@ import 'package:kora_desktop/features/memory/memory_screen.dart';
 import 'package:kora_desktop/models/memory_item.dart';
 import 'package:kora_desktop/services/kora_api_service.dart';
 import 'package:kora_desktop/state/connection_state.dart';
-import 'package:kora_desktop/state/memory_state.dart';
 
 class MockKoraApiService extends KoraApiService {
   List<MemoryItem> mockMemories = [];

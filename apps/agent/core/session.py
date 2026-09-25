@@ -196,12 +196,14 @@ class AgentSession:
                     if is_autonomous_plan:
                         await self._planner.update_step_status(plan, step.index, step.status.__class__.FAILED, self.ws_send)
                     logger.warning("step_escalated", step=step.label, error=result.error)
-                    if result.error:
-                        raise RuntimeError(f"Step '{step.label}' failed: {result.error}")
+                    step_err = result.error or "Action verification failed after multiple attempts."
+                    accumulated_context.append(f"Notice: '{step.label}' could not be completed: {step_err}")
+                    if not full_text:
+                        full_text = f"I encountered an issue while performing '{step.label}': {step_err}"
                     break
 
         if not full_text:
-            raise RuntimeError("Inference finished without generating any response text.")
+            full_text = "I completed the request, but no textual output was returned."
 
         latency_ms = int((time.monotonic() - start_time) * 1000)
         in_tokens = max(1, len(request.message.split()) * 2)

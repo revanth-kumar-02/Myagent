@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -36,7 +35,6 @@ class KoraSocketService {
 
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
-  static const Duration _baseReconnectDelay = Duration(seconds: 1);
   bool _isReconnecting = false;
 
   SocketConnectionState _state = SocketConnectionState.disconnected;

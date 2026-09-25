@@ -6,6 +6,7 @@ Tools:
   - PageNavigationTool: Navigate to URLs
   - PageInteractionTool: Interact with web page elements
   - DownloadManagerTool: Download files from web URLs to disk
+  - WebSearchTool: Live web research using DuckDuckGo
 """
 
 from __future__ import annotations
@@ -14,9 +15,12 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import structlog
 
 from tools.base import BaseTool
 from tools.types import PermissionLevel, ToolCategory, ToolResult
+
+logger = structlog.get_logger(__name__)
 
 
 class BrowserControlTool(BaseTool):
@@ -49,9 +53,10 @@ class BrowserControlTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        headless = params.get("headless", True)
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "open")
+        headless = p.get("headless", True)
         return self._make_result(output={"action": action, "headless": headless, "status": "ready"})
 
 
@@ -84,8 +89,9 @@ class PageNavigationTool(BaseTool):
             "required": ["url"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        url = params["url"]
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        url = p.get("url", "")
         return self._make_result(output={"url": url, "navigated": True, "title": "Page Loaded"})
 
 
@@ -120,10 +126,11 @@ class PageInteractionTool(BaseTool):
             "required": ["action", "selector"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
-        action = params["action"]
-        selector = params["selector"]
-        val = params.get("value", "")
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        action = p.get("action", "")
+        selector = p.get("selector", "")
+        val = p.get("value", "")
         return self._make_result(output={"action": action, "selector": selector, "value": val, "success": True})
 
 
@@ -176,3 +183,82 @@ class DownloadManagerTool(BaseTool):
             return self._make_result(output={"url": url, "path": str(dst), "bytes": len(resp.content), "downloaded": True})
         except Exception as e:
             return self._make_result(error=f"Download failed: {e}")
+
+
+class WebSearchTool(BaseTool):
+    """Search the web using DuckDuckGo for live facts and external updates."""
+
+    @property
+    def tool_id(self) -> str:
+        return "web_search"
+
+    @property
+    def name(self) -> str:
+        return "web_search"
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.WEB
+
+    @property
+    def description(self) -> str:
+        return (
+            "Search the web using DuckDuckGo for current information, news, documentation, "
+            "or live repository/website updates. Returns real search snippets and URLs."
+        )
+
+    @property
+    def permission_level(self) -> PermissionLevel:
+        return PermissionLevel.EXTERNAL_ACTION
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"},
+                "max_results": {"type": "integer", "description": "Maximum number of results to return", "default": 5},
+            },
+            "required": ["query"],
+        }
+
+    @property
+    def output_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "results": {"type": "array"},
+                "query": {"type": "string"},
+                "count": {"type": "integer"},
+            },
+        }
+
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
+        query = p.get("query", "").strip()
+        if not query:
+            return self._make_result(error="Parameter 'query' cannot be empty.")
+
+        max_results = int(p.get("max_results", 5))
+        try:
+            from research.router import ResearchRouter
+            router = ResearchRouter()
+            response = await router.search(query=query, max_results=max_results)
+            results_data = [
+                {
+                    "title": r.title,
+                    "url": r.url,
+                    "snippet": r.snippet,
+                }
+                for r in getattr(response, "results", [])
+            ]
+            return self._make_result(
+                output={
+                    "query": query,
+                    "count": len(results_data),
+                    "results": results_data,
+                }
+            )
+        except Exception as e:
+            logger.error("web_search_tool_failed", query=query, error=str(e))
+            return self._make_result(error=f"Web search error: {str(e)}")

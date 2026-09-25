@@ -510,7 +510,7 @@ class AutonomousTaskExecutor:
                 tool = self.tool_registry.get(tool_name)
 
                 # Permission Check
-                if task.require_approval_for_tools:
+                if self.permission_gate is not None:
                     await self.permission_gate.check(tool)
 
                 # Tool Execution

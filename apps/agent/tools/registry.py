@@ -111,6 +111,7 @@ def build_default_registry() -> ToolRegistry:
         DownloadManagerTool,
         PageInteractionTool,
         PageNavigationTool,
+        WebSearchTool,
     )
 
     registry = ToolRegistry()
@@ -146,7 +147,6 @@ def build_default_registry() -> ToolRegistry:
     registry.register(PageNavigationTool())
     registry.register(PageInteractionTool())
     registry.register(DownloadManagerTool())
-    from tools.web_tool import WebSearchTool
     registry.register(WebSearchTool())
 
     # Dev

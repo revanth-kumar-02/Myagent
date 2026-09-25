@@ -64,7 +64,7 @@ class ScreenPreviewWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.Border.all(color: theme.colorScheme.outlineVariant),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
                 child: Stack(
                   fit: StackFit.expand,

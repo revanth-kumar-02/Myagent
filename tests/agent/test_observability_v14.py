@@ -313,7 +313,10 @@ class TestComponentHealthProbes:
 
     @pytest.mark.asyncio
     async def test_system_health_report(self) -> None:
-        monitor = HealthMonitor()
+        from unittest.mock import AsyncMock
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=None)
+        monitor = HealthMonitor(db_session=mock_db)
         report = await monitor.check_all()
 
         assert report.overall_status == HealthStatus.HEALTHY

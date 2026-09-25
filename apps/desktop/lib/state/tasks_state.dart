@@ -105,8 +105,9 @@ class TasksNotifier extends StateNotifier<TasksState> {
   }
 
   void _initSocketListener() {
-    if (_socketService == null) return;
-    _socketSubscription = _socketService!.messages.listen(_handleWebSocketMessage);
+    final socket = _socketService;
+    if (socket == null) return;
+    _socketSubscription = socket.messages.listen(_handleWebSocketMessage);
   }
 
   @override

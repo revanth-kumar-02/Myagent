@@ -47,10 +47,11 @@ class AppLauncherTool(BaseTool):
             "required": ["app_name"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
         adapter = get_platform_adapter()
-        app_name = params["app_name"]
-        args = params.get("args", [])
+        app_name = p.get("app_name", "")
+        args = p.get("args", [])
         res = await adapter.launch_app(app_name, args)
         if res.get("launched"):
             return self._make_result(output=res)
@@ -87,11 +88,12 @@ class ClipboardTool(BaseTool):
             "required": ["action"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
         adapter = get_platform_adapter()
-        action = params["action"]
+        action = p.get("action", "read")
         if action == "write":
-            text = params.get("text", "")
+            text = p.get("text", "")
             ok = await adapter.write_clipboard(text)
             return self._make_result(output={"written": ok, "length": len(text)})
         else:
@@ -129,10 +131,11 @@ class NotificationTool(BaseTool):
             "required": ["title", "message"],
         }
 
-    async def execute(self, params: dict[str, Any]) -> ToolResult:
+    async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
+        p = self.sanitize_params(params, **kwargs)
         adapter = get_platform_adapter()
-        title = params["title"]
-        message = params["message"]
+        title = p.get("title", "")
+        message = p.get("message", "")
         ok = await adapter.send_notification(title, message)
         return self._make_result(output={"displayed": ok, "title": title})
 
