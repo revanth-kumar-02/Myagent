@@ -136,6 +136,10 @@ def build_default_registry() -> ToolRegistry:
     registry.register(FileDeleteTool())
     registry.register(DirectoryOpsTool())
 
+    # Projects
+    from tools.projects import ProjectsScanTool
+    registry.register(ProjectsScanTool())
+
     # Computer
     registry.register(WindowManagerTool())
     registry.register(MouseControlTool())
@@ -153,5 +157,69 @@ def build_default_registry() -> ToolRegistry:
     registry.register(TerminalExecTool())
     registry.register(GitOperationsTool())
     registry.register(DatabaseOpsTool())
+
+    # Google Workspace
+    from tools.google import (
+        CalendarCreateEventTool,
+        CalendarDeleteEventTool,
+        CalendarListEventsTool,
+        CalendarUpdateEventTool,
+        DocsCreateTool,
+        DocsReadTool,
+        DocsUpdateTool,
+        DriveCreateFolderTool,
+        DriveDeleteTool,
+        DriveReadTool,
+        DriveSearchTool,
+        GmailDraftTool,
+        GmailReadTool,
+        GmailSearchTool,
+        GmailSendTool,
+        GoogleCalendarTool,
+        GoogleDocsTool,
+        GoogleDriveTool,
+        GoogleGmailTool,
+        GoogleSheetsTool,
+        GoogleTasksTool,
+        SheetsAppendTool,
+        SheetsReadTool,
+        SheetsWriteTool,
+        TasksCompleteTool,
+        TasksCreateTool,
+        TasksListTool,
+    )
+
+    registry.register(GoogleGmailTool())
+    registry.register(GmailSearchTool())
+    registry.register(GmailReadTool())
+    registry.register(GmailDraftTool())
+    registry.register(GmailSendTool())
+
+    registry.register(GoogleCalendarTool())
+    registry.register(CalendarListEventsTool())
+    registry.register(CalendarCreateEventTool())
+    registry.register(CalendarUpdateEventTool())
+    registry.register(CalendarDeleteEventTool())
+
+    registry.register(GoogleDriveTool())
+    registry.register(DriveSearchTool())
+    registry.register(DriveReadTool())
+    registry.register(DriveCreateFolderTool())
+    registry.register(DriveDeleteTool())
+
+    registry.register(GoogleTasksTool())
+    registry.register(TasksListTool())
+    registry.register(TasksCreateTool())
+    registry.register(TasksCompleteTool())
+
+    registry.register(GoogleDocsTool())
+    registry.register(DocsReadTool())
+    registry.register(DocsCreateTool())
+    registry.register(DocsUpdateTool())
+
+    registry.register(GoogleSheetsTool())
+    registry.register(SheetsReadTool())
+    registry.register(SheetsWriteTool())
+    registry.register(SheetsAppendTool())
 
     return registry

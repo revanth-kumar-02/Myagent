@@ -38,6 +38,8 @@ class ChatMessage {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
+  static const Object _sentinel = Object();
+
   ChatMessage copyWith({
     String? id,
     MessageRole? role,
@@ -46,12 +48,12 @@ class ChatMessage {
     List<RagSource>? sources,
     List<WebSource>? webSources,
     List<PlanStep>? planSteps,
-    String? activeTool,
-    String? modelUsed,
+    Object? activeTool = _sentinel,
+    Object? modelUsed = _sentinel,
     int? inputTokens,
     int? outputTokens,
     int? latencyMs,
-    String? errorMessage,
+    Object? errorMessage = _sentinel,
     DateTime? timestamp,
   }) {
     return ChatMessage(
@@ -62,12 +64,18 @@ class ChatMessage {
       sources: sources ?? this.sources,
       webSources: webSources ?? this.webSources,
       planSteps: planSteps ?? this.planSteps,
-      activeTool: activeTool ?? this.activeTool,
-      modelUsed: modelUsed ?? this.modelUsed,
+      activeTool: identical(activeTool, _sentinel)
+          ? this.activeTool
+          : (activeTool as String?),
+      modelUsed: identical(modelUsed, _sentinel)
+          ? this.modelUsed
+          : (modelUsed as String?),
       inputTokens: inputTokens ?? this.inputTokens,
       outputTokens: outputTokens ?? this.outputTokens,
       latencyMs: latencyMs ?? this.latencyMs,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: identical(errorMessage, _sentinel)
+          ? this.errorMessage
+          : (errorMessage as String?),
       timestamp: timestamp ?? this.timestamp,
     );
   }

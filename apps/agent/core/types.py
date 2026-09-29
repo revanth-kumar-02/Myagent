@@ -76,8 +76,8 @@ class SourceType(str, enum.Enum):
 @dataclass
 class ChatRequest:
     message: str
-    session_id: uuid.UUID
-    project_id: uuid.UUID | None
+    session_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    project_id: uuid.UUID | None = None
     attachments: list[str] = field(default_factory=list)
     trace_id: uuid.UUID = field(default_factory=uuid.uuid4)
 

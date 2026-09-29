@@ -98,10 +98,26 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "json"
 
+    # ── Google Workspace ──────────────────────────────────────────────────────
+    google_enabled: bool = Field(default=True, description="Enable Google Workspace integration")
+    google_client_id: str = Field(default="", description="Google OAuth Client ID")
+    google_client_secret: str = Field(default="", description="Google OAuth Client Secret")
+    google_redirect_uri: str = "http://localhost:8765/api/auth/google/callback"
+    google_token_file: Path = Path.home() / ".kora" / "google_tokens.json"
+
     # ── Permissions ───────────────────────────────────────────────────────────
     # Tools that require explicit user approval before execution
     require_approval_for: list[str] = Field(
-        default=["file_write", "shell_exec", "browser_navigate"],
+        default=[
+            "file_write",
+            "file_delete",
+            "shell_exec",
+            "terminal_exec",
+            "browser_navigate",
+            "google_gmail_send",
+            "google_calendar_delete",
+            "google_drive_delete",
+        ],
         description="Tool names that require runtime permission grant",
     )
 

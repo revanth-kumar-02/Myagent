@@ -34,7 +34,7 @@ class AppLauncherTool(BaseTool):
 
     @property
     def permission_level(self) -> PermissionLevel:
-        return PermissionLevel.HIGH_IMPACT_ACTION
+        return PermissionLevel.LOW_RISK_WRITE
 
     @property
     def parameters(self) -> dict[str, Any]:

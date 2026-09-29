@@ -141,16 +141,25 @@ class AutonomousTaskExecutor:
             # ── 1. Context Retrieval ──────────────────────────────────────────
             needed_sources: set[SourceType] = set()
             if hasattr(self.context_resolver, "resolve"):
-                sig = inspect.signature(self.context_resolver.resolve)
+                resolver_fn: Any = getattr(self.context_resolver, "resolve")
+                sig = inspect.signature(resolver_fn)
                 if "message" in sig.parameters:
-                    needed_sources = self.context_resolver.resolve(
+                    res = resolver_fn(
                         message=task.goal,
                         project_id=task.project_id,
                     )
                 elif "query" in sig.parameters:
-                    res = self.context_resolver.resolve(query=task.goal, project_id=task.project_id)
-                    if asyncio.iscoroutine(res):
-                        await res
+                    res = resolver_fn(
+                        query=task.goal,
+                        project_id=task.project_id,
+                    )
+                else:
+                    res = resolver_fn(task.goal, task.project_id)
+
+                if asyncio.iscoroutine(res):
+                    res = await res
+                if isinstance(res, (set, list)):
+                    needed_sources = set(res)
 
             logger.info("task_context_resolved", sources=[s.value for s in needed_sources])
 
@@ -421,23 +430,26 @@ class AutonomousTaskExecutor:
     async def _generate_plan(self, task: TaskDefinition, override_goal: str | None = None) -> Any:
         """Invoke planner supporting both sync/async and ChatRequest/goal calling signatures."""
         goal = override_goal or task.goal
-        sig = inspect.signature(self.planner.plan)
+        chat_req = ChatRequest(
+            message=goal,
+            session_id=task.session_id or uuid4(),
+            project_id=task.project_id,
+        )
+        planner_obj: Any = self.planner
+        planner_fn = getattr(planner_obj, "plan", planner_obj)
+        sig = inspect.signature(planner_fn)
 
         if "request" in sig.parameters:
-            chat_req = ChatRequest(
-                message=goal,
-                session_id=task.session_id or uuid4(),
-                project_id=task.project_id,
-            )
-            res = self.planner.plan(chat_req)
+            res = planner_fn(request=chat_req)
         elif "goal" in sig.parameters:
-            res = self.planner.plan(
-                goal=goal,
-                context=f"Autonomous Goal: {goal}",
-                available_tools=[t.name for t in self.tool_registry.all()],
-            )
+            kwargs: dict[str, Any] = {"goal": goal}
+            if "context" in sig.parameters:
+                kwargs["context"] = f"Autonomous Goal: {goal}"
+            if "available_tools" in sig.parameters:
+                kwargs["available_tools"] = [t.name for t in self.tool_registry.all()]
+            res = planner_fn(**kwargs)
         else:
-            res = self.planner.plan(goal)
+            res = planner_fn(chat_req)
 
         if asyncio.iscoroutine(res):
             return await res

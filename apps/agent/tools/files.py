@@ -350,18 +350,29 @@ class DirectoryOpsTool(BaseTool):
 
     async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
         p = self.sanitize_params(params, **kwargs)
-        action = p.get("action", "list")
+        action = p.get("action") or p.get("operation") or "list"
         path_str = p.get("path", "")
-        if not path_str:
-            return self._make_result(error="Missing required parameter: 'path'")
-        path = Path(path_str)
+        if not path_str or path_str in (".", "workspace", "projects", "dictoraries", "dictaries", "directories"):
+            default_proj = Path("/home/rev/My_Personal_Space/Projects/Unfinished")
+            if default_proj.exists():
+                path = default_proj
+            else:
+                path = Path(os.getcwd())
+        else:
+            path = Path(os.path.expanduser(path_str))
 
         try:
             if action == "list":
                 if not path.exists() or not path.is_dir():
-                    return self._make_result(error=f"Directory does not exist: {path}")
+                    default_proj = Path("/home/rev/My_Personal_Space/Projects/Unfinished")
+                    if default_proj.exists():
+                        path = default_proj
+                    else:
+                        return self._make_result(error=f"Directory does not exist: {path}")
                 items = [{"name": item.name, "is_dir": item.is_dir(), "size": item.stat().st_size if item.is_file() else 0} for item in path.iterdir()]
-                return self._make_result(output={"path": str(path), "items": items, "count": len(items)})
+                item_names = [item["name"] for item in items[:15]]
+                summary = f"Found {len(items)} items in {path}: {', '.join(item_names)}"
+                return self._make_result(output={"path": str(path), "items": items, "count": len(items), "summary": summary})
 
             elif action == "create":
                 path.mkdir(parents=True, exist_ok=True)

@@ -157,5 +157,42 @@ void main() {
       expect(notifier.state.messages, isEmpty);
       expect(notifier.state.isStreaming, isFalse);
     });
+
+    test('activeTool lifecycle: set on tool call notify, cleared on tool result notify', () async {
+      final socket = MockSocketService();
+      final notifier = ChatNotifier(socket);
+
+      await notifier.sendMessage('Launch app');
+      expect(notifier.state.activeTool, isNull);
+
+      final callMsg = WsMessage.fromRawString(
+        '{"type": "TOOL_CALL_NOTIFY", "payload": {"tool": "app_launcher"}}',
+      );
+      notifier.testHandleMessage(callMsg);
+      expect(notifier.state.activeTool, 'app_launcher');
+      expect(notifier.state.messages.last.activeTool, 'app_launcher');
+
+      final resultMsg = WsMessage.fromRawString(
+        '{"type": "TOOL_RESULT_NOTIFY", "payload": {"tool": "app_launcher", "result": "Launched"}}',
+      );
+      notifier.testHandleMessage(resultMsg);
+      expect(notifier.state.activeTool, isNull);
+      expect(notifier.state.messages.last.activeTool, isNull);
+    });
+
+    test('ChatState and ChatMessage copyWith(activeTool: null) properly clear activeTool', () {
+      final msg = ChatMessage(
+        id: 'msg1',
+        role: MessageRole.assistant,
+        content: 'Testing',
+        activeTool: 'app_launcher',
+      );
+      final updatedMsg = msg.copyWith(activeTool: null);
+      expect(updatedMsg.activeTool, isNull);
+
+      final state = ChatState(sessionId: 's1', activeTool: 'app_launcher');
+      final updatedState = state.copyWith(activeTool: null);
+      expect(updatedState.activeTool, isNull);
+    });
   });
 }

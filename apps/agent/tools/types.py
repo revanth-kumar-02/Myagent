@@ -18,6 +18,7 @@ class ToolCategory(str, enum.Enum):
     COMPUTER    = "computer"     # Windows, mouse, keyboard, screen capture
     WEB         = "web"          # Browser control, navigation, interaction, downloads
     DEVELOPMENT = "development"  # Terminal, git, database queries
+    WORKSPACE   = "workspace"    # Google Workspace (Gmail, Calendar, Drive, Tasks, Docs, Sheets)
 
 
 class PermissionLevel(str, enum.Enum):
@@ -30,6 +31,7 @@ class PermissionLevel(str, enum.Enum):
     """
     READ                = "read"
     LOW_RISK_WRITE      = "low_risk_write"
+    LOW_IMPACT_ACTION   = "low_risk_write"
     EXTERNAL_ACTION     = "external_action"
     HIGH_IMPACT_ACTION  = "high_impact_action"
 
@@ -60,6 +62,15 @@ class ToolResult:
     error: str | None = None
     execution_time_ms: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def data(self) -> Any:
+        """Alias for output for backwards compatibility with tests and callers."""
+        return self.output
+
+    @data.setter
+    def data(self, val: Any) -> None:
+        self.output = val
 
     @property
     def success(self) -> bool:

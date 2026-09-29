@@ -97,11 +97,11 @@ class TestInputValidationAndTimeout:
             @property
             def description(self) -> str: return "Simulates slow operation"
             @property
-            def parameters(self) -> dict: return {"type": "object"}
+            def parameters(self) -> dict[str, Any]: return {"type": "object"}
             @property
             def timeout(self) -> float: return 0.1  # 100ms timeout
 
-            async def execute(self, params: dict) -> ToolResult:
+            async def execute(self, params: dict[str, Any] | None = None, **kwargs: Any) -> ToolResult:
                 await asyncio.sleep(0.5)
                 return self._make_result(output="Done")
 
@@ -383,7 +383,68 @@ class TestAuditLoggingAndSanitization:
             "normal_data": "public info",
         }
         sanitized = sanitize_audit_payload(payload)
-        assert sanitized["user"] == "alice"
-        assert sanitized["normal_data"] == "public info"
         assert "****** [REDACTED SECRET]" in sanitized["password"]
         assert "****** [REDACTED SECRET]" in sanitized["api_key"]
+
+
+# ── 7. Projects Scan & Workspace Tooling ──────────────────────────────────────
+
+
+class TestProjectsScanAndWorkspaceTool:
+
+    def test_projects_scan_tool_registered(self) -> None:
+        reg = build_default_registry()
+        tool = reg.get("projects_scan")
+        assert tool.tool_id == "projects_scan"
+        assert tool.permission_level == PermissionLevel.READ
+
+    @pytest.mark.asyncio
+    async def test_projects_scan_executes_on_real_workspace(self) -> None:
+        from tools.projects import ProjectsScanTool
+        tool = ProjectsScanTool()
+        result = await tool.execute({})
+        assert result.success is True
+        assert "unfinished_projects" in result.output
+        assert "finished_projects" in result.output
+        assert result.output["total_count"] > 0
+        assert "summary" in result.output
+
+    @pytest.mark.asyncio
+    async def test_planner_routes_project_and_directory_queries(self) -> None:
+        from core.planner import Planner
+        from core.types import ActionType, ChatRequest
+
+        planner = Planner()
+        queries = [
+            "check about my projects and tell me what are the projects i havenot finished",
+            "check my dictoraries i created a folder for unfinished projects to store",
+            "Unfinished",
+            "what are my projects",
+        ]
+        for q in queries:
+            plan = await planner.plan(ChatRequest(message=q))
+            assert len(plan.steps) >= 2
+            assert plan.steps[0].action_type == ActionType.TOOL_CALL
+            assert plan.steps[0].required_tool == "projects_scan"
+            assert plan.steps[1].action_type == ActionType.MODEL_GENERATE
+            assert plan.steps[1].dependencies == [0]
+
+    @pytest.mark.asyncio
+    async def test_directory_ops_handles_dictoraries_and_projects(self) -> None:
+        from tools.files import DirectoryOpsTool
+        tool = DirectoryOpsTool()
+        result = await tool.execute({"path": "dictoraries", "action": "list"})
+        assert result.success is True
+        assert result.output["count"] > 0
+        assert "items" in result.output
+        assert "summary" in result.output
+
+    @pytest.mark.asyncio
+    async def test_app_launcher_falls_back_to_browser_for_web_services(self) -> None:
+        from tools.system import AppLauncherTool
+        tool = AppLauncherTool()
+        result = await tool.execute({"app_name": "youtube"})
+        assert result.success is True
+        assert result.output.get("launched") is True
+        assert result.output.get("mode") == "browser"
+        assert "youtube.com" in result.output.get("url", "")

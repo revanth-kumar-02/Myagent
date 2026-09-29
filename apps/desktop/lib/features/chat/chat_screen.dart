@@ -369,8 +369,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Dynamic live status bar (only visible during execution or active tool)
-                      if (chatState.isStreaming || chatState.activeTool != null || chatState.activePlanSteps.any((s) => s.status == PlanStepStatus.running))
+                      // Dynamic live status bar (only visible during active generation/streaming)
+                      if (chatState.isStreaming)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(

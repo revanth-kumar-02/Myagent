@@ -66,14 +66,15 @@ class ContextResolver:
 
     def resolve(
         self,
-        message: str,
+        message: str = "",
         project_id: uuid.UUID | None = None,
         has_active_project: bool = True,
+        query: str | None = None,
     ) -> set[SourceType]:
         """
         Determine which context sources should be queried for the given message.
         """
-        msg_clean = message.strip()
+        msg_clean = (query or message or "").strip()
         if not msg_clean:
             return set()
 

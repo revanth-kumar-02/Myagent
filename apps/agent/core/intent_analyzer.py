@@ -27,12 +27,27 @@ logger = structlog.get_logger(__name__)
 
 # Patterns indicating direct tool / terminal / file manipulation actions
 _TOOL_PATTERNS = [
-    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|create\s+(?:a\s+|an\s+|new\s+)?file|write\s+(?:a\s+|to\s+)?file|edit\s+(?:a\s+)?file|delete\s+(?:a\s+)?file|modify\s+(?:a\s+)?file|mkdir|open\s+(?:vs\s*code|vscode|code|browser|terminal|app|application)|launch\s+(?:vs\s*code|vscode|code|app|application))\b", re.IGNORECASE),
+    re.compile(r"\b(?:run pytest|run tests?|execute command|run bash|git commit|git push|mkdir|open\s+(?:vs\s*code|vscode|code|browser|chrome|terminal|youtube|yt|github|spotify|discord|slack|netflix|twitter|x|reddit|chatgpt|app|application)|launch\s+(?:vs\s*code|vscode|code|app|application|chrome|browser|youtube|yt|github|spotify|discord|slack|terminal))\b", re.IGNORECASE),
     re.compile(r"\b(?:apply migration|run build|npm run|cargo test|flutter run|execute script)\b", re.IGNORECASE),
-    re.compile(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu\s+info|os\s+version|hardware\s+info)\b", re.IGNORECASE),
-    re.compile(r"\b(?:read\s+clipboard|check\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard|paste\s+clipboard|copy\s+to\s+clipboard|write\s+(?:to\s+)?clipboard)\b", re.IGNORECASE),
-    re.compile(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes|show\s+processes)\b", re.IGNORECASE),
-    re.compile(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+files\s+in|show\s+files\s+in)\b", re.IGNORECASE),
+    re.compile(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu|ram|memory\s+usage|hardware\s+info|disk\s+space|hostname|specs?|specifications?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:read\s+clipboard|check\s+clipboard|show\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard|paste\s+clipboard|copy\s+to\s+clipboard|write\s+(?:to\s+)?clipboard)\b", re.IGNORECASE),
+    re.compile(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes|show\s+processes|task\s+manager)\b", re.IGNORECASE),
+    re.compile(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+(?:my\s+)?files|show\s+(?:my\s+)?files|files\s+in\s+workspace|list\s+directory|directory\s+contents|create\s+(?:a\s+|an\s+|new\s+)?file|write\s+(?:a\s+|to\s+)?file|edit\s+(?:a\s+)?file|delete\s+(?:a\s+)?file|modify\s+(?:a\s+)?file)\b", re.IGNORECASE),
+    # Projects & Workspace Folders / Directories (handles unfinished projects and typos like dictoraries/dictaries)
+    re.compile(r"\b(?:check|list|show|find|scan|what\s+are|tell\s+me\s+about|access)\s+(?:about\s+)?(?:all\s+)?(?:my\s+)?(?:unfinished\s+|finished\s+)?(?:projects?|project\s+folders?|folders?|directories|dictoraries|dictaries|dir)\b", re.IGNORECASE),
+    re.compile(r"\b(?:projects?\s+(?:i\s+)?(?:have\s+not|havenot|haven't|not|did\s+not|didn't)\s+finish(?:ed)?|unfinished\s+projects?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:folder\s+for\s+(?:unfinished\s+)?projects?|folder\s+to\s+store\s+projects?|projects?\s+folder)\b", re.IGNORECASE),
+    re.compile(r"\b(?:check|show|list|access|scan)\s+(?:my\s+)?(?:directories|dictoraries|dictaries|folders?)\b", re.IGNORECASE),
+    re.compile(r"^(?:unfinished|projects|my\s+projects|check\s+projects)$", re.IGNORECASE),
+    re.compile(r"\b(?:screenshot|screen\s*capture|capture\s+(?:the\s+)?screen|take\s+(?:a\s+)?screenshot)\b", re.IGNORECASE),
+    re.compile(r"\b(?:open\s+browser|navigate\s+to|download\s+file|web\s+browser)\b", re.IGNORECASE),
+    # Google Workspace patterns
+    re.compile(r"\b(?:(?:show|check|find|search|list|get|read|open|draft|compose|send)\s+(?:my\s+|the\s+)?(?:unread\s+|new\s+)?emails?|(?:unread\s+|new\s+)?emails?|gmail|inbox)\b", re.IGNORECASE),
+    re.compile(r"\b(?:(?:check|show|list|get|view|what(?:'s|\s+is)\s+on)\s+(?:my\s+)?calendar|calendar|events?|meetings?|appointments?|schedule\s+(?:a\s+)?meeting|create\s+(?:a\s+)?meeting|create\s+(?:an?\s+)?event|move\s+my\s+.*meeting)\b", re.IGNORECASE),
+    re.compile(r"\b(?:in\s+drive|google\s+drive|files?\s+in\s+drive|upload\s+to\s+drive|search\s+drive|save\s+to\s+drive|create\s+a\s+folder\s+(?:called|named))\b", re.IGNORECASE),
+    re.compile(r"\b(?:(?:add|create|new|list|show|get|complete|mark)\s+.*tasks?|tasks?|to-?do|google\s+tasks|incomplete\s+tasks|my\s+tasks)\b", re.IGNORECASE),
+    re.compile(r"\b(?:google\s+doc(?:s|ument)?|documents?|create\s+(?:a\s+)?document|write\s+(?:a\s+)?document|edit\s+(?:a\s+)?document|read\s+.*document)\b", re.IGNORECASE),
+    re.compile(r"\b(?:spreadsheet|google\s+sheets?|sheets?|read\s+rows?\s+[a-z0-9:]+|add\s+.*to\s+(?:the\s+)?spreadsheet|create\s+(?:a\s+)?sheet|append\s+.*to\s+sheet)\b", re.IGNORECASE),
 ]
 
 # Patterns indicating multi-step sequential tasks

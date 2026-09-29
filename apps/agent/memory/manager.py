@@ -63,6 +63,7 @@ class MemoryManager:
         source: MemorySource | str = MemorySource.USER_EXPLICIT,
         expiration_at: datetime | None = None,
         metadata: dict[str, Any] | None = None,
+        session_id: uuid.UUID | str | None = None,
     ) -> MemoryRecord:
         """
         Validate, embed, resolve conflicts, and persist a new long-term memory.
@@ -116,7 +117,7 @@ class MemoryManager:
             last_accessed_at=now,
             expiration_at=expiration_at,
             status=MemoryStatus.ACTIVE,
-            metadata=metadata or {},
+            metadata={**(metadata or {}), **({"session_id": str(session_id)} if session_id else {})},
         )
 
         # 5. Conflict Resolution & Superseding

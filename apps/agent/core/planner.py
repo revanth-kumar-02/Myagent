@@ -45,12 +45,23 @@ class Planner:
 
     async def plan(
         self,
-        request: "ChatRequest",
-        context: "ContextWindow | None" = None,
+        request: "ChatRequest | str | None" = None,
+        context: "ContextWindow | str | None" = None,
+        goal: str | None = None,
+        available_tools: list[str] | None = None,
     ) -> Plan:
         """
         Produce an ordered Plan with explicit goals, dependencies, and verification criteria.
         """
+        if request is None and goal is not None:
+            request = goal
+        if isinstance(request, str):
+            from core.types import ChatRequest
+            request = ChatRequest(message=request)
+        elif request is None:
+            from core.types import ChatRequest
+            request = ChatRequest(message="")
+
         # 0. Check Adaptive Learnings for prior workflow advice or constraints
         relevant_learnings: list[Any] = []
         if self._learning_manager is not None:
@@ -306,6 +317,9 @@ class Planner:
             elif tool_name in ("shell_command", "shell", "bash"):
                 tool_name = "shell_command"
                 params = {"command": args_str or "echo 'Kora Shell'"}
+            elif tool_name in ("projects", "projects_scan", "scan_projects", "list_projects"):
+                tool_name = "projects_scan"
+                params = {"category": args_str if args_str in ("unfinished", "finished") else "all"}
             elif tool_name in ("read_file", "write_file", "list_files", "delete_file"):
                 params = {"path": args_str, "content": args_str}
             else:
@@ -324,7 +338,9 @@ class Planner:
 
         # Natural language mapping
         msg_lower = msg_clean.lower()
-        if re.search(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu\s+info|os\s+version|hardware\s+info)\b", msg_lower):
+
+        # 1. System Info & Diagnostics
+        if re.search(r"\b(?:system\s+(?:info|information)|show\s+(?:my\s+)?system|check\s+(?:my\s+)?system|what\s+is\s+my\s+os|what\s+os|system\s+hardware|cpu|ram|memory\s+usage|hardware\s+info|disk\s+space|hostname|specs?|specifications?)\b", msg_lower):
             return PlanStep(
                 index=index,
                 label="Execute tool: system_info",
@@ -336,18 +352,38 @@ class Planner:
                 params={},
             )
 
-        if re.search(r"\b(?:read\s+clipboard|check\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard)\b", msg_lower):
+        # 2. Screen Capture / Screenshot
+        if re.search(r"\b(?:screenshot|screen\s*capture|capture\s+(?:the\s+)?screen|take\s+(?:a\s+)?screenshot)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: screen_capture",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="screen_capture",
+                goal="Capture desktop screenshot",
+                expected_result="Screenshot image file path",
+                verification_method="tool_output_check",
+                params={},
+            )
+
+        # 3. Clipboard
+        if re.search(r"\b(?:read\s+clipboard|check\s+clipboard|show\s+clipboard|what(?:'s|\s+is)\s+(?:in\s+)?(?:my\s+)?clipboard|clipboard)\b", msg_lower):
+            if re.search(r"\b(?:copy|write|set|save\s+to)\b", msg_lower):
+                clip_text = re.sub(r"^.*?(?:copy|write|set|save\s+to\s+clipboard)\s+", "", msg_clean, flags=re.IGNORECASE)
+                params = {"action": "write", "text": clip_text}
+            else:
+                params = {"action": "read"}
             return PlanStep(
                 index=index,
                 label="Execute tool: clipboard",
                 action_type=ActionType.TOOL_CALL,
                 required_tool="clipboard",
-                goal="Read current clipboard content",
-                expected_result="Clipboard text",
+                goal="Access system clipboard",
+                expected_result="Clipboard content",
                 verification_method="tool_output_check",
-                params={"action": "read"},
+                params=params,
             )
 
+        # 4. App Launcher
         if re.search(r"\b(?:open\s+(?:vs\s*code|vscode|code)|launch\s+(?:vs\s*code|vscode|code))\b", msg_lower):
             return PlanStep(
                 index=index,
@@ -372,7 +408,27 @@ class Planner:
                 params={"app_name": "bash", "args": []},
             )
 
-        if re.search(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes)\b", msg_lower):
+        # General App or Web Service launcher (e.g. open youtube, launch chrome, open spotify, open github)
+        open_app_match = re.search(r"\b(?:open|launch)\s+(?:the\s+)?([a-z0-9_\-\.]+)(?:\s+(?:app|application|in\s+browser))?\b", msg_lower)
+        if open_app_match:
+            target_app = open_app_match.group(1).strip()
+            if target_app not in (
+                "a", "an", "the", "my", "this", "file", "files", "directory", "directories",
+                "dictoraries", "dictaries", "folder", "folders", "project", "projects",
+                "browser", "terminal", "code", "system", "clipboard", "processes",
+            ):
+                return PlanStep(
+                    index=index,
+                    label=f"Execute tool: app_launcher ({target_app})",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="app_launcher",
+                    goal=f"Launch application or web service '{target_app}'",
+                    expected_result="Application or web browser launch confirmation",
+                    verification_method="tool_output_check",
+                    params={"app_name": target_app, "args": []},
+                )
+
+        if re.search(r"\b(?:what\s+processes\s+are\s+running|list\s+processes|running\s+processes|check\s+processes|task\s+manager)\b", msg_lower):
             return PlanStep(
                 index=index,
                 label="Execute tool: system_info",
@@ -384,7 +440,35 @@ class Planner:
                 params={},
             )
 
-        if re.search(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+files\s+in|show\s+files\s+in)\b", msg_lower):
+        # 5. Projects & Workspace Inspection (including unfinished projects, dictoraries/directories)
+        if re.search(r"\b(?:projects?\s+(?:i\s+)?(?:have\s+not|havenot|haven't|not|did\s+not|didn't)\s+finish(?:ed)?|unfinished\s+projects?|folder\s+for\s+(?:unfinished\s+)?projects?|^unfinished$)\b", msg_lower):
+            return PlanStep(
+                index=index,
+                label="Execute tool: projects_scan",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="projects_scan",
+                goal="Scan and inspect unfinished project directories and git repositories",
+                expected_result="List of unfinished project directories and details",
+                verification_method="tool_output_check",
+                params={"category": "unfinished"},
+            )
+
+        if (re.search(r"\b(?:projects?|project\s+folders?|dictoraries|dictaries|directories|my\s+folders?)\b", msg_lower)
+                and re.search(r"\b(?:check|list|show|find|scan|what\s+are|tell\s+me|access)\b", msg_lower)):
+            category = "unfinished" if "unfinished" in msg_lower else ("finished" if "finished" in msg_lower else "all")
+            return PlanStep(
+                index=index,
+                label="Execute tool: projects_scan",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="projects_scan",
+                goal="Scan and inspect project directories in workspace",
+                expected_result="Project directory scan results",
+                verification_method="tool_output_check",
+                params={"category": category},
+            )
+
+        # 6. Local Files & Directory Ops
+        if re.search(r"\b(?:find\s+(?:this\s+)?file|search\s+for\s+file|list\s+(?:my\s+)?files|show\s+(?:my\s+)?files|files\s+in\s+workspace|list\s+directory|directory\s+contents)\b", msg_lower):
             return PlanStep(
                 index=index,
                 label="Execute tool: directory_ops",
@@ -396,7 +480,203 @@ class Planner:
                 params={"path": ".", "operation": "list"},
             )
 
-        if "pytest" in message.lower() or "test" in message.lower():
+        # 6. Google Gmail (Search, Read, Draft, Send)
+        if re.search(r"\b(?:emails?|gmail|inbox)\b", msg_lower):
+            if re.search(r"\b(?:draft|compose)\b", msg_lower):
+                body_text = re.sub(r"^.*?(?:draft|compose)\s+(?:an?\s+)?email\s*(?:about|saying|that)?\s*", "", msg_clean, flags=re.IGNORECASE) or msg_clean
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_gmail_draft",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_gmail_draft",
+                    goal="Draft email in Gmail",
+                    expected_result="Draft creation confirmation",
+                    verification_method="tool_output_check",
+                    params={"to": "", "subject": "Draft", "body": body_text},
+                )
+            if re.search(r"\b(?:send\s+(?:an?\s+)?email)\b", msg_lower):
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_gmail_send",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_gmail_send",
+                    goal="Send email via Gmail",
+                    expected_result="Sent confirmation",
+                    verification_method="tool_output_check",
+                    params={"to": "", "subject": "", "body": msg_clean},
+                )
+            # Search / List emails
+            q = ""
+            if "unread" in msg_lower:
+                q = "is:unread"
+            elif re.search(r"\b(?:from|about|containing|for)\s+", msg_lower):
+                q = re.sub(r"^.*?(?:from|about|containing|for)\s+", "", msg_clean, flags=re.IGNORECASE).strip()
+
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_gmail_search",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_gmail_search",
+                goal="Search and list emails in Gmail",
+                expected_result="List of matching emails",
+                verification_method="tool_output_check",
+                params={"query": q, "max_results": 10},
+            )
+
+        # 7. Google Calendar (List, Create, Update, Delete)
+        if re.search(r"\b(?:calendar|events?|meetings?|appointments?|schedule)\b", msg_lower):
+            if re.search(r"\b(?:create|schedule|set\s+up|add)\b", msg_lower):
+                meeting_summary = re.sub(r"^.*?(?:create|schedule|set\s+up|add)\s+(?:a\s+|an\s+)?(?:meeting|event|appointment)\s*(?:called|named|for|about)?\s*", "", msg_clean, flags=re.IGNORECASE).strip() or "New Meeting"
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_calendar_create_event",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_calendar_create_event",
+                    goal="Create Google Calendar event",
+                    expected_result="Calendar event creation confirmation",
+                    verification_method="tool_output_check",
+                    params={"summary": meeting_summary, "start_time": ""},
+                )
+            if re.search(r"\b(?:delete|cancel|remove)\b", msg_lower):
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_calendar_delete_event",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_calendar_delete_event",
+                    goal="Delete Google Calendar event",
+                    expected_result="Calendar event deletion confirmation",
+                    verification_method="tool_output_check",
+                    params={"calendar_id": "primary", "event_id": ""},
+                )
+            # Default to listing calendar events
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_calendar_list_events",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_calendar_list_events",
+                goal="Query upcoming schedule from Google Calendar",
+                expected_result="List of calendar events",
+                verification_method="tool_output_check",
+                params={"calendar_id": "primary", "max_results": 15},
+            )
+
+        # 8. Google Tasks (Create, List, Complete)
+        if re.search(r"\b(?:tasks?|to-?do)\b", msg_lower):
+            if re.search(r"\b(?:create|add|new)\b", msg_lower):
+                task_title = re.sub(r"^.*?(?:create|add|new)\s+(?:a\s+|an\s+)?(?:task|to-?do)\s*(?:called|named|to)?\s*", "", msg_clean, flags=re.IGNORECASE)
+                task_title = re.sub(r"\s+to\s+(?:my\s+)?tasks.*$", "", task_title, flags=re.IGNORECASE).strip().strip("\"'") or "New Task"
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_tasks_create",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_tasks_create",
+                    goal=f"Create Google task: {task_title}",
+                    expected_result="Task creation confirmation",
+                    verification_method="tool_output_check",
+                    params={"title": task_title},
+                )
+            if re.search(r"\b(?:complete|mark|finish|done)\b", msg_lower):
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_tasks_complete",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_tasks_complete",
+                    goal="Complete Google task",
+                    expected_result="Task completion confirmation",
+                    verification_method="tool_output_check",
+                    params={"task_id": ""},
+                )
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_tasks_list",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_tasks_list",
+                goal="List Google tasks",
+                expected_result="Active tasks listing",
+                verification_method="tool_output_check",
+                params={"show_completed": False},
+            )
+
+        # 9. Google Drive (Search, Read, Create Folder)
+        if re.search(r"\b(?:drive|google\s+drive)\b", msg_lower):
+            if re.search(r"\b(?:create\s+a?\s*folder|new\s+folder)\b", msg_lower):
+                folder_name = re.sub(r"^.*?(?:create|new)\s+(?:a\s+)?folder\s*(?:called|named)?\s*", "", msg_clean, flags=re.IGNORECASE).strip().strip("\"'") or "New Folder"
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_drive_create_folder",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_drive_create_folder",
+                    goal=f"Create Drive folder: {folder_name}",
+                    expected_result="Folder creation confirmation",
+                    verification_method="tool_output_check",
+                    params={"name": folder_name},
+                )
+            q_name = re.sub(r"^.*?(?:find|search(?:\s+drive)?\s+for|files?\s+in|for)\s+", "", msg_clean, flags=re.IGNORECASE)
+            q_name = re.sub(r"\s+(?:in\s+drive|google\s+drive|drive).*$", "", q_name, flags=re.IGNORECASE).strip()
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_drive_search",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_drive_search",
+                goal="Search files in Google Drive",
+                expected_result="Matching drive files",
+                verification_method="tool_output_check",
+                params={"name_contains": q_name},
+            )
+
+        # 10. Google Docs
+        if re.search(r"\b(?:google\s+doc(?:s|ument)?|documents?)\b", msg_lower):
+            if re.search(r"\b(?:create|new|write)\b", msg_lower):
+                doc_name = re.sub(r"^.*?(?:create|new|write)\s+(?:a\s+)?(?:google\s+)?doc(?:s|ument)?\s*(?:called|named)?\s*", "", msg_clean, flags=re.IGNORECASE).strip().strip("\"'") or "New Document"
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_docs_create",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_docs_create",
+                    goal=f"Create Google Doc: {doc_name}",
+                    expected_result="Document creation confirmation",
+                    verification_method="tool_output_check",
+                    params={"title": doc_name},
+                )
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_docs_read",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_docs_read",
+                goal="Read Google Doc text",
+                expected_result="Document text",
+                verification_method="tool_output_check",
+                params={"document_id": ""},
+            )
+
+        # 11. Google Sheets
+        if re.search(r"\b(?:spreadsheet|google\s+sheets?|sheets?|read\s+rows?|cells?)\b", msg_lower):
+            if re.search(r"\b(?:append|add\s+row)\b", msg_lower):
+                return PlanStep(
+                    index=index,
+                    label="Execute tool: google_sheets_append",
+                    action_type=ActionType.TOOL_CALL,
+                    required_tool="google_sheets_append",
+                    goal="Append row to Google Sheet",
+                    expected_result="Row append confirmation",
+                    verification_method="tool_output_check",
+                    params={"spreadsheet_id": "", "values": []},
+                )
+            range_match = re.search(r"\b[A-Za-z0-9]+![A-Za-z0-9:]+|\b[A-Za-z]+[0-9]+:[A-Za-z]+[0-9]+", msg_clean)
+            range_val = range_match.group(0) if range_match else "A1:Z50"
+            return PlanStep(
+                index=index,
+                label="Execute tool: google_sheets_read",
+                action_type=ActionType.TOOL_CALL,
+                required_tool="google_sheets_read",
+                goal=f"Read spreadsheet range {range_val}",
+                expected_result="Cell range data",
+                verification_method="tool_output_check",
+                params={"spreadsheet_id": "", "range_notation": range_val},
+            )
+
+        # 12. Automated Testing / Dev
+        if "pytest" in msg_lower or "run test" in msg_lower:
             return PlanStep(
                 index=index,
                 label="Execute automated tests",
@@ -408,6 +688,7 @@ class Planner:
                 params={"command": "pytest"},
             )
 
+        # Default fallback
         return PlanStep(
             index=index,
             label="Execute tool action",
