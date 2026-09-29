@@ -4,6 +4,7 @@ import '../core/theme/app_theme.dart';
 enum NavigationTab {
   home,
   chat,
+  vision,
   projects,
   tasks,
   research,
@@ -142,6 +143,7 @@ class Sidebar extends StatelessWidget {
           // Nav Items
           _buildNavItem(context, NavigationTab.home, Icons.dashboard_rounded, 'Home'),
           _buildNavItem(context, NavigationTab.chat, Icons.chat_bubble_rounded, 'Chat'),
+          _buildNavItem(context, NavigationTab.vision, Icons.visibility_rounded, 'Vision'),
           _buildNavItem(context, NavigationTab.projects, Icons.folder_rounded, 'Projects'),
           _buildNavItem(context, NavigationTab.tasks, Icons.task_alt_rounded, 'Tasks'),
           _buildNavItem(context, NavigationTab.research, Icons.travel_explore_rounded, 'Research'),

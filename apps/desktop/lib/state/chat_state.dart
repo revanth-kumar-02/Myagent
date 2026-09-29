@@ -29,20 +29,26 @@ class ChatState {
     this.activePlanSteps = const [],
   });
 
+  static const Object _sentinel = Object();
+
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isStreaming,
     String? sessionId,
-    String? selectedProjectId,
-    String? activeTool,
+    Object? selectedProjectId = _sentinel,
+    Object? activeTool = _sentinel,
     List<PlanStep>? activePlanSteps,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
       isStreaming: isStreaming ?? this.isStreaming,
       sessionId: sessionId ?? this.sessionId,
-      selectedProjectId: selectedProjectId ?? this.selectedProjectId,
-      activeTool: activeTool ?? this.activeTool,
+      selectedProjectId: identical(selectedProjectId, _sentinel)
+          ? this.selectedProjectId
+          : (selectedProjectId as String?),
+      activeTool: identical(activeTool, _sentinel)
+          ? this.activeTool
+          : (activeTool as String?),
       activePlanSteps: activePlanSteps ?? this.activePlanSteps,
     );
   }
@@ -140,6 +146,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
         state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
       }
     }
+  }
+
+  /// Inject visual context into chat from the Vision workspace.
+  ///
+  /// Adds a system-style user message containing the visual context string
+  /// and sends it through the normal WS CHAT_REQUEST pipeline so the agent
+  /// has full awareness of the screen/image content.
+  Future<void> sendVisionContext(String contextString) async {
+    if (contextString.isEmpty) return;
+    const prefix = '**[Visual Context from Vision Workspace]**\n\n';
+    await sendMessage('$prefix$contextString');
   }
 
   Future<void> sendMessage(String text) async {
@@ -392,10 +409,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
               messages: list,
               isStreaming: false,
               activeTool: null,
+              activePlanSteps: [],
             );
           }
         } else {
-          state = state.copyWith(isStreaming: false, activeTool: null);
+          state = state.copyWith(isStreaming: false, activeTool: null, activePlanSteps: []);
         }
         break;
 
@@ -408,10 +426,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
               status: MessageStatus.cancelled,
               activeTool: null,
             );
-            state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
+            state = state.copyWith(messages: list, isStreaming: false, activeTool: null, activePlanSteps: []);
           }
         } else {
-          state = state.copyWith(isStreaming: false, activeTool: null);
+          state = state.copyWith(isStreaming: false, activeTool: null, activePlanSteps: []);
         }
         break;
 
@@ -427,10 +445,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
               content: last.content.isEmpty ? 'Error: $errMsg' : last.content,
               activeTool: null,
             );
-            state = state.copyWith(messages: list, isStreaming: false, activeTool: null);
+            state = state.copyWith(messages: list, isStreaming: false, activeTool: null, activePlanSteps: []);
           }
         } else {
-          state = state.copyWith(isStreaming: false, activeTool: null);
+          state = state.copyWith(isStreaming: false, activeTool: null, activePlanSteps: []);
         }
         break;
 

@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.http import router as http_router
+from api.vision import router as vision_router
 from api.ws import router as ws_router
 from config import settings
 from db.client import shutdown as db_shutdown, startup as db_startup
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(http_router)
+    app.include_router(vision_router)
     app.include_router(ws_router)
 
     return app

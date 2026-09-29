@@ -10,6 +10,7 @@ import '../features/projects/projects_screen.dart';
 import '../features/research/research_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/tasks/tasks_screen.dart';
+import '../features/vision/vision_screen.dart';
 import '../state/connection_state.dart';
 import '../state/models_state.dart';
 import 'header_system_indicator.dart';
@@ -36,6 +37,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     final currentView = switch (_currentTab) {
       NavigationTab.home     => HomeScreen(onNavigate: (t) => setState(() => _currentTab = t)),
       NavigationTab.chat     => const ChatScreen(),
+      NavigationTab.vision   => VisionScreen(
+          onNavigateToChat: () => setState(() => _currentTab = NavigationTab.chat),
+        ),
       NavigationTab.projects => const ProjectsScreen(),
       NavigationTab.tasks    => const TasksScreen(),
       NavigationTab.research => const ResearchScreen(),
@@ -159,6 +163,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return switch (tab) {
       NavigationTab.home     => 'Dashboard',
       NavigationTab.chat     => 'Chat Workspace',
+      NavigationTab.vision   => 'Vision Workspace',
       NavigationTab.projects => 'Kora Projects',
       NavigationTab.tasks    => 'Automation Center',
       NavigationTab.research => 'DuckDuckGo Research',
